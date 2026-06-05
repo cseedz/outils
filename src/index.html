@@ -42,12 +42,12 @@
     /* Sync dot */
     .sync-dot {
       width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
-      transition: background 300ms;
+      transition: background 300ms, opacity 600ms;
     }
-    .sync-dot.idle    { background: var(--line); }
-    .sync-dot.syncing { background: #f0a500; animation: pulse .9s infinite; }
-    .sync-dot.synced  { background: #5a9a6a; }
-    .sync-dot.error   { background: #cc3333; }
+    .sync-dot.idle    { background: var(--line); opacity: 0; }
+    .sync-dot.syncing { background: #f0a500; opacity: 1; animation: pulse .9s infinite; }
+    .sync-dot.synced  { background: #5a9a6a; opacity: 1; }
+    .sync-dot.error   { background: #cc3333; opacity: 1; }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.25} }
 
     .section { margin-bottom: 52px; }

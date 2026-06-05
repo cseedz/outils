@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 # Chiffre src/index.html → index.html avec StaticCrypt
+# Usage : STATICRYPT_PASSWORD='...' bash encrypt.sh
 set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR/src"
+
+export STATICRYPT_PASSWORD
 
 npx staticrypt index.html \
   --config ../.staticrypt.json \
