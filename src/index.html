@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Outils — Charles Grenier</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -29,7 +30,7 @@
     header {
       display: flex;
       justify-content: space-between;
-      align-items: baseline;
+      align-items: center;
       padding-bottom: 28px;
       border-bottom: 1px solid var(--line);
       margin-bottom: 52px;
@@ -38,12 +39,21 @@
     .site-title { font-size: 11px; font-weight: 400; letter-spacing: 0.1em; text-transform: uppercase; }
     .site-author { font-size: 11px; color: var(--muted); letter-spacing: 0.04em; }
 
+    /* Sync dot */
+    .sync-dot {
+      width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+      transition: background 300ms;
+    }
+    .sync-dot.idle    { background: var(--line); }
+    .sync-dot.syncing { background: #f0a500; animation: pulse .9s infinite; }
+    .sync-dot.synced  { background: #5a9a6a; }
+    .sync-dot.error   { background: #cc3333; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.25} }
+
     .section { margin-bottom: 52px; }
     .section-label { font-size: 10px; font-weight: 400; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
 
     .project-list { margin-top: 16px; min-height: 4px; }
-
-    /* Drop zone highlight */
     .project-list.drag-over { outline: 1px dashed var(--line); outline-offset: -2px; border-radius: 2px; }
 
     .project {
@@ -53,7 +63,6 @@
       gap: 12px;
       padding: 14px 0;
       border-bottom: 1px solid var(--line);
-      cursor: default;
       transition: opacity 150ms;
     }
     .project:first-child { border-top: 1px solid var(--line); }
@@ -61,26 +70,14 @@
     .project.drag-above { box-shadow: 0 -2px 0 var(--text); }
     .project.drag-below { box-shadow: 0 2px 0 var(--text); }
 
-    /* Drag handle */
     .drag-handle {
-      display: flex;
-      flex-direction: column;
-      gap: 2.5px;
-      align-items: center;
-      justify-content: center;
-      cursor: grab;
-      opacity: 0;
-      transition: opacity 150ms;
-      padding: 4px 2px;
-      flex-shrink: 0;
+      display: flex; flex-direction: column; gap: 2.5px;
+      align-items: center; justify-content: center;
+      cursor: grab; opacity: 0; transition: opacity 150ms;
+      padding: 4px 2px; flex-shrink: 0;
     }
     .drag-handle:active { cursor: grabbing; }
-    .drag-handle span {
-      display: block;
-      width: 10px;
-      height: 1px;
-      background: var(--muted);
-    }
+    .drag-handle span { display: block; width: 10px; height: 1px; background: var(--muted); }
     .project:hover .drag-handle { opacity: 1; }
 
     .project-info { min-width: 0; }
@@ -90,14 +87,9 @@
     .project-tools { display: flex; gap: 16px; align-items: center; flex-shrink: 0; }
 
     .tool-link {
-      font-size: 11px;
-      color: var(--text);
-      text-decoration: none;
-      letter-spacing: 0.04em;
-      border-bottom: 1px solid var(--line);
-      padding-bottom: 1px;
-      white-space: nowrap;
-      transition: border-color 180ms ease;
+      font-size: 11px; color: var(--text); text-decoration: none;
+      letter-spacing: 0.04em; border-bottom: 1px solid var(--line);
+      padding-bottom: 1px; white-space: nowrap; transition: border-color 180ms ease;
     }
     .tool-link:hover { border-color: var(--text); }
     .no-tool { font-size: 11px; color: var(--line); }
@@ -111,7 +103,10 @@
 
     <header>
       <span class="site-title">Outils</span>
-      <span class="site-author">Charles Grenier</span>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div class="sync-dot idle" id="sync-dot" title=""></div>
+        <span class="site-author">Charles Grenier</span>
+      </div>
     </header>
 
     <section class="section">
@@ -131,38 +126,85 @@
   </div>
 
   <script>
-    const STORAGE_KEY = 'outils_projects_v1';
+    const STORAGE_KEY  = 'outils_landing_v1';
+    const SUPABASE_URL = 'https://dvivafrldxzhkactsvve.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2aXZhZnJsZHh6aGthY3RzdnZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyMzQ5MDgsImV4cCI6MjA5NDgxMDkwOH0.EgyxWDERi443hefaM0LxDYDhLWQYx31feKzQ1bQU5Kc';
 
     const DEFAULT_PROJECTS = [
-      { id: 'derniere-saison',  name: 'La dernière saison',       format: 'Série télévision', section: 'en-cours', tools: [] },
-      { id: 'premier-trio',     name: 'Premier trio — Saison 4',  format: 'Série télévision', section: 'en-cours', tools: [] },
-      { id: 'les-chacals',      name: 'Les Chacals',              format: 'Long-métrage',     section: 'en-dev',   tools: [{ label: 'Tableau des lieux', href: '/les-chacals/tableau-des-lieux/' }] },
-      { id: 'aimer-pour-deux',  name: 'Aimer pour deux',          format: 'Long-métrage',     section: 'en-dev',   tools: [] },
-      { id: 'au-dela-terril',   name: 'Au-delà du terril',        format: 'Long-métrage',     section: 'en-dev',   tools: [] },
-      { id: 'contritions',      name: 'Contritions / Clippeurs',  format: 'Long-métrage',     section: 'en-dev',   tools: [] },
-      { id: 'helga-testorf',    name: 'Helga Testorf',            format: 'Long-métrage',     section: 'en-dev',   tools: [] },
-      { id: 'maison-lynch',     name: 'La maison du rang Lynch',  format: 'Long-métrage',     section: 'en-dev',   tools: [] },
-      { id: 'les-enfants',      name: 'Les enfants',              format: 'Série télévision', section: 'en-dev',   tools: [] },
+      { id: 'derniere-saison', name: 'La dernière saison',      format: 'Série télévision', section: 'en-cours', tools: [] },
+      { id: 'premier-trio',    name: 'Premier trio — Saison 4', format: 'Série télévision', section: 'en-cours', tools: [] },
+      { id: 'les-chacals',     name: 'Les Chacals',             format: 'Long-métrage',     section: 'en-dev',   tools: [{ label: 'Tableau des lieux', href: '/les-chacals/tableau-des-lieux/' }] },
+      { id: 'aimer-pour-deux', name: 'Aimer pour deux',         format: 'Long-métrage',     section: 'en-dev',   tools: [] },
+      { id: 'au-dela-terril',  name: 'Au-delà du terril',       format: 'Long-métrage',     section: 'en-dev',   tools: [] },
+      { id: 'contritions',     name: 'Contritions / Clippeurs', format: 'Long-métrage',     section: 'en-dev',   tools: [] },
+      { id: 'helga-testorf',   name: 'Helga Testorf',           format: 'Long-métrage',     section: 'en-dev',   tools: [] },
+      { id: 'maison-lynch',    name: 'La maison du rang Lynch', format: 'Long-métrage',     section: 'en-dev',   tools: [] },
+      { id: 'les-enfants',     name: 'Les enfants',             format: 'Série télévision', section: 'en-dev',   tools: [] },
     ];
 
-    function load() {
+    // ── Supabase ──────────────────────────────────────────────────────────────
+    let sb = null;
+    try { sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e) {}
+
+    function setSyncStatus(s, msg) {
+      const dot = document.getElementById('sync-dot');
+      dot.className = 'sync-dot ' + s;
+      dot.title = { idle: '', syncing: 'Synchronisation…', synced: 'Synchronisé', error: 'Erreur de sync' }[s] || msg || '';
+    }
+
+    async function loadFromSupabase() {
+      if (!sb) return null;
       try {
-        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-        if (!saved || !Array.isArray(saved)) return DEFAULT_PROJECTS;
-        // Merge: keep saved order/sections, but preserve tools from defaults
-        const byId = {};
-        DEFAULT_PROJECTS.forEach(p => byId[p.id] = p);
-        return saved.map(s => ({ ...byId[s.id], ...s, tools: (byId[s.id] || s).tools }))
-                    .filter(p => p.id);
-      } catch(e) { return DEFAULT_PROJECTS; }
+        const { data, error } = await sb.from('project_data').select('data').eq('key', STORAGE_KEY).single();
+        if (error || !data) return null;
+        return data.data;
+      } catch(e) { return null; }
     }
 
-    function save(projects) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(
-        projects.map(({ id, section }) => ({ id, section }))
-      ));
+    async function saveToSupabase(state) {
+      if (!sb) return;
+      setSyncStatus('syncing');
+      try {
+        const { error } = await sb.from('project_data').upsert({ key: STORAGE_KEY, data: state, updated_at: new Date().toISOString() });
+        if (error) throw error;
+        setSyncStatus('synced');
+        setTimeout(() => setSyncStatus('idle'), 2000);
+      } catch(e) {
+        setSyncStatus('error');
+        console.warn('Supabase sync error:', e);
+      }
     }
 
+    // ── State ─────────────────────────────────────────────────────────────────
+    const defaultById = {};
+    DEFAULT_PROJECTS.forEach(p => defaultById[p.id] = p);
+
+    function mergeState(saved) {
+      if (!saved || !Array.isArray(saved)) return DEFAULT_PROJECTS;
+      return saved
+        .map(s => defaultById[s.id] ? { ...defaultById[s.id], section: s.section } : null)
+        .filter(Boolean);
+    }
+
+    function getState() {
+      const rows = [];
+      ['en-cours', 'en-dev'].forEach(section => {
+        document.getElementById('list-' + section).querySelectorAll('.project').forEach(row => {
+          rows.push({ id: row.dataset.id, section });
+        });
+      });
+      return rows;
+    }
+
+    function saveLocal(state) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    function loadLocal() {
+      try { return JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch(e) { return null; }
+    }
+
+    // ── Render ────────────────────────────────────────────────────────────────
     function buildHandle() {
       const h = document.createElement('div');
       h.className = 'drag-handle';
@@ -176,7 +218,6 @@
       row.className = 'project';
       row.dataset.id = project.id;
       row.draggable = true;
-
       row.appendChild(buildHandle());
 
       const info = document.createElement('div');
@@ -198,7 +239,6 @@
         tools.innerHTML = '<span class="no-tool">—</span>';
       }
       row.appendChild(tools);
-
       return row;
     }
 
@@ -210,7 +250,7 @@
       });
     }
 
-    // ── Drag & Drop ──────────────────────────────────────────────────────────
+    // ── Drag & Drop ───────────────────────────────────────────────────────────
     let dragged = null;
 
     document.addEventListener('dragstart', e => {
@@ -223,27 +263,21 @@
 
     document.addEventListener('dragend', () => {
       if (dragged) dragged.classList.remove('dragging');
-      document.querySelectorAll('.drag-above, .drag-below, .drag-over').forEach(el => {
-        el.classList.remove('drag-above', 'drag-below', 'drag-over');
-      });
+      document.querySelectorAll('.drag-above, .drag-below, .drag-over').forEach(el =>
+        el.classList.remove('drag-above', 'drag-below', 'drag-over'));
       dragged = null;
     });
 
     document.addEventListener('dragover', e => {
       e.preventDefault();
       e.dataTransfer.dropEffect = 'move';
-
       const target = e.target.closest('.project');
       const list   = e.target.closest('.project-list');
-
-      document.querySelectorAll('.drag-above, .drag-below').forEach(el => {
-        el.classList.remove('drag-above', 'drag-below');
-      });
+      document.querySelectorAll('.drag-above, .drag-below').forEach(el =>
+        el.classList.remove('drag-above', 'drag-below'));
       document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
-
       if (target && target !== dragged) {
-        const rect = target.getBoundingClientRect();
-        const mid  = rect.top + rect.height / 2;
+        const mid = target.getBoundingClientRect().top + target.getBoundingClientRect().height / 2;
         target.classList.add(e.clientY < mid ? 'drag-above' : 'drag-below');
       } else if (list && !list.contains(dragged)) {
         list.classList.add('drag-over');
@@ -253,32 +287,36 @@
     document.addEventListener('drop', e => {
       e.preventDefault();
       if (!dragged) return;
-
       const target = e.target.closest('.project');
       const list   = e.target.closest('.project-list');
       if (!list) return;
 
       if (target && target !== dragged) {
-        const rect = target.getBoundingClientRect();
-        const before = e.clientY < rect.top + rect.height / 2;
-        list.insertBefore(dragged, before ? target : target.nextSibling);
+        const mid = target.getBoundingClientRect().top + target.getBoundingClientRect().height / 2;
+        list.insertBefore(dragged, e.clientY < mid ? target : target.nextSibling);
       } else if (!list.contains(dragged)) {
         list.appendChild(dragged);
       }
 
-      // Rebuild state from DOM and save
-      const projects = [];
-      ['en-cours', 'en-dev'].forEach(section => {
-        document.getElementById('list-' + section).querySelectorAll('.project').forEach(row => {
-          const p = load().find(x => x.id === row.dataset.id) || DEFAULT_PROJECTS.find(x => x.id === row.dataset.id);
-          if (p) projects.push({ ...p, section });
-        });
-      });
-      save(projects);
+      const state = getState();
+      saveLocal(state);
+      saveToSupabase(state);
     });
 
-    // ── Init ─────────────────────────────────────────────────────────────────
-    render(load());
+    // ── Init ──────────────────────────────────────────────────────────────────
+    async function init() {
+      // Afficher local immédiatement (pas de flash)
+      render(mergeState(loadLocal()));
+
+      // Charger depuis Supabase et rafraîchir si nécessaire
+      const remote = await loadFromSupabase();
+      if (remote) {
+        saveLocal(remote);
+        render(mergeState(remote));
+      }
+    }
+
+    init();
   </script>
 </body>
 </html>
