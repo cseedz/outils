@@ -5,25 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Outils — Charles Grenier</title>
   <style>
-    *, *::before, *::after {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
       --bg: #ffffff;
       --text: #111111;
       --muted: #999999;
       --line: #e7e7e7;
-      --hover: #111111;
     }
 
-    html {
-      font-size: 13px;
-      -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
-    }
+    html { font-size: 13px; -webkit-font-smoothing: antialiased; }
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
@@ -33,13 +24,8 @@
       min-height: 100vh;
     }
 
-    .layout {
-      max-width: 680px;
-      margin: 0 auto;
-      padding: 56px 32px 80px;
-    }
+    .layout { max-width: 680px; margin: 0 auto; padding: 56px 32px 80px; }
 
-    /* Header */
     header {
       display: flex;
       justify-content: space-between;
@@ -49,77 +35,59 @@
       margin-bottom: 52px;
     }
 
-    .site-title {
-      font-size: 11px;
-      font-weight: 400;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: var(--text);
-    }
+    .site-title { font-size: 11px; font-weight: 400; letter-spacing: 0.1em; text-transform: uppercase; }
+    .site-author { font-size: 11px; color: var(--muted); letter-spacing: 0.04em; }
 
-    .site-author {
-      font-size: 11px;
-      color: var(--muted);
-      letter-spacing: 0.04em;
-    }
+    .section { margin-bottom: 52px; }
+    .section-label { font-size: 10px; font-weight: 400; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
 
-    /* Section */
-    .section {
-      margin-bottom: 52px;
-    }
+    .project-list { margin-top: 16px; min-height: 4px; }
 
-    .section-label {
-      font-size: 10px;
-      font-weight: 400;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin-bottom: 0;
-    }
-
-    /* Project row */
-    .project-list {
-      margin-top: 16px;
-    }
+    /* Drop zone highlight */
+    .project-list.drag-over { outline: 1px dashed var(--line); outline-offset: -2px; border-radius: 2px; }
 
     .project {
       display: grid;
-      grid-template-columns: 1fr auto;
+      grid-template-columns: 16px 1fr auto;
       align-items: center;
-      gap: 24px;
+      gap: 12px;
       padding: 14px 0;
       border-bottom: 1px solid var(--line);
+      cursor: default;
+      transition: opacity 150ms;
     }
+    .project:first-child { border-top: 1px solid var(--line); }
+    .project.dragging { opacity: 0.35; }
+    .project.drag-above { box-shadow: 0 -2px 0 var(--text); }
+    .project.drag-below { box-shadow: 0 2px 0 var(--text); }
 
-    .project:first-child {
-      border-top: 1px solid var(--line);
-    }
-
-    .project-info {
-      min-width: 0;
-    }
-
-    .project-name {
-      font-size: 13px;
-      font-weight: 400;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .project-format {
-      font-size: 11px;
-      color: var(--muted);
-      margin-top: 1px;
-    }
-
-    /* Tools */
-    .project-tools {
+    /* Drag handle */
+    .drag-handle {
       display: flex;
-      gap: 16px;
+      flex-direction: column;
+      gap: 2.5px;
       align-items: center;
+      justify-content: center;
+      cursor: grab;
+      opacity: 0;
+      transition: opacity 150ms;
+      padding: 4px 2px;
       flex-shrink: 0;
     }
+    .drag-handle:active { cursor: grabbing; }
+    .drag-handle span {
+      display: block;
+      width: 10px;
+      height: 1px;
+      background: var(--muted);
+    }
+    .project:hover .drag-handle { opacity: 1; }
+
+    .project-info { min-width: 0; }
+    .project-name { font-size: 13px; font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .project-format { font-size: 11px; color: var(--muted); margin-top: 1px; }
+
+    .project-tools { display: flex; gap: 16px; align-items: center; flex-shrink: 0; }
 
     .tool-link {
       font-size: 11px;
@@ -131,29 +99,11 @@
       white-space: nowrap;
       transition: border-color 180ms ease;
     }
+    .tool-link:hover { border-color: var(--text); }
+    .no-tool { font-size: 11px; color: var(--line); }
 
-    .tool-link:hover {
-      border-color: var(--text);
-    }
-
-    .no-tool {
-      font-size: 11px;
-      color: var(--line);
-      letter-spacing: 0.04em;
-    }
-
-    /* Footer */
-    footer {
-      margin-top: 80px;
-      padding-top: 20px;
-      border-top: 1px solid var(--line);
-    }
-
-    .footer-text {
-      font-size: 10px;
-      color: var(--muted);
-      letter-spacing: 0.06em;
-    }
+    footer { margin-top: 80px; padding-top: 20px; border-top: 1px solid var(--line); }
+    .footer-text { font-size: 10px; color: var(--muted); letter-spacing: 0.06em; }
   </style>
 </head>
 <body>
@@ -166,106 +116,12 @@
 
     <section class="section">
       <p class="section-label">En cours</p>
-      <div class="project-list">
-
-        <div class="project">
-          <div class="project-info">
-            <div class="project-name">La dernière saison</div>
-            <div class="project-format">Série télévision</div>
-          </div>
-          <div class="project-tools">
-            <span class="no-tool">—</span>
-          </div>
-        </div>
-
-        <div class="project">
-          <div class="project-info">
-            <div class="project-name">Premier trio — Saison 4</div>
-            <div class="project-format">Série télévision</div>
-          </div>
-          <div class="project-tools">
-            <span class="no-tool">—</span>
-          </div>
-        </div>
-
-      </div>
+      <div class="project-list" id="list-en-cours" data-section="en-cours"></div>
     </section>
 
     <section class="section">
       <p class="section-label">En développement</p>
-      <div class="project-list">
-
-        <div class="project">
-          <div class="project-info">
-            <div class="project-name">Les Chacals</div>
-            <div class="project-format">Long-métrage</div>
-          </div>
-          <div class="project-tools">
-            <a class="tool-link" href="/les-chacals/tableau-des-lieux/">Tableau des lieux</a>
-          </div>
-        </div>
-
-        <div class="project">
-          <div class="project-info">
-            <div class="project-name">Aimer pour deux</div>
-            <div class="project-format">Long-métrage</div>
-          </div>
-          <div class="project-tools">
-            <span class="no-tool">—</span>
-          </div>
-        </div>
-
-        <div class="project">
-          <div class="project-info">
-            <div class="project-name">Au-delà du terril</div>
-            <div class="project-format">Long-métrage</div>
-          </div>
-          <div class="project-tools">
-            <span class="no-tool">—</span>
-          </div>
-        </div>
-
-        <div class="project">
-          <div class="project-info">
-            <div class="project-name">Contritions / Clippeurs</div>
-            <div class="project-format">Long-métrage</div>
-          </div>
-          <div class="project-tools">
-            <span class="no-tool">—</span>
-          </div>
-        </div>
-
-        <div class="project">
-          <div class="project-info">
-            <div class="project-name">Helga Testorf</div>
-            <div class="project-format">Long-métrage</div>
-          </div>
-          <div class="project-tools">
-            <span class="no-tool">—</span>
-          </div>
-        </div>
-
-        <div class="project">
-          <div class="project-info">
-            <div class="project-name">La maison du rang Lynch</div>
-            <div class="project-format">Long-métrage</div>
-          </div>
-          <div class="project-tools">
-            <span class="no-tool">—</span>
-          </div>
-        </div>
-
-        <div class="project">
-          <div class="project-info">
-            <div class="project-name">Les enfants</div>
-            <div class="project-format">Série télévision</div>
-          </div>
-          <div class="project-tools">
-            <span class="no-tool">—</span>
-          </div>
-        </div>
-
-      </div>
+      <div class="project-list" id="list-en-dev" data-section="en-dev"></div>
     </section>
 
     <footer>
@@ -273,5 +129,156 @@
     </footer>
 
   </div>
+
+  <script>
+    const STORAGE_KEY = 'outils_projects_v1';
+
+    const DEFAULT_PROJECTS = [
+      { id: 'derniere-saison',  name: 'La dernière saison',       format: 'Série télévision', section: 'en-cours', tools: [] },
+      { id: 'premier-trio',     name: 'Premier trio — Saison 4',  format: 'Série télévision', section: 'en-cours', tools: [] },
+      { id: 'les-chacals',      name: 'Les Chacals',              format: 'Long-métrage',     section: 'en-dev',   tools: [{ label: 'Tableau des lieux', href: '/les-chacals/tableau-des-lieux/' }] },
+      { id: 'aimer-pour-deux',  name: 'Aimer pour deux',          format: 'Long-métrage',     section: 'en-dev',   tools: [] },
+      { id: 'au-dela-terril',   name: 'Au-delà du terril',        format: 'Long-métrage',     section: 'en-dev',   tools: [] },
+      { id: 'contritions',      name: 'Contritions / Clippeurs',  format: 'Long-métrage',     section: 'en-dev',   tools: [] },
+      { id: 'helga-testorf',    name: 'Helga Testorf',            format: 'Long-métrage',     section: 'en-dev',   tools: [] },
+      { id: 'maison-lynch',     name: 'La maison du rang Lynch',  format: 'Long-métrage',     section: 'en-dev',   tools: [] },
+      { id: 'les-enfants',      name: 'Les enfants',              format: 'Série télévision', section: 'en-dev',   tools: [] },
+    ];
+
+    function load() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+        if (!saved || !Array.isArray(saved)) return DEFAULT_PROJECTS;
+        // Merge: keep saved order/sections, but preserve tools from defaults
+        const byId = {};
+        DEFAULT_PROJECTS.forEach(p => byId[p.id] = p);
+        return saved.map(s => ({ ...byId[s.id], ...s, tools: (byId[s.id] || s).tools }))
+                    .filter(p => p.id);
+      } catch(e) { return DEFAULT_PROJECTS; }
+    }
+
+    function save(projects) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(
+        projects.map(({ id, section }) => ({ id, section }))
+      ));
+    }
+
+    function buildHandle() {
+      const h = document.createElement('div');
+      h.className = 'drag-handle';
+      h.title = 'Déplacer';
+      for (let i = 0; i < 4; i++) h.appendChild(document.createElement('span'));
+      return h;
+    }
+
+    function buildRow(project) {
+      const row = document.createElement('div');
+      row.className = 'project';
+      row.dataset.id = project.id;
+      row.draggable = true;
+
+      row.appendChild(buildHandle());
+
+      const info = document.createElement('div');
+      info.className = 'project-info';
+      info.innerHTML = `<div class="project-name">${project.name}</div><div class="project-format">${project.format}</div>`;
+      row.appendChild(info);
+
+      const tools = document.createElement('div');
+      tools.className = 'project-tools';
+      if (project.tools && project.tools.length) {
+        project.tools.forEach(t => {
+          const a = document.createElement('a');
+          a.className = 'tool-link';
+          a.href = t.href;
+          a.textContent = t.label;
+          tools.appendChild(a);
+        });
+      } else {
+        tools.innerHTML = '<span class="no-tool">—</span>';
+      }
+      row.appendChild(tools);
+
+      return row;
+    }
+
+    function render(projects) {
+      ['en-cours', 'en-dev'].forEach(section => {
+        const list = document.getElementById('list-' + section);
+        list.innerHTML = '';
+        projects.filter(p => p.section === section).forEach(p => list.appendChild(buildRow(p)));
+      });
+    }
+
+    // ── Drag & Drop ──────────────────────────────────────────────────────────
+    let dragged = null;
+
+    document.addEventListener('dragstart', e => {
+      const row = e.target.closest('.project');
+      if (!row) return;
+      dragged = row;
+      row.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+
+    document.addEventListener('dragend', () => {
+      if (dragged) dragged.classList.remove('dragging');
+      document.querySelectorAll('.drag-above, .drag-below, .drag-over').forEach(el => {
+        el.classList.remove('drag-above', 'drag-below', 'drag-over');
+      });
+      dragged = null;
+    });
+
+    document.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+
+      const target = e.target.closest('.project');
+      const list   = e.target.closest('.project-list');
+
+      document.querySelectorAll('.drag-above, .drag-below').forEach(el => {
+        el.classList.remove('drag-above', 'drag-below');
+      });
+      document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+
+      if (target && target !== dragged) {
+        const rect = target.getBoundingClientRect();
+        const mid  = rect.top + rect.height / 2;
+        target.classList.add(e.clientY < mid ? 'drag-above' : 'drag-below');
+      } else if (list && !list.contains(dragged)) {
+        list.classList.add('drag-over');
+      }
+    });
+
+    document.addEventListener('drop', e => {
+      e.preventDefault();
+      if (!dragged) return;
+
+      const target = e.target.closest('.project');
+      const list   = e.target.closest('.project-list');
+      if (!list) return;
+
+      if (target && target !== dragged) {
+        const rect = target.getBoundingClientRect();
+        const before = e.clientY < rect.top + rect.height / 2;
+        list.insertBefore(dragged, before ? target : target.nextSibling);
+      } else if (!list.contains(dragged)) {
+        list.appendChild(dragged);
+      }
+
+      // Rebuild state from DOM and save
+      const projects = [];
+      ['en-cours', 'en-dev'].forEach(section => {
+        document.getElementById('list-' + section).querySelectorAll('.project').forEach(row => {
+          const p = load().find(x => x.id === row.dataset.id) || DEFAULT_PROJECTS.find(x => x.id === row.dataset.id);
+          if (p) projects.push({ ...p, section });
+        });
+      });
+      save(projects);
+    });
+
+    // ── Init ─────────────────────────────────────────────────────────────────
+    render(load());
+  </script>
 </body>
 </html>
