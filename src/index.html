@@ -40,14 +40,6 @@
     .site-author { font-size: 11px; color: var(--muted); letter-spacing: 0.04em; }
 
     /* Sync dot */
-    .sync-dot {
-      width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
-      transition: background 300ms;
-    }
-    .sync-dot.idle    { background: #bbbbbb; }
-    .sync-dot.syncing { background: #f0a500; animation: pulse .9s infinite; }
-    .sync-dot.synced  { background: #5a9a6a; }
-    .sync-dot.error   { background: #cc3333; }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
 
     .section { margin-bottom: 52px; }
@@ -104,7 +96,7 @@
     <header>
       <span class="site-title">Outils</span>
       <div style="display:flex;align-items:center;gap:10px;">
-        <div class="sync-dot idle" id="sync-dot" title=""></div>
+        <div id="sync-dot" style="width:7px;height:7px;border-radius:50%;background:#bbbbbb;flex-shrink:0;transition:background 300ms;" title=""></div>
         <span class="site-author">Charles Grenier</span>
       </div>
     </header>
@@ -146,10 +138,13 @@
     let sb = null;
     try { sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e) {}
 
-    function setSyncStatus(s, msg) {
+    function setSyncStatus(s) {
       const dot = document.getElementById('sync-dot');
-      dot.className = 'sync-dot ' + s;
-      dot.title = { idle: '', syncing: 'Synchronisation…', synced: 'Synchronisé', error: 'Erreur de sync' }[s] || msg || '';
+      if (!dot) return;
+      const colors = { idle: '#bbbbbb', syncing: '#f0a500', synced: '#5a9a6a', error: '#cc3333' };
+      dot.style.background = colors[s] || '#bbbbbb';
+      dot.style.animation = s === 'syncing' ? 'pulse .9s infinite' : '';
+      dot.title = { idle: '', syncing: 'Synchronisation…', synced: 'Synchronisé', error: 'Erreur de sync' }[s] || '';
     }
 
     async function loadFromSupabase() {
