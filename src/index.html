@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Outils — Charles Grenier</title>
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg: #ffffff;
+      --text: #111111;
+      --muted: #999999;
+      --line: #e7e7e7;
+      --hover: #111111;
+    }
+
+    html {
+      font-size: 13px;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    .layout {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 56px 32px 80px;
+    }
+
+    /* Header */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding-bottom: 28px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 52px;
+    }
+
+    .site-title {
+      font-size: 11px;
+      font-weight: 400;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text);
+    }
+
+    .site-author {
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+    }
+
+    /* Section */
+    .section {
+      margin-bottom: 52px;
+    }
+
+    .section-label {
+      font-size: 10px;
+      font-weight: 400;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0;
+    }
+
+    /* Project row */
+    .project-list {
+      margin-top: 16px;
+    }
+
+    .project {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 24px;
+      padding: 14px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .project:first-child {
+      border-top: 1px solid var(--line);
+    }
+
+    .project-info {
+      min-width: 0;
+    }
+
+    .project-name {
+      font-size: 13px;
+      font-weight: 400;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .project-format {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 1px;
+    }
+
+    /* Tools */
+    .project-tools {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .tool-link {
+      font-size: 11px;
+      color: var(--text);
+      text-decoration: none;
+      letter-spacing: 0.04em;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 1px;
+      white-space: nowrap;
+      transition: border-color 180ms ease;
+    }
+
+    .tool-link:hover {
+      border-color: var(--text);
+    }
+
+    .no-tool {
+      font-size: 11px;
+      color: var(--line);
+      letter-spacing: 0.04em;
+    }
+
+    /* Footer */
+    footer {
+      margin-top: 80px;
+      padding-top: 20px;
+      border-top: 1px solid var(--line);
+    }
+
+    .footer-text {
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+
+    <header>
+      <span class="site-title">Outils</span>
+      <span class="site-author">Charles Grenier</span>
+    </header>
+
+    <section class="section">
+      <p class="section-label">En cours</p>
+      <div class="project-list">
+
+        <div class="project">
+          <div class="project-info">
+            <div class="project-name">La dernière saison</div>
+            <div class="project-format">Série télévision</div>
+          </div>
+          <div class="project-tools">
+            <span class="no-tool">—</span>
+          </div>
+        </div>
+
+        <div class="project">
+          <div class="project-info">
+            <div class="project-name">Premier trio — Saison 4</div>
+            <div class="project-format">Série télévision</div>
+          </div>
+          <div class="project-tools">
+            <span class="no-tool">—</span>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <section class="section">
+      <p class="section-label">En développement</p>
+      <div class="project-list">
+
+        <div class="project">
+          <div class="project-info">
+            <div class="project-name">Les Chacals</div>
+            <div class="project-format">Long-métrage</div>
+          </div>
+          <div class="project-tools">
+            <a class="tool-link" href="/les-chacals/tableau-des-lieux/">Tableau des lieux</a>
+          </div>
+        </div>
+
+        <div class="project">
+          <div class="project-info">
+            <div class="project-name">Aimer pour deux</div>
+            <div class="project-format">Long-métrage</div>
+          </div>
+          <div class="project-tools">
+            <span class="no-tool">—</span>
+          </div>
+        </div>
+
+        <div class="project">
+          <div class="project-info">
+            <div class="project-name">Au-delà du terril</div>
+            <div class="project-format">Long-métrage</div>
+          </div>
+          <div class="project-tools">
+            <span class="no-tool">—</span>
+          </div>
+        </div>
+
+        <div class="project">
+          <div class="project-info">
+            <div class="project-name">Contritions / Clippeurs</div>
+            <div class="project-format">Long-métrage</div>
+          </div>
+          <div class="project-tools">
+            <span class="no-tool">—</span>
+          </div>
+        </div>
+
+        <div class="project">
+          <div class="project-info">
+            <div class="project-name">Helga Testorf</div>
+            <div class="project-format">Long-métrage</div>
+          </div>
+          <div class="project-tools">
+            <span class="no-tool">—</span>
+          </div>
+        </div>
+
+        <div class="project">
+          <div class="project-info">
+            <div class="project-name">La maison du rang Lynch</div>
+            <div class="project-format">Long-métrage</div>
+          </div>
+          <div class="project-tools">
+            <span class="no-tool">—</span>
+          </div>
+        </div>
+
+        <div class="project">
+          <div class="project-info">
+            <div class="project-name">Les enfants</div>
+            <div class="project-format">Série télévision</div>
+          </div>
+          <div class="project-tools">
+            <span class="no-tool">—</span>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <footer>
+      <p class="footer-text">outils.charlesgrenier.com</p>
+    </footer>
+
+  </div>
+</body>
+</html>
