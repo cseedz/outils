@@ -42,13 +42,13 @@
     /* Sync dot */
     .sync-dot {
       width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
-      transition: background 300ms, opacity 600ms;
+      transition: background 300ms;
     }
-    .sync-dot.idle    { background: var(--line); opacity: 0; }
-    .sync-dot.syncing { background: #f0a500; opacity: 1; animation: pulse .9s infinite; }
-    .sync-dot.synced  { background: #5a9a6a; opacity: 1; }
-    .sync-dot.error   { background: #cc3333; opacity: 1; }
-    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.25} }
+    .sync-dot.idle    { background: #bbbbbb; }
+    .sync-dot.syncing { background: #f0a500; animation: pulse .9s infinite; }
+    .sync-dot.synced  { background: #5a9a6a; }
+    .sync-dot.error   { background: #cc3333; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
 
     .section { margin-bottom: 52px; }
     .section-label { font-size: 10px; font-weight: 400; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
@@ -162,8 +162,8 @@
     }
 
     async function saveToSupabase(state) {
-      if (!sb) return;
       setSyncStatus('syncing');
+      if (!sb) { setTimeout(() => setSyncStatus('idle'), 1500); return; }
       try {
         const { error } = await sb.from('project_data').upsert({ key: STORAGE_KEY, data: state, updated_at: new Date().toISOString() });
         if (error) throw error;
