@@ -422,12 +422,21 @@ input.clr-inline-picker::-webkit-color-swatch { border:none;border-radius:2px; }
 .toast { position: fixed; bottom: 22px; right: 22px; background: var(--bg2); border: 1px solid var(--border2); color: var(--text); padding: 9px 14px; border-radius: 7px; font-size: 12px; z-index: 9999; opacity: 0; transform: translateY(6px); transition: all 0.25s; pointer-events: none; }
 .toast.show { opacity: 1; transform: translateY(0); }
 
-/* ── COULEUR LIEU (carte) ── */
-.vlieu-clr-picker { -webkit-appearance:none;appearance:none;width:14px;height:14px;border:1.5px solid rgba(0,0,0,.15);border-radius:3px;padding:0;cursor:pointer;flex-shrink:0;background:none; }
-.vlieu-clr-picker::-webkit-color-swatch-wrapper { padding:0; }
-.vlieu-clr-picker::-webkit-color-swatch { border:none;border-radius:1px; }
-.vlieu-clr-reset { background:none;border:1px solid var(--border);color:var(--text-muted);border-radius:3px;padding:0 4px;font-size:11px;cursor:pointer;flex-shrink:0;line-height:1.5; }
-.vlieu-clr-reset:hover { color:var(--text);border-color:var(--accent); }
+/* ── COULEUR LIEU (carte + panneau flottant) ── */
+.vlieu-clr-dot { width:14px;height:14px;border-radius:3px;border:1.5px solid rgba(0,0,0,.18);cursor:pointer;flex-shrink:0;padding:0;transition:transform .1s; }
+.vlieu-clr-dot:hover { transform:scale(1.2); }
+#vlieu-color-panel { position:fixed;z-index:9500;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:10px 11px;box-shadow:0 6px 24px rgba(0,0,0,.28);min-width:168px; }
+.vcp-swatches { display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px; }
+.vcp-sw { width:16px;height:16px;border-radius:3px;cursor:pointer;border:1.5px solid transparent;transition:transform .1s,border-color .1s;flex-shrink:0; }
+.vcp-sw:hover { transform:scale(1.25); }
+.vcp-sw.active { border-color:rgba(0,0,0,.55); }
+.vcp-wheel-row { display:flex;align-items:center;gap:7px; }
+input.vcp-wheel { -webkit-appearance:none;appearance:none;width:22px;height:22px;border:2px solid rgba(0,0,0,.15);border-radius:4px;padding:1px;cursor:pointer;background:none;flex-shrink:0; }
+input.vcp-wheel::-webkit-color-swatch-wrapper { padding:0; }
+input.vcp-wheel::-webkit-color-swatch { border:none;border-radius:2px; }
+.vcp-reset { background:none;border:1px solid var(--border);color:var(--text-muted);border-radius:4px;padding:2px 8px;font-size:11px;cursor:pointer;font-family:inherit;line-height:1.5; }
+.vcp-reset:hover { color:var(--text);border-color:var(--accent); }
+.vcp-label { font-size:10px;color:var(--text-dim);flex:1; }
 
 /* ── RENAME INLINE ── */
 input.vlieu-name-edit { font-size:13px;font-weight:700;letter-spacing:0.3px;background:transparent;border:none;border-bottom:1px dashed transparent;padding:0;color:inherit;width:100%;cursor:text;outline:none;font-family:inherit; }
@@ -750,6 +759,14 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
 
 <div id="photo-lightbox" onclick="closeLightbox()"><img id="photo-lightbox-img" src="" alt=""></div>
 <div class="toast" id="toast"></div>
+<div id="vlieu-color-panel" style="display:none;" onclick="event.stopPropagation()">
+  <div class="vcp-swatches" id="vcp-swatches"></div>
+  <div class="vcp-wheel-row">
+    <input type="color" class="vcp-wheel" id="vcp-wheel" oninput="previewVcpColor(this)" onchange="setVlieuColorFromWheel(this)">
+    <span class="vcp-label">Autre couleur</span>
+    <button class="vcp-reset" id="vcp-reset" onclick="resetVlieuColor()" style="display:none;">↺ Auto</button>
+  </div>
+</div>
 <div class="merge-modal" id="merge-modal" style="display:none;" onclick="if(event.target===this)mergeLieuCancel()">
   <div class="merge-modal-box">
     <div class="merge-modal-title">Lieu existant</div>
@@ -819,24 +836,62 @@ function copyLieuColors() {
   navigator.clipboard.writeText(JSON.stringify(out, null, 2))
     .then(() => showToast('Couleurs copiées — colle dans LIEU_COLORS_RAW'));
 }
-// ─── COULEURS LIEUX (carte) ─────────────────────────────────────────────────
-function previewVlieuColor(input) {
-  const card = input.closest('.vlieu-card');
+// ─── COULEURS LIEUX (panneau flottant) ──────────────────────────────────────
+let _vcpLieu = null;
+function openVlieuColorPanel(event, btn) {
+  event.stopPropagation();
+  _vcpLieu = btn.dataset.lieu;
+  const color = lieuFictifColor(_vcpLieu);
+  const isOverridden = !!(lieuColorOverrides[_vcpLieu] || LIEU_COLORS_RAW[_vcpLieu]);
+  document.getElementById('vcp-swatches').innerHTML = COLORS.map(c =>
+    `<div class="vcp-sw${c.toLowerCase()===color.toLowerCase()?' active':''}" style="background:${c};" onclick="applyVcpSwatch('${c}')" title="${c}"></div>`
+  ).join('');
+  document.getElementById('vcp-wheel').value = color;
+  const resetBtn = document.getElementById('vcp-reset');
+  resetBtn.style.display = isOverridden ? '' : 'none';
+  const panel = document.getElementById('vlieu-color-panel');
+  panel.style.display = 'block';
+  const rect = btn.getBoundingClientRect();
+  const pw = 180, ph = 80;
+  let left = rect.left - 10;
+  let top = rect.bottom + 6;
+  if (left + pw > window.innerWidth - 8) left = window.innerWidth - pw - 8;
+  if (left < 4) left = 4;
+  if (top + ph > window.innerHeight - 8) top = rect.top - ph - 6;
+  panel.style.left = left + 'px';
+  panel.style.top = top + 'px';
+}
+function closeVlieuColorPanel() {
+  document.getElementById('vlieu-color-panel').style.display = 'none';
+  _vcpLieu = null;
+}
+function _applyVcpColor(color) {
+  if (!_vcpLieu) return;
+  lieuColorOverrides[_vcpLieu] = color;
+  saveLieuColors();
+  closeVlieuColorPanel();
+  renderVueLieux();
+  renderBatchAssign();
+}
+function applyVcpSwatch(color) { _applyVcpColor(color); }
+function previewVcpColor(input) {
+  if (!_vcpLieu) return;
+  const dot = document.querySelector('.vlieu-clr-dot[data-lieu="' + _vcpLieu.replace(/"/g,'&quot;') + '"]');
+  if (!dot) return;
+  dot.style.background = input.value;
+  const card = dot.closest('.vlieu-card');
   if (!card) return;
   const ribbon = card.querySelector('.vlieu-ribbon');
   const nameEdit = card.querySelector('.vlieu-name-edit');
   if (ribbon) ribbon.style.borderTopColor = input.value;
   if (nameEdit) nameEdit.style.color = input.value;
 }
-function setLieuColorFromInput(input) {
-  lieuColorOverrides[input.dataset.lieu] = input.value;
+function setVlieuColorFromWheel(input) { _applyVcpColor(input.value); }
+function resetVlieuColor() {
+  if (!_vcpLieu) return;
+  delete lieuColorOverrides[_vcpLieu];
   saveLieuColors();
-  renderVueLieux();
-  renderBatchAssign();
-}
-function resetLieuColorFromInput(btn) {
-  delete lieuColorOverrides[btn.dataset.lieu];
-  saveLieuColors();
+  closeVlieuColorPanel();
   renderVueLieux();
   renderBatchAssign();
 }
@@ -1235,8 +1290,7 @@ function renderVueLieux() {
         <div class="vlieu-header">
           <input type="text" class="vlieu-name-edit" value="${esc(lieu)}" data-orig="${esc(lieu)}" style="color:${color};" title="Cliquer pour renommer" onblur="commitLieuRename(this)" onkeydown="if(event.key==='Enter')this.blur();else if(event.key==='Escape'){this.value=this.dataset.orig;this.blur();">
           <span class="vlieu-stats">${scList.length} sc · ${fmtPages(totalLieu)}</span>
-          <input type="color" class="vlieu-clr-picker" value="${color}" data-lieu="${esc(lieu)}" title="Couleur du lieu" oninput="previewVlieuColor(this)" onchange="setLieuColorFromInput(this)">
-          ${isOverridden ? `<button class="vlieu-clr-reset" data-lieu="${esc(lieu)}" onclick="resetLieuColorFromInput(this)" title="Couleur automatique">↺</button>` : ''}
+          <button class="vlieu-clr-dot" style="background:${color};" data-lieu="${esc(lieu)}" onclick="openVlieuColorPanel(event,this)" title="Modifier la couleur"></button>
         </div>
         ${ltChips ? `<div class="vlieu-lt-chips">${ltChips}</div>` : ''}
       </div>
@@ -1401,6 +1455,8 @@ function toggleTechVlieu(btn) {
 document.addEventListener('click', e => {
   if (!e.target.closest('#vlieu-loc-menu') && !e.target.closest('.vlieu-loc-dot'))
     document.getElementById('vlieu-loc-menu').style.display = 'none';
+  if (!e.target.closest('#vlieu-color-panel') && !e.target.closest('.vlieu-clr-dot'))
+    closeVlieuColorPanel();
 });
 
 // ─── LIEU TOURNAGE MANAGEMENT ───────────────────────────────────────────────
