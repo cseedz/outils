@@ -432,10 +432,17 @@ input.clr-inline-picker::-webkit-color-swatch { border:none;border-radius:2px; }
 .vcp-pal-btn:hover:not(.active) { border-color:var(--accent);color:var(--text); }
 .vcp-apply-all { font-size:10px;padding:2px 7px;border-radius:10px;border:1px solid var(--border);background:none;color:var(--text-muted);cursor:pointer;font-family:inherit;line-height:1.6;margin-left:auto; }
 .vcp-apply-all:hover { color:var(--text);border-color:var(--accent); }
+.vcp-edit-btn { font-size:11px;padding:2px 6px;border-radius:10px;border:1px solid var(--border);background:none;color:var(--text-muted);cursor:pointer;font-family:inherit;line-height:1.6; }
+.vcp-edit-btn.active { background:rgba(79,124,255,.12);color:var(--accent);border-color:var(--accent); }
+.vcp-edit-btn:hover:not(.active) { color:var(--text);border-color:var(--accent); }
 .vcp-swatches { display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px; }
 .vcp-sw { width:16px;height:16px;border-radius:3px;cursor:pointer;border:1.5px solid transparent;transition:transform .1s,border-color .1s;flex-shrink:0; }
 .vcp-sw:hover { transform:scale(1.25); }
 .vcp-sw.active { border-color:rgba(0,0,0,.55); }
+.vcp-sw-edit { position:relative;overflow:hidden;cursor:pointer; }
+.vcp-sw-edit::after { content:'✎';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:8px;color:#fff;background:rgba(0,0,0,.35);opacity:0;transition:opacity .12s; }
+.vcp-sw-edit:hover::after { opacity:1; }
+.vcp-sw-edit input[type="color"] { position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;padding:0;border:none; }
 .vcp-wheel-row { display:flex;align-items:center;gap:7px; }
 input.vcp-wheel { -webkit-appearance:none;appearance:none;width:22px;height:22px;border:2px solid rgba(0,0,0,.15);border-radius:4px;padding:1px;cursor:pointer;background:none;flex-shrink:0; }
 input.vcp-wheel::-webkit-color-swatch-wrapper { padding:0; }
@@ -771,6 +778,7 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
     <button class="vcp-pal-btn" data-pk="vibrant" onclick="switchVcpPalette('vibrant')">Vibrant</button>
     <button class="vcp-pal-btn" data-pk="pastel" onclick="switchVcpPalette('pastel')">Pastel</button>
     <button class="vcp-apply-all" onclick="applyPaletteToAll()" title="Distribuer cette palette à tous les lieux">→ Tous</button>
+    <button class="vcp-edit-btn" id="vcp-edit-btn" onclick="toggleVcpEditMode()" title="Modifier les couleurs de la palette">✎</button>
   </div>
   <div class="vcp-swatches" id="vcp-swatches"></div>
   <div class="vcp-wheel-row">
@@ -825,6 +833,10 @@ function buildColorSwatches() {
 
 function loadLieuColors() {
   try { lieuColorOverrides = JSON.parse(localStorage.getItem('lieu_colors') || '{}'); } catch(e) { lieuColorOverrides = {}; }
+  try {
+    const custom = JSON.parse(localStorage.getItem('lieu_palettes_custom') || 'null');
+    if (custom) Object.keys(PALETTES).forEach(k => { if (custom[k] && Array.isArray(custom[k]) && custom[k].length === 12) PALETTES[k] = custom[k]; });
+  } catch(e) {}
   const pk = localStorage.getItem('lieu_palette');
   if (pk && PALETTES[pk]) { activePaletteKey = pk; COLORS = PALETTES[pk]; }
 }
@@ -858,14 +870,41 @@ function copyLieuColors() {
 }
 // ─── COULEURS LIEUX (panneau flottant) ──────────────────────────────────────
 let _vcpLieu = null;
+let _vcpEditMode = false;
+
+function _refreshVcpSwatches() {
+  const color = _vcpLieu ? lieuFictifColor(_vcpLieu) : '';
+  document.getElementById('vcp-swatches').innerHTML = COLORS.map((c, i) => _vcpEditMode
+    ? `<label class="vcp-sw vcp-sw-edit" style="background:${c};" title="Modifier cette couleur"><input type="color" value="${c}" oninput="previewPaletteSwatch(this,${i})" onchange="savePaletteSwatch(this,${i})"></label>`
+    : `<div class="vcp-sw${c.toLowerCase()===color.toLowerCase()?' active':''}" style="background:${c};" onclick="applyVcpSwatch('${c}')" title="${c}"></div>`
+  ).join('');
+}
+function toggleVcpEditMode() {
+  _vcpEditMode = !_vcpEditMode;
+  document.getElementById('vcp-edit-btn').classList.toggle('active', _vcpEditMode);
+  _refreshVcpSwatches();
+}
+function previewPaletteSwatch(input, idx) {
+  input.closest('.vcp-sw-edit').style.background = input.value;
+}
+function savePaletteSwatch(input, idx) {
+  PALETTES[activePaletteKey][idx] = input.value;
+  COLORS[idx] = input.value;
+  input.closest('.vcp-sw-edit').style.background = input.value;
+  try { localStorage.setItem('lieu_palettes_custom', JSON.stringify(PALETTES)); } catch(e) {}
+  renderVueLieux();
+  renderBatchAssign();
+}
+
 function openVlieuColorPanel(event, btn) {
   event.stopPropagation();
   _vcpLieu = btn.dataset.lieu;
+  _vcpEditMode = false;
+  const editBtn = document.getElementById('vcp-edit-btn');
+  if (editBtn) editBtn.classList.remove('active');
+  _refreshVcpSwatches();
   const color = lieuFictifColor(_vcpLieu);
   const isOverridden = !!(lieuColorOverrides[_vcpLieu] || LIEU_COLORS_RAW[_vcpLieu]);
-  document.getElementById('vcp-swatches').innerHTML = COLORS.map(c =>
-    `<div class="vcp-sw${c.toLowerCase()===color.toLowerCase()?' active':''}" style="background:${c};" onclick="applyVcpSwatch('${c}')" title="${c}"></div>`
-  ).join('');
   document.getElementById('vcp-wheel').value = color;
   const resetBtn = document.getElementById('vcp-reset');
   resetBtn.style.display = isOverridden ? '' : 'none';
@@ -873,7 +912,7 @@ function openVlieuColorPanel(event, btn) {
   const panel = document.getElementById('vlieu-color-panel');
   panel.style.display = 'block';
   const rect = btn.getBoundingClientRect();
-  const pw = 180, ph = 80;
+  const pw = 240, ph = 100;
   let left = rect.left - 10;
   let top = rect.bottom + 6;
   if (left + pw > window.innerWidth - 8) left = window.innerWidth - pw - 8;
@@ -885,6 +924,7 @@ function openVlieuColorPanel(event, btn) {
 function closeVlieuColorPanel() {
   document.getElementById('vlieu-color-panel').style.display = 'none';
   _vcpLieu = null;
+  _vcpEditMode = false;
 }
 function _applyVcpColor(color) {
   if (!_vcpLieu) return;
@@ -899,13 +939,13 @@ function switchVcpPalette(key) {
   if (!PALETTES[key]) return;
   activePaletteKey = key; COLORS = PALETTES[key];
   localStorage.setItem('lieu_palette', key);
+  _vcpEditMode = false;
+  const editBtn = document.getElementById('vcp-edit-btn');
+  if (editBtn) editBtn.classList.remove('active');
   document.querySelectorAll('.vcp-pal-btn').forEach(b => b.classList.toggle('active', b.dataset.pk === key));
   if (_vcpLieu) {
-    const col = lieuFictifColor(_vcpLieu);
-    document.getElementById('vcp-swatches').innerHTML = COLORS.map(c =>
-      `<div class="vcp-sw${c.toLowerCase()===col.toLowerCase()?' active':''}" style="background:${c};" onclick="applyVcpSwatch('${c}')" title="${c}"></div>`
-    ).join('');
-    document.getElementById('vcp-wheel').value = col;
+    _refreshVcpSwatches();
+    document.getElementById('vcp-wheel').value = lieuFictifColor(_vcpLieu);
   }
   buildColorSwatches();
   renderVueLieux();
