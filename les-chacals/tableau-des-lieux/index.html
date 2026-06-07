@@ -2174,11 +2174,10 @@ function renderOutilsPreview() {
   const br = `rgba(${r},${g},${b},.90)`;
   const jnStr = inclJN && previewSc.jn && previewSc.jn !== '—' ? esc(previewSc.jn) : '';
   const pgStr = inclPg && previewSc.page ? `p.&nbsp;${esc(previewSc.page)}` : '';
-  const meta  = [jnStr, pgStr].filter(Boolean).join(' · ');
+  const metaInline = [jnStr, pgStr].filter(Boolean).map(m => ` — ${m}`).join('');
   box.innerHTML = `<div style="display:inline-flex;flex-direction:column;align-items:center;gap:4px;padding:10px 22px;border:2.5px solid ${br};border-radius:5px;background:${bg};min-width:200px;max-width:340px;">
-    <span style="font-size:14px;font-weight:800;color:${br};letter-spacing:.2px;text-align:center;line-height:1.2;">${esc(previewSc.int_ext||'')} ${esc(previewSc.lieu||'—')}</span>
+    <span style="font-size:14px;font-weight:800;color:${br};letter-spacing:.2px;text-align:center;line-height:1.2;">${esc(previewSc.int_ext||'')} ${esc(previewSc.lieu||'—')}${metaInline}</span>
     ${previewSc.sous_lieu?`<span style="font-size:11px;font-style:italic;color:${br};opacity:.85;">${esc(previewSc.sous_lieu)}</span>`:''}
-    ${meta?`<span style="font-size:10px;color:#777;margin-top:3px;letter-spacing:.2px;">${meta}</span>`:''}
   </div>`;
 }
 
@@ -2275,17 +2274,16 @@ function _openDecoupageWindow(list, pf, inclJN, inclPg, epLabel) {
     const col = lieuFictifColor(s.lieu || '');
     const bg  = hexRgba(col, 0.18);
     const br  = hexRgba(col, 0.88);
-    const jnStr = inclJN && s.jn && s.jn !== '—' ? s.jn : '';
-    const pgStr = inclPg && s.page ? `p.​${eh(s.page)}` : '';
-    const meta  = [jnStr, pgStr].filter(Boolean).join(' · ');
+    const jnStr = inclJN && s.jn && s.jn !== '—' ? eh(s.jn) : '';
+    const pgStr = inclPg && s.page ? `p.&nbsp;${eh(s.page)}` : '';
+    const metaInline = [jnStr, pgStr].filter(Boolean).map(m => ` &mdash; ${m}`).join('');
     const epTag = IS_SERIES && s.ep ? `<div class="ep-tag">${eh(s.ep)}</div>` : '';
     return `<div class="pg">
   ${epTag}<div class="sc-n">${eh(String(s.sc))}</div>
   <div class="carton" style="border-color:${br};background:${bg};">
-    <span class="c-r1" style="color:${br};">${eh(s.int_ext||'')} ${eh(s.lieu||'—')}</span>
+    <span class="c-r1" style="color:${br};">${eh(s.int_ext||'')} ${eh(s.lieu||'—')}${metaInline}</span>
     ${s.sous_lieu?`<span class="c-sl" style="color:${br};">${eh(s.sous_lieu)}</span>`:''}
   </div>
-  ${meta?`<div class="meta">${eh(meta)}</div>`:''}
   <div class="bl"></div>
 </div>`;
   }).join('\n');
@@ -2312,7 +2310,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .carton{position:absolute;left:27%;top:9px;width:64%;padding:9px 16px;border:2.5px solid;border-radius:5px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:58px;}
 .c-r1{font-size:12pt;font-weight:800;letter-spacing:.2px;text-align:center;line-height:1.3;}
 .c-sl{font-size:9pt;font-style:italic;opacity:.85;text-align:center;line-height:1.2;}
-.meta{position:absolute;right:14px;top:13px;font-size:7.5pt;color:#555;text-align:right;line-height:1.5;}
 .bl{position:absolute;bottom:10%;left:5%;right:5%;height:1px;background:#e8e8e8;}
 @media print{
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
