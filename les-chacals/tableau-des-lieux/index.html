@@ -1801,6 +1801,47 @@ function renderRecap() {
   }).join('');
   const lieuHTML = `<table class="stat-table"><thead><tr><th>Location</th><th>Pages</th><th>%</th><th></th><th>Scènes</th></tr></thead><tbody>${lieuRows}</tbody></table>`;
 
+  // ── Frise narrative ──────────────────────────────────────────────────────
+  const N_SEGS = 30;
+  const allPageNums = scenes.map(s => parseFloat(s.page)).filter(n => !isNaN(n) && n > 0);
+  const frisePMin = allPageNums.length ? Math.min(...allPageNums) : 1;
+  const frisePMax = allPageNums.length ? Math.max(...allPageNums) : 120;
+  const friseSegSize = (frisePMax - frisePMin + 1) / N_SEGS;
+  const techSegs = {};
+  TECHS.forEach(t => { techSegs[t] = Array(N_SEGS).fill(0); });
+  scenes.forEach(sc => {
+    const p = parseFloat(sc.page);
+    if (isNaN(p) || p < frisePMin) return;
+    const idx = Math.min(Math.floor((p - frisePMin) / friseSegSize), N_SEGS - 1);
+    TECHS.forEach(t => { if (sc[t]) techSegs[t][idx] += parseDuree(sc.duree); });
+  });
+  const friseMax = Math.max(1, ...TECHS.flatMap(t => techSegs[t]));
+  const friseRows = TECHS.map(t => {
+    const tt = byTech[t].pages;
+    const tpct = totalPages > 0 ? Math.round(tt / totalPages * 100) : 0;
+    const cells = techSegs[t].map(v => {
+      if (v === 0) return `<span style="display:inline-block;width:14px;height:12px;background:var(--bg3);border-radius:2px;"></span>`;
+      const op = (0.2 + 0.8 * (v / friseMax)).toFixed(2);
+      return `<span style="display:inline-block;width:14px;height:12px;background:${TECH_COLORS[t]};opacity:${op};border-radius:2px;" title="${TECH_LABELS[t]}: ${fmtPages(v)}"></span>`;
+    }).join('');
+    const lbl = TECH_LABELS[t].replace(' / Traveling','').replace('Caméra ','');
+    return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">
+      <span style="width:72px;font-size:10px;color:${TECH_COLORS[t]};font-weight:600;flex-shrink:0;text-align:right;">${lbl}</span>
+      <div style="display:inline-flex;gap:2px;">${cells}</div>
+      <span style="font-size:10px;color:var(--text-muted);flex-shrink:0;">${fmtPages(tt)}&nbsp;·&nbsp;${tpct}%</span>
+    </div>`;
+  }).join('');
+  const midPage = Math.round((frisePMin + frisePMax) / 2);
+  const friseHTML = totalPages > 0 ? `<div style="margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border);">
+    <div style="font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-muted);margin-bottom:10px;">Distribution dans le scénario</div>
+    ${friseRows}
+    <div style="font-size:9px;color:var(--text-dim);margin-top:4px;margin-left:80px;display:flex;justify-content:space-between;max-width:478px;">
+      <span>p.${Math.round(frisePMin)}</span>
+      <span>p.${midPage}</span>
+      <span>p.${Math.round(frisePMax)}</span>
+    </div>
+  </div>` : '';
+
   // Distribution technique par location — barres empilées visuelles
   const techLieuRows = allLieuIds.map(id => {
     const lt = lieusTournage.find(l => l.id === id);
@@ -1870,10 +1911,10 @@ function renderRecap() {
         }).join('')}</div>
       </div>`
     : '';
-  const techLieuHTML = allLieuIds.length
+  const techLieuHTML = friseHTML + (allLieuIds.length
     ? `${steadicamBanner}<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;">${TECHS.map(t => `<span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;"><span style="width:10px;height:10px;background:${TECH_COLORS[t]};border-radius:2px;flex-shrink:0;"></span>${TECH_LABELS[t]}</span>`).join('')}</div>
       <table class="stat-table"><thead><tr><th>Location</th><th>Distribution</th><th>Pages</th><th>Scènes</th></tr></thead><tbody>${techLieuRows}</tbody></table>`
-    : `<p style="color:var(--text-muted);font-size:12px;">Aucune location définie. Assignez des lieux dans l'onglet «&nbsp;Locations&nbsp;» puis revenez ici.</p>`;
+    : `<p style="color:var(--text-muted);font-size:12px;">Aucune location définie. Assignez des lieux dans l'onglet «&nbsp;Locations&nbsp;» puis revenez ici.</p>`);
 
   // Tech × lieu matrix (détail numérique)
   const techColHeaders = TECHS.map(t =>
@@ -1942,7 +1983,7 @@ function renderRecap() {
       <div class="recap-card" id="rc-jn">${ch('Moment (Jour / Nuit)','rc-jn')}${cb(pieWrap(jnPie, groupTable(byJN,'Moment','var(--accent3)',JN_COLORS), 100),'rc-jn')}</div>
       <div class="recap-card recap-full" id="rc-tech">${ch('Technologie de caméra','rc-tech')}${cb(pieWrap(techPie, techHTML, 120),'rc-tech')}</div>
       <div class="recap-card recap-full" id="rc-lieu">${ch('Pages par location','rc-lieu')}${cb(pieWrap(lieuPie, lieuHTML, 120),'rc-lieu')}</div>
-      <div class="recap-card recap-full" id="rc-tech-lieu">${ch('Distribution technique par location','rc-tech-lieu')}${cb(techLieuHTML,'rc-tech-lieu')}</div>
+      <div class="recap-card recap-full" id="rc-tech-lieu">${ch('Distribution technique','rc-tech-lieu')}${cb(techLieuHTML,'rc-tech-lieu')}</div>
       <div class="recap-card recap-full" id="rc-matrix">${ch('Détail numérique — Technologie × Location','rc-matrix')}${cb(matrixHTML,'rc-matrix')}</div>
     </div>`;
 }
