@@ -422,6 +422,25 @@ input.clr-inline-picker::-webkit-color-swatch { border:none;border-radius:2px; }
 .toast { position: fixed; bottom: 22px; right: 22px; background: var(--bg2); border: 1px solid var(--border2); color: var(--text); padding: 9px 14px; border-radius: 7px; font-size: 12px; z-index: 9999; opacity: 0; transform: translateY(6px); transition: all 0.25s; pointer-events: none; }
 .toast.show { opacity: 1; transform: translateY(0); }
 
+/* ── RENAME INLINE ── */
+input.vlieu-name-edit { font-size:13px;font-weight:700;letter-spacing:0.3px;background:transparent;border:none;border-bottom:1px dashed transparent;padding:0;color:inherit;width:100%;cursor:text;outline:none;font-family:inherit; }
+input.vlieu-name-edit:hover { border-bottom-color:currentColor; }
+input.vlieu-name-edit:focus { border-bottom-color:currentColor;background:rgba(128,128,128,.06); }
+input.vlieu-sl-name-edit { font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;background:transparent;border:none;border-bottom:1px dashed transparent;padding:0;color:var(--text-muted);flex:1;cursor:text;outline:none;font-family:inherit;min-width:0; }
+input.vlieu-sl-name-edit:hover { border-bottom-color:var(--text-muted); }
+input.vlieu-sl-name-edit:focus { border-bottom-color:var(--text-muted);background:rgba(128,128,128,.06); }
+
+/* ── MERGE MODAL ── */
+.merge-modal { position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:10000;display:flex;align-items:center;justify-content:center; }
+.merge-modal-box { background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:20px 24px;max-width:360px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,.3); }
+.merge-modal-title { font-weight:700;font-size:13px;margin-bottom:10px;color:var(--text); }
+.merge-modal-msg { font-size:12px;color:var(--text-muted);margin-bottom:18px;line-height:1.5; }
+.merge-modal-btns { display:flex;gap:8px;justify-content:flex-end; }
+.merge-btn-confirm { padding:6px 16px;border-radius:4px;border:none;cursor:pointer;font-size:12px;background:var(--accent);color:#fff;font-family:inherit; }
+.merge-btn-confirm:hover { opacity:.88; }
+.merge-btn-cancel { padding:6px 16px;border-radius:4px;border:1px solid var(--border);cursor:pointer;font-size:12px;background:var(--bg3);color:var(--text);font-family:inherit; }
+.merge-btn-cancel:hover { border-color:var(--accent); }
+
 /* ── EDITABLE TAG SELECTS ── */
 select.tag-select {
   appearance: none; -webkit-appearance: none;
@@ -724,6 +743,16 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
 
 <div id="photo-lightbox" onclick="closeLightbox()"><img id="photo-lightbox-img" src="" alt=""></div>
 <div class="toast" id="toast"></div>
+<div class="merge-modal" id="merge-modal" style="display:none;" onclick="if(event.target===this)mergeLieuCancel()">
+  <div class="merge-modal-box">
+    <div class="merge-modal-title">Lieu existant</div>
+    <div class="merge-modal-msg" id="merge-modal-msg"></div>
+    <div class="merge-modal-btns">
+      <button class="merge-btn-confirm" onclick="mergeLieuConfirm()">Combiner</button>
+      <button class="merge-btn-cancel" onclick="mergeLieuCancel()">Annuler</button>
+    </div>
+  </div>
+</div>
 <div id="vlieu-loc-menu"></div>
 <input type="file" id="file-input" accept=".json" style="display:none" onchange="handleImport(event)">
 
@@ -783,30 +812,66 @@ function copyLieuColors() {
   navigator.clipboard.writeText(JSON.stringify(out, null, 2))
     .then(() => showToast('Couleurs copiées — colle dans LIEU_COLORS_RAW'));
 }
-function renderColorSection() {
-  const wrap = document.getElementById('color-content');
-  if (!wrap) return;
-  _colorLieux = [...new Set(scenes.filter(s => !s.struck && s.lieu).map(s => s.lieu))].sort();
-  if (!_colorLieux.length) { wrap.innerHTML = ''; return; }
-  const hasOverrides = Object.keys(lieuColorOverrides).length > 0;
-  const exportBtn = hasOverrides
-    ? `<button class="clr-export-btn" onclick="copyLieuColors()">↓ Copier les couleurs (JSON)</button>` : '';
-  wrap.innerHTML = exportBtn + _colorLieux.map((lieu, idx) => {
-    const color = lieuFictifColor(lieu);
-    const isOverridden = !!(lieuColorOverrides[lieu] || LIEU_COLORS_RAW[lieu]);
-    const swatches = COLORS.map(c =>
-      `<div class="clr-sw${c.toLowerCase() === color.toLowerCase() ? ' active' : ''}" style="background:${c};" onclick="setLieuColorByIdx(${idx},'${c}')" title="${c}"></div>`
-    ).join('');
-    return `<div class="color-lieu-row">
-      <span class="clr-name" id="clr-nm-${idx}" style="border-left:3px solid ${color};">${esc(lieu)}</span>
-      <label class="clr-picker-wrap" title="Ouvrir la roue chromatique">
-        <input type="color" value="${color}" oninput="previewLieuColor(${idx},this.value)" onchange="setLieuColorByIdx(${idx},this.value)">
-        <span class="clr-swatch" id="clr-sw-${idx}" style="background:${color};"></span>
-      </label>
-      <div class="clr-swatches">${swatches}</div>
-      ${isOverridden ? `<button class="clr-reset" onclick="resetLieuColorByIdx(${idx})" title="Revenir à la couleur automatique">↺</button>` : '<span style="width:30px;display:inline-block;"></span>'}
-    </div>`;
-  }).join('');
+// ─── RENOMMAGE LIEUX / SOUS-LIEUX ──────────────────────────────────────────
+let _pendingMerge = null;
+function showMergeModal(msg, onConfirm, onCancel) {
+  _pendingMerge = { onConfirm, onCancel };
+  document.getElementById('merge-modal-msg').textContent = msg;
+  document.getElementById('merge-modal').style.display = 'flex';
+}
+function mergeLieuConfirm() {
+  document.getElementById('merge-modal').style.display = 'none';
+  if (_pendingMerge) _pendingMerge.onConfirm();
+  _pendingMerge = null;
+}
+function mergeLieuCancel() {
+  document.getElementById('merge-modal').style.display = 'none';
+  if (_pendingMerge) _pendingMerge.onCancel();
+  _pendingMerge = null;
+}
+function renameLieu(oldLieu, newLieu) {
+  scenes.forEach(s => { if (s.lieu === oldLieu) s.lieu = newLieu; });
+  if (lieuColorOverrides[oldLieu]) {
+    lieuColorOverrides[newLieu] = lieuColorOverrides[oldLieu];
+    delete lieuColorOverrides[oldLieu];
+    saveLieuColors();
+  }
+  save(); buildTable(); renderVueLieux(); renderBatchAssign(); populateLieuFilter();
+  showToast(`Lieu renommé : "${newLieu}"`);
+}
+function renameSousLieu(lieu, oldSl, newSl) {
+  scenes.forEach(s => { if (s.lieu === lieu && (s.sous_lieu || '') === oldSl) s.sous_lieu = newSl; });
+  save(); buildTable(); renderVueLieux(); renderBatchAssign();
+  showToast(`Sous-lieu renommé : "${newSl}"`);
+}
+function commitLieuRename(input) {
+  const oldLieu = input.dataset.orig;
+  const newLieu = input.value.trim();
+  if (!newLieu || newLieu === oldLieu) { input.value = oldLieu; return; }
+  if (scenes.some(s => s.lieu === newLieu)) {
+    showMergeModal(
+      `"${newLieu}" existe déjà. Combiner "${oldLieu}" avec "${newLieu}" ?`,
+      () => renameLieu(oldLieu, newLieu),
+      () => renderVueLieux()
+    );
+    return;
+  }
+  renameLieu(oldLieu, newLieu);
+}
+function commitSousLieuRename(input) {
+  const lieu = input.dataset.lieu;
+  const oldSl = input.dataset.orig;
+  const newSl = input.value.trim();
+  if (!newSl || newSl === oldSl) { input.value = oldSl; return; }
+  if (scenes.some(s => s.lieu === lieu && (s.sous_lieu || '') === newSl)) {
+    showMergeModal(
+      `"${newSl}" existe déjà dans ce lieu. Combiner avec "${oldSl}" ?`,
+      () => renameSousLieu(lieu, oldSl, newSl),
+      () => renderVueLieux()
+    );
+    return;
+  }
+  renameSousLieu(lieu, oldSl, newSl);
 }
 
 // ─── DATA ──────────────────────────────────────────────────────────────────
@@ -1114,7 +1179,9 @@ function renderVueLieux() {
         const hasNote = !!slNoteVal.trim();
         const header = hasHeader
           ? `<div class="vlieu-sl-header">
-              <span class="vlieu-sl-header-name">${hasSl ? esc(k) : '<em>sans sous-lieu</em>'}</span>
+              ${hasSl
+                ? `<input type="text" class="vlieu-sl-name-edit" value="${esc(k)}" data-orig="${esc(k)}" data-lieu="${esc(lieu)}" title="Cliquer pour renommer" onblur="commitSousLieuRename(this)" onkeydown="if(event.key==='Enter')this.blur();else if(event.key==='Escape'){this.value=this.dataset.orig;this.blur();}">`
+                : '<span class="vlieu-sl-header-name"><em>sans sous-lieu</em></span>'}
               <span class="vlieu-sl-header-stats">${slScenes.length} sc · ${fmtPages(slPages)}</span>
               <button class="vlieu-sl-note-btn${hasNote?' has-note':''}" title="Note sur ce sous-lieu" onclick="toggleSLNote(this)">✎</button>
               <div class="vlieu-loc-dot${gDotCls}" style="${gDotStyle}" data-lieu="${esc(lieu)}" data-souslieu="${esc(hasSl ? k : '')}" title="Assigner une location" onclick="openLieuMenuGroup(this)"></div>
@@ -1136,7 +1203,7 @@ function renderVueLieux() {
       <div class="vlieu-ribbon" style="border-top:3px solid ${color};">${ribbon}</div>
       <div class="vlieu-card-header">
         <div class="vlieu-header">
-          <h3 class="vlieu-name" style="color:${color};">${esc(lieu)}</h3>
+          <input type="text" class="vlieu-name-edit" value="${esc(lieu)}" data-orig="${esc(lieu)}" style="color:${color};" title="Cliquer pour renommer" onblur="commitLieuRename(this)" onkeydown="if(event.key==='Enter')this.blur();else if(event.key==='Escape'){this.value=this.dataset.orig;this.blur();">
           <span class="vlieu-stats">${scList.length} sc · ${fmtPages(totalLieu)}</span>
         </div>
         ${ltChips ? `<div class="vlieu-lt-chips">${ltChips}</div>` : ''}
@@ -1408,18 +1475,9 @@ function renderBatchAssign() {
 
   wrap.innerHTML = exportLine + sortedLieux.map((lieu, idx) => {
     const color = lieuFictifColor(lieu);
-    const isOverridden = !!(lieuColorOverrides[lieu] || LIEU_COLORS_RAW[lieu]);
-    const swatches = COLORS.map(c =>
-      `<div class="clr-sw${c.toLowerCase() === color.toLowerCase() ? ' active' : ''}" style="background:${c};" onclick="setLieuColorByIdx(${idx},'${c}')" title="${c}"></div>`
-    ).join('');
-    const resetBtn = isOverridden
-      ? `<button class="clr-reset" onclick="resetLieuColorByIdx(${idx})" title="Couleur automatique">↺</button>` : '';
 
     const header = `<div class="batch-group-header">
-      <span class="batch-hd-name" id="clr-nm-${idx}" style="border-left:2px solid ${color};padding-left:6px;">${esc(lieu)}</span>
-      <input type="color" class="clr-inline-picker" value="${color}" title="Roue chromatique" oninput="previewLieuColor(${idx},this.value)" onchange="setLieuColorByIdx(${idx},this.value)">
-      <div class="clr-swatches">${swatches}</div>
-      ${resetBtn}
+      <span class="batch-hd-name" style="border-left:2px solid ${color};padding-left:6px;">${esc(lieu)}</span>
     </div>`;
 
     if (!hasBatch) return `<div class="batch-group">${header}</div>`;
