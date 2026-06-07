@@ -2168,8 +2168,7 @@ function renderOutils() {
     const bg = `rgba(${r},${g},${b},.20)`;
     const br = `rgba(${r},${g},${b},.90)`;
     previewHTML = `<div style="display:inline-flex;flex-direction:column;align-items:center;gap:3px;padding:10px 22px;border:2.5px solid ${br};border-radius:5px;background:${bg};min-width:200px;max-width:340px;">
-      <span style="font-size:10px;color:#444;letter-spacing:.3px;">${esc(previewSc.int_ext||'')}</span>
-      <span style="font-size:15px;font-weight:800;color:${br};letter-spacing:.2px;text-align:center;line-height:1.2;">${esc(previewSc.lieu||'—')}</span>
+      <span style="font-size:14px;font-weight:800;color:${br};letter-spacing:.2px;text-align:center;line-height:1.2;">${esc(previewSc.int_ext||'')} ${esc(previewSc.lieu||'—')}</span>
       ${previewSc.sous_lieu?`<span style="font-size:11px;font-style:italic;color:${br};opacity:.85;">${esc(previewSc.sous_lieu)}</span>`:''}
     </div>`;
   }
@@ -2254,8 +2253,7 @@ function generateDecoupage() {
     return `<div class="pg">
   ${epTag}<div class="sc-n">${eh(String(s.sc))}</div>
   <div class="carton" style="border-color:${br};background:${bg};">
-    <span class="c-ie">${eh(s.int_ext||'')}</span>
-    <span class="c-lieu" style="color:${br};">${eh(s.lieu||'—')}</span>
+    <span class="c-r1" style="color:${br};">${eh(s.int_ext||'')} ${eh(s.lieu||'—')}</span>
     ${s.sous_lieu?`<span class="c-sl" style="color:${br};">${eh(s.sous_lieu)}</span>`:''}
   </div>
   ${meta?`<div class="meta">${eh(meta)}</div>`:''}
@@ -2279,8 +2277,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .sc-n{position:absolute;left:15px;top:13px;font-family:'Courier New',monospace;font-size:14pt;font-weight:700;color:#111;line-height:1;}
 .ep-tag{position:absolute;left:16px;top:36px;font-size:7pt;font-weight:700;color:#888;letter-spacing:.3px;}
 .carton{position:absolute;left:27%;top:9px;width:64%;padding:9px 16px;border:2.5px solid;border-radius:5px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:58px;}
-.c-ie{font-size:8pt;letter-spacing:.4px;color:#444;line-height:1;}
-.c-lieu{font-size:13pt;font-weight:800;letter-spacing:.1px;text-align:center;line-height:1.2;}
+.c-r1{font-size:12pt;font-weight:800;letter-spacing:.2px;text-align:center;line-height:1.3;}
 .c-sl{font-size:9pt;font-style:italic;opacity:.85;text-align:center;line-height:1.2;}
 .meta{position:absolute;right:14px;top:13px;font-size:7.5pt;color:#555;text-align:right;line-height:1.5;}
 .bl{position:absolute;bottom:10%;left:5%;right:5%;height:1px;background:#e8e8e8;}
@@ -2361,19 +2358,43 @@ async function generateCartonsImages() {
     const textCol = `rgba(${rv},${gv},${bv},0.95)`;
     const hasSl = !!s.sous_lieu;
 
-    // INT/EXT
-    ctx.fillStyle = '#333';
-    ctx.font = '400 38px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(s.int_ext || '', W/2, hasSl ? 72 : 90);
+    // Row 1: INT/EXT (small) + LIEU (big bold) on same baseline
+    const ie = s.int_ext || '';
+    const lieuText = (s.lieu || '—').toUpperCase();
+    const fontSf = '-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
+    const lieuFs = hasSl ? 80 : 92;
+    const ieFs = 40;
+    const row1Y = hasSl ? H/2 - 20 : H/2 + 15;
+    const ieSep = ie ? ie + ' ' : '';
 
-    // LIEU NAME (bold, wraps)
-    ctx.fillStyle = textCol;
-    const lieuFs = hasSl ? 88 : 102;
-    ctx.font = `800 ${lieuFs}px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif`;
-    const lieuCy = hasSl ? H/2 - 28 : H/2 + 10;
-    _wrapText(ctx, (s.lieu || '—').toUpperCase(), W/2, lieuCy, W - 120, lieuFs * 1.18);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.font = `500 ${ieFs}px ${fontSf}`;
+    const ieW = ctx.measureText(ieSep).width;
+    ctx.font = `800 ${lieuFs}px ${fontSf}`;
+    const lieuSingleW = ctx.measureText(lieuText).width;
+
+    if (ieW + lieuSingleW <= W - 80) {
+      const startX = (W - ieW - lieuSingleW) / 2;
+      if (ieSep) {
+        ctx.fillStyle = `rgba(${rv},${gv},${bv},0.72)`;
+        ctx.font = `500 ${ieFs}px ${fontSf}`;
+        ctx.fillText(ieSep, startX, row1Y);
+      }
+      ctx.fillStyle = textCol;
+      ctx.font = `800 ${lieuFs}px ${fontSf}`;
+      ctx.fillText(lieuText, startX + ieW, row1Y);
+    } else {
+      ctx.textAlign = 'center';
+      if (ie) {
+        ctx.fillStyle = `rgba(${rv},${gv},${bv},0.72)`;
+        ctx.font = `500 ${ieFs}px ${fontSf}`;
+        ctx.fillText(ie, W/2, row1Y - lieuFs * 0.9);
+      }
+      ctx.fillStyle = textCol;
+      ctx.font = `800 ${lieuFs}px ${fontSf}`;
+      _wrapText(ctx, lieuText, W/2, row1Y, W - 120, lieuFs * 1.2);
+    }
 
     // SOUS-LIEU italic
     if (s.sous_lieu) {
