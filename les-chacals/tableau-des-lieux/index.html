@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <title>Les Chacals — Tableau des lieux</title>
 <style>
 :root {
@@ -465,6 +466,23 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
 .stat-num { font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .stat-pct { color: var(--text-muted); font-size: 11px; white-space: nowrap; }
 
+/* ── OUTILS ── */
+#panel-outils.active { display: block; overflow-y: auto; height: calc(100vh - var(--thead-top, 109px)); }
+.outils-wrap { padding: 28px 24px 60px; max-width: 860px; }
+.outils-tool-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 26px 28px; margin-bottom: 20px; }
+.outils-tool-hd { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.outils-tool-hd h3 { font-size: 15px; font-weight: 700; }
+.outils-tool-badge { font-size: 11px; font-weight: 600; color: var(--text-muted); background: var(--bg3); border: 1px solid var(--border); padding: 2px 9px; border-radius: 10px; }
+.outils-tool-desc { font-size: 12px; color: var(--text-muted); margin-bottom: 18px; line-height: 1.6; max-width: 680px; }
+.outils-preview { background: var(--bg3); border: 1px solid var(--border); border-radius: 7px; padding: 16px 20px; margin-bottom: 18px; }
+.outils-preview-label { font-size: 10px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 12px; }
+.outils-options { display: flex; flex-direction: column; gap: 14px; }
+.outils-opts-row { display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap; }
+.outils-check-row { display: flex; gap: 20px; flex-wrap: wrap; }
+.outils-check-row label { display: flex; align-items: center; gap: 7px; font-size: 12px; cursor: pointer; }
+.outils-action { margin-top: 22px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.outils-hint { font-size: 11px; color: var(--text-muted); line-height: 1.5; }
+
 /* ── PRINT ── */
 @media print {
   .topbar { position: static; } .controls-bar { display: none; } .legend { display: none; }
@@ -511,6 +529,7 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
       <button class="tab-btn" onclick="switchTab('tableau')">Tableau des scènes</button>
       <button class="tab-btn" onclick="switchTab('lieux')">Locations</button>
       <button class="tab-btn" onclick="switchTab('recap')">Récapitulatif</button>
+      <button class="tab-btn" onclick="switchTab('outils')">Outils</button>
     </div>
     <div id="sync-dot" class="sync-dot idle" title="Non connecté"></div>
     <a href="/" style="font-size:11px;color:var(--text-muted);text-decoration:none;letter-spacing:0.04em;padding:4px 0 4px 16px;border-left:1px solid var(--border);margin-left:12px;white-space:nowrap;flex-shrink:0;" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--text-muted)'">← Outils</a>
@@ -664,6 +683,11 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
   <div class="recap-wrap" id="recap-content"></div>
 </div>
 
+<!-- PANEL: OUTILS -->
+<div class="panel" id="panel-outils">
+  <div class="outils-wrap" id="outils-content"></div>
+</div>
+
 <div id="photo-lightbox" onclick="closeLightbox()"><img id="photo-lightbox-img" src="" alt=""></div>
 <div class="toast" id="toast"></div>
 <div id="vlieu-loc-menu"></div>
@@ -815,15 +839,17 @@ async function loadFromSupabase() {
 // ─── TABS ───────────────────────────────────────────────────────────────────
 function switchTab(tab) {
   document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active',
-    (i===0&&tab==='vue-lieux')||(i===1&&tab==='tableau')||(i===2&&tab==='lieux')||(i===3&&tab==='recap')));
+    (i===0&&tab==='vue-lieux')||(i===1&&tab==='tableau')||(i===2&&tab==='lieux')||(i===3&&tab==='recap')||(i===4&&tab==='outils')));
   document.getElementById('panel-vue-lieux').classList.toggle('active', tab==='vue-lieux');
   document.getElementById('panel-tableau').classList.toggle('active', tab==='tableau');
   document.getElementById('panel-lieux').classList.toggle('active', tab==='lieux');
   document.getElementById('panel-recap').classList.toggle('active', tab==='recap');
+  document.getElementById('panel-outils').classList.toggle('active', tab==='outils');
   document.getElementById('controls-bar').classList.toggle('hidden', tab!=='tableau');
   if (tab === 'vue-lieux') renderVueLieux();
   if (tab === 'lieux') renderLieuList();
   if (tab === 'recap') renderRecap();
+  if (tab === 'outils') renderOutils();
   updateStickyTop();
 }
 
@@ -2127,6 +2153,248 @@ function expandAllRecap() {
     rc[id] = false;
   });
   localStorage.setItem('rc-collapsed', JSON.stringify(rc));
+}
+
+// ─── OUTILS ─────────────────────────────────────────────────────────────────
+function renderOutils() {
+  const wrap = document.getElementById('outils-content');
+  if (!wrap) return;
+
+  const previewSc = scenes.find(s => !s.struck && s.lieu) || scenes[0];
+  let previewHTML = '<span style="color:var(--text-dim);font-size:12px;">Aucune scène</span>';
+  if (previewSc) {
+    const col = lieuFictifColor(previewSc.lieu || '');
+    const r = parseInt(col.slice(1,3),16), g = parseInt(col.slice(3,5),16), b = parseInt(col.slice(5,7),16);
+    const bg = `rgba(${r},${g},${b},.20)`;
+    const br = `rgba(${r},${g},${b},.90)`;
+    previewHTML = `<div style="display:inline-flex;flex-direction:column;align-items:center;gap:3px;padding:10px 22px;border:2.5px solid ${br};border-radius:5px;background:${bg};min-width:200px;max-width:340px;">
+      <span style="font-size:10px;color:#444;letter-spacing:.3px;">${esc(previewSc.int_ext||'')}</span>
+      <span style="font-size:15px;font-weight:800;color:${br};letter-spacing:.2px;text-align:center;line-height:1.2;">${esc(previewSc.lieu||'—')}</span>
+      ${previewSc.sous_lieu?`<span style="font-size:11px;font-style:italic;color:${br};opacity:.85;">${esc(previewSc.sous_lieu)}</span>`:''}
+    </div>`;
+  }
+
+  const epSelect = IS_SERIES
+    ? `<div class="form-group" style="flex:0 0 auto;"><label>Épisode</label><select class="filter" id="opt-decoupage-ep"><option value="">Tous les épisodes</option>${[...new Set(scenes.map(s=>s.ep).filter(Boolean))].sort().map(ep=>`<option value="${esc(ep)}">${esc(ep)}</option>`).join('')}</select></div>`
+    : '';
+
+  const count = scenes.filter(s => !s.struck).length;
+
+  wrap.innerHTML = `<div class="outils-tool-card">
+    <div class="outils-tool-hd">
+      <h3>Cartons d'identification de lieux</h3>
+      <span class="outils-tool-badge">${count} scène${count!==1?'s':''}</span>
+    </div>
+    <p class="outils-tool-desc">Génère un gabarit PDF — une page blanche par scène avec le carton de lieu en haut. Importe le PDF dans GoodNotes comme fond de carnet pour faire ton découpage technique par-dessus. Les couleurs correspondent à celles des cartes Vue Lieux.</p>
+
+    <div class="outils-preview">
+      <div class="outils-preview-label">Aperçu — carton</div>
+      ${previewHTML}
+    </div>
+
+    <div class="outils-options">
+      <div class="outils-opts-row">
+        <div class="form-group" style="flex:0 0 240px;">
+          <label>Format de page</label>
+          <select class="filter" id="opt-decoupage-fmt" style="width:100%;">
+            <option value="gn" selected>GoodNotes — 160 × 207 mm</option>
+            <option value="a4">A4 portrait — 210 × 297 mm</option>
+            <option value="letter">Lettre — 8.5 × 11 po</option>
+          </select>
+        </div>
+        ${epSelect}
+      </div>
+      <div class="outils-check-row">
+        <label><input type="checkbox" id="opt-decoupage-jn" checked> Inclure le moment (J / N)</label>
+        <label><input type="checkbox" id="opt-decoupage-pg"> Numéro de page scén.</label>
+      </div>
+    </div>
+
+    <div class="outils-action">
+      <button class="btn btn-primary" onclick="generateDecoupage()">Gabarit PDF →</button>
+      <button class="btn" onclick="generateCartonsImages()" style="display:flex;align-items:center;gap:6px;">
+        <span style="font-size:11px;">⬇</span> Cartons PNG (ZIP)
+      </button>
+      <span class="outils-hint">PDF&nbsp;: une page par scène avec carton en haut, reste blanc.<br>PNG&nbsp;: images individuelles (1800×480 px) importables comme stickers dans GoodNotes.</span>
+    </div>
+  </div>`;
+}
+
+function generateDecoupage() {
+  const fmt    = document.getElementById('opt-decoupage-fmt').value;
+  const inclJN = document.getElementById('opt-decoupage-jn').checked;
+  const inclPg = document.getElementById('opt-decoupage-pg').checked;
+  const epF    = IS_SERIES ? (document.getElementById('opt-decoupage-ep')?.value || '') : '';
+
+  const PF = {
+    gn:     { w:'160mm', h:'207mm' },
+    a4:     { w:'210mm', h:'297mm' },
+    letter: { w:'8.5in', h:'11in'  }
+  };
+  const pf = PF[fmt] || PF.gn;
+
+  let list = scenes.filter(s => !s.struck);
+  if (epF) list = list.filter(s => (s.ep||'') === epF);
+  if (!list.length) { showToast('Aucune scène à générer'); return; }
+
+  function hexRgba(hex, a) {
+    const r=parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16);
+    return `rgba(${r},${g},${b},${a})`;
+  }
+  function eh(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  const pages = list.map(s => {
+    const col = lieuFictifColor(s.lieu || '');
+    const bg  = hexRgba(col, 0.18);
+    const br  = hexRgba(col, 0.88);
+    const jnStr = inclJN && s.jn && s.jn !== '—' ? s.jn : '';
+    const pgStr = inclPg && s.page ? `p.​${eh(s.page)}` : '';
+    const meta  = [jnStr, pgStr].filter(Boolean).join(' · ');
+    const epTag = IS_SERIES && s.ep ? `<div class="ep-tag">${eh(s.ep)}</div>` : '';
+    return `<div class="pg">
+  ${epTag}<div class="sc-n">${eh(String(s.sc))}</div>
+  <div class="carton" style="border-color:${br};background:${bg};">
+    <span class="c-ie">${eh(s.int_ext||'')}</span>
+    <span class="c-lieu" style="color:${br};">${eh(s.lieu||'—')}</span>
+    ${s.sous_lieu?`<span class="c-sl" style="color:${br};">${eh(s.sous_lieu)}</span>`:''}
+  </div>
+  ${meta?`<div class="meta">${eh(meta)}</div>`:''}
+  <div class="bl"></div>
+</div>`;
+  }).join('\n');
+
+  const html = `<!DOCTYPE html>
+<html lang="fr">
+<head><meta charset="UTF-8">
+<title>Cartons — ${list.length} scènes</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#ddd;}
+.np{background:#1a1a2e;color:#fff;padding:12px 20px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:10;}
+.np-info h1{font-size:13px;font-weight:600;}
+.np-info p{font-size:11px;color:#aaa;margin-top:2px;}
+.np button{background:#fff;color:#111;border:none;padding:8px 20px;border-radius:5px;font-size:13px;cursor:pointer;font-weight:700;flex-shrink:0;margin-left:auto;}
+.pages{padding:24px;display:flex;flex-direction:column;gap:24px;align-items:center;}
+.pg{width:${pf.w};height:${pf.h};background:#fff;position:relative;overflow:hidden;box-shadow:0 3px 16px rgba(0,0,0,.22);page-break-after:always;break-after:page;}
+.sc-n{position:absolute;left:15px;top:13px;font-family:'Courier New',monospace;font-size:14pt;font-weight:700;color:#111;line-height:1;}
+.ep-tag{position:absolute;left:16px;top:36px;font-size:7pt;font-weight:700;color:#888;letter-spacing:.3px;}
+.carton{position:absolute;left:27%;top:9px;width:64%;padding:9px 16px;border:2.5px solid;border-radius:5px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:58px;}
+.c-ie{font-size:8pt;letter-spacing:.4px;color:#444;line-height:1;}
+.c-lieu{font-size:13pt;font-weight:800;letter-spacing:.1px;text-align:center;line-height:1.2;}
+.c-sl{font-size:9pt;font-style:italic;opacity:.85;text-align:center;line-height:1.2;}
+.meta{position:absolute;right:14px;top:13px;font-size:7.5pt;color:#555;text-align:right;line-height:1.5;}
+.bl{position:absolute;bottom:10%;left:5%;right:5%;height:1px;background:#e8e8e8;}
+@media print{
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  body{background:#fff;}
+  .np{display:none;}
+  .pages{padding:0;gap:0;}
+  .pg{box-shadow:none;}
+  @page{size:${pf.w} ${pf.h};margin:0;}
+}
+</style></head>
+<body>
+<div class="np">
+  <div class="np-info"><h1>Cartons de découpage — ${list.length} scènes</h1><p>Cmd+P → Enregistrer en PDF → Importer dans GoodNotes</p></div>
+  <button onclick="window.print()">⎎ Imprimer / PDF</button>
+</div>
+<div class="pages">${pages}</div>
+</body></html>`;
+
+  const win = window.open('', '_blank');
+  if (!win) { showToast('Popup bloqué — autorise les popups pour cet outil'); return; }
+  win.document.write(html);
+  win.document.close();
+  showToast(`${list.length} page${list.length>1?'s':''} générée${list.length>1?'s':''}`);
+}
+
+function _roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y);
+  ctx.quadraticCurveTo(x+w,y,x+w,y+r); ctx.lineTo(x+w,y+h-r);
+  ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h); ctx.lineTo(x+r,y+h);
+  ctx.quadraticCurveTo(x,y+h,x,y+h-r); ctx.lineTo(x,y+r);
+  ctx.quadraticCurveTo(x,y,x+r,y); ctx.closePath();
+}
+
+function _wrapText(ctx, text, cx, baselineY, maxW, lineH) {
+  const words = text.split(' ');
+  let line = '', lines = [];
+  for (const w of words) {
+    const t = line ? line + ' ' + w : w;
+    if (ctx.measureText(t).width > maxW && line) { lines.push(line); line = w; }
+    else line = t;
+  }
+  if (line) lines.push(line);
+  const totalH = (lines.length - 1) * lineH;
+  lines.forEach((l, i) => ctx.fillText(l, cx, baselineY - totalH / 2 + i * lineH));
+}
+
+async function generateCartonsImages() {
+  if (typeof JSZip === 'undefined') { showToast('JSZip non chargé — vérifie ta connexion'); return; }
+  let list = scenes.filter(s => !s.struck);
+  const epF = IS_SERIES ? (document.getElementById('opt-decoupage-ep')?.value || '') : '';
+  if (epF) list = list.filter(s => (s.ep||'') === epF);
+  if (!list.length) { showToast('Aucune scène à exporter'); return; }
+
+  showToast(`Génération de ${list.length} cartons PNG…`);
+  const W = 1800, H = 480;
+  const zip = new JSZip();
+
+  for (const s of list) {
+    const canvas = document.createElement('canvas');
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext('2d');
+
+    const col = lieuFictifColor(s.lieu || '');
+    const rv = parseInt(col.slice(1,3),16), gv = parseInt(col.slice(3,5),16), bv = parseInt(col.slice(5,7),16);
+
+    // Background fill
+    ctx.fillStyle = `rgba(${rv},${gv},${bv},0.18)`;
+    _roundRect(ctx, 0, 0, W, H, 16); ctx.fill();
+
+    // Border
+    ctx.strokeStyle = `rgba(${rv},${gv},${bv},0.90)`;
+    ctx.lineWidth = 9;
+    _roundRect(ctx, 5, 5, W-10, H-10, 13); ctx.stroke();
+
+    const textCol = `rgba(${rv},${gv},${bv},0.95)`;
+    const hasSl = !!s.sous_lieu;
+
+    // INT/EXT
+    ctx.fillStyle = '#333';
+    ctx.font = '400 38px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(s.int_ext || '', W/2, hasSl ? 72 : 90);
+
+    // LIEU NAME (bold, wraps)
+    ctx.fillStyle = textCol;
+    const lieuFs = hasSl ? 88 : 102;
+    ctx.font = `800 ${lieuFs}px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif`;
+    const lieuCy = hasSl ? H/2 - 28 : H/2 + 10;
+    _wrapText(ctx, (s.lieu || '—').toUpperCase(), W/2, lieuCy, W - 120, lieuFs * 1.18);
+
+    // SOUS-LIEU italic
+    if (s.sous_lieu) {
+      ctx.fillStyle = `rgba(${rv},${gv},${bv},0.78)`;
+      ctx.font = `italic 500 56px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif`;
+      ctx.fillText(s.sous_lieu, W/2, H - 62);
+    }
+
+    const base64 = canvas.toDataURL('image/png').split(',')[1];
+    const scName = String(s.sc).replace(/\./g,'_');
+    const lieuTag = (s.lieu||'sc').replace(/[^a-zA-ZÀ-ÿ0-9]/g,'_').slice(0,20);
+    zip.file(`carton_${String(scName).padStart(3,'0')}_${lieuTag}.png`, base64, { base64: true });
+  }
+
+  const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'cartons-' + today() + '.zip';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast(`${list.length} PNG exportés en ZIP`);
 }
 
 // ─── STICKY HEADER ──────────────────────────────────────────────────────────
