@@ -117,6 +117,17 @@ td.sc-num { position: relative; }
   z-index: 20; box-shadow: 0 1px 4px rgba(0,0,0,.35);
 }
 tbody tr:hover .insert-after-btn { opacity: 1; }
+.export-sc-btn {
+  position: absolute; top: -8px; right: -8px;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--bg3); color: var(--text-muted); font-size: 9px; font-weight: 700; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; border: 1px solid var(--border); padding: 0;
+  opacity: 0; transition: opacity 0.15s;
+  z-index: 20;
+}
+tbody tr:hover .export-sc-btn { opacity: 1; }
+.export-sc-btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
 td:last-child { border-right: none; }
 
 /* ── TAGS ── */
@@ -1486,7 +1497,7 @@ function buildTable() {
     if (s.struck) tr.classList.add('row-struck');
     if (String(s.sc).includes('.')) tr.classList.add('scene-inserted');
     tr.innerHTML = `
-      <td class="sc-num"><input type="text" class="sc-input" value="${esc(String(s.sc))}" data-sc="${esc(String(s.sc))}" onchange="onScEdit(this)" onblur="onScEdit(this)"><button class="insert-after-btn" title="Insérer une scène après" onclick="addSceneAfter('${s.sc}')">+</button></td>
+      <td class="sc-num"><input type="text" class="sc-input" value="${esc(String(s.sc))}" data-sc="${esc(String(s.sc))}" onchange="onScEdit(this)" onblur="onScEdit(this)"><button class="insert-after-btn" title="Insérer une scène après" onclick="addSceneAfter('${s.sc}')">+</button><button class="export-sc-btn" title="Exporter cette scène en PDF" onclick="exportScenePDF('${s.sc}')">PDF</button></td>
       <td class="ep-col sc-num"><input type="text" class="sc-input" value="${esc(s.ep||'')}" data-sc="${s.sc}" data-f="ep" placeholder="—" onchange="onLieuEdit(this)" onblur="onLieuEdit(this)"></td>
       <td>${ieSelect(s.sc, s.int_ext)}</td>
       <td class="lieu-cell"><select class="lieu-name-select" data-sc="${s.sc}" data-f="lieu" onchange="onLieuEdit(this)">${lieuScriptOpts(s.lieu)}</select></td>
@@ -2231,6 +2242,17 @@ function renderOutils() {
   </div>`;
 
   renderOutilsPreview();
+}
+
+function exportScenePDF(sc) {
+  const s = scenes.find(s => String(s.sc) === String(sc));
+  if (!s) return;
+  const PF = { gn: { w:'160mm', h:'207mm' }, a4: { w:'210mm', h:'297mm' }, letter: { w:'8.5in', h:'11in' } };
+  const fmt = document.getElementById('opt-decoupage-fmt')?.value || 'gn';
+  const pf  = PF[fmt] || PF.gn;
+  const inclJN = document.getElementById('opt-decoupage-jn')?.checked ?? true;
+  const inclPg = document.getElementById('opt-decoupage-pg')?.checked ?? false;
+  _openDecoupageWindow([s], pf, inclJN, inclPg, null);
 }
 
 function generateDecoupage() {
