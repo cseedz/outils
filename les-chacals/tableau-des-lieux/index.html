@@ -131,6 +131,14 @@ td:last-child { border-right: none; }
 .tFIN  { background:rgba(138,100,45,.1); color:#6a4000; border:1px solid rgba(138,100,45,.3); }
 
 .lieu-cell { min-width: 130px; }
+select.lieu-name-select {
+  background: transparent; border: 1px solid transparent; border-radius: 4px;
+  color: var(--text); font-family: inherit; font-size: 12px; font-weight: 500;
+  padding: 3px 4px; width: 100%; cursor: pointer; outline: none;
+  transition: border-color 0.12s, background 0.12s;
+}
+select.lieu-name-select:hover { border-color: var(--border2); }
+select.lieu-name-select:focus { border-color: var(--accent); background: var(--bg3); }
 .sous-lieu-cell { min-width: 110px; }
 input.lieu-input {
   background: transparent; border: 1px solid transparent; color: var(--text);
@@ -1411,6 +1419,11 @@ function onTagEdit(sel) {
   save();
 }
 
+function lieuScriptOpts(sel) {
+  const lieux = [...new Set(scenes.map(s => s.lieu).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr'));
+  return ['', ...lieux].map(l => `<option value="${esc(l)}"${l === (sel||'') ? ' selected' : ''}>${l ? esc(l) : '—'}</option>`).join('');
+}
+
 function buildTable() {
   const tbody = document.getElementById('tbody');
   tbody.innerHTML = '';
@@ -1422,7 +1435,7 @@ function buildTable() {
       <td class="sc-num"><input type="text" class="sc-input" value="${esc(String(s.sc))}" data-sc="${esc(String(s.sc))}" onchange="onScEdit(this)" onblur="onScEdit(this)"><button class="insert-after-btn" title="Insérer une scène après" onclick="addSceneAfter('${s.sc}')">+</button></td>
       <td class="ep-col sc-num">${IS_SERIES ? fmtEp(s.sc) : ''}</td>
       <td>${ieSelect(s.sc, s.int_ext)}</td>
-      <td class="lieu-cell"><input type="text" class="lieu-input" value="${esc(s.lieu||'')}" data-sc="${s.sc}" data-f="lieu" onchange="onLieuEdit(this)" onblur="onLieuEdit(this)"></td>
+      <td class="lieu-cell"><select class="lieu-name-select" data-sc="${s.sc}" data-f="lieu" onchange="onLieuEdit(this)">${lieuScriptOpts(s.lieu)}</select></td>
       <td class="sous-lieu-cell"><input type="text" class="sous-lieu-input" placeholder="—" value="${esc(s.sous_lieu||'')}" data-sc="${s.sc}" data-f="sous_lieu" onchange="onLieuEdit(this)" onblur="onLieuEdit(this)"></td>
       <td>${jnSelect(s.sc, s.jn)}</td>
       <td class="page-num"><input type="text" class="lieu-input" style="text-align:center;width:42px;" value="${esc(s.page||'')}" data-sc="${s.sc}" data-f="page" onchange="onLieuEdit(this)" onblur="onLieuEdit(this)"></td>
