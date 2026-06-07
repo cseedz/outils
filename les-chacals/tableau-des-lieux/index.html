@@ -439,10 +439,18 @@ input.clr-inline-picker::-webkit-color-swatch { border:none;border-radius:2px; }
 .vcp-sw { width:16px;height:16px;border-radius:3px;cursor:pointer;border:1.5px solid transparent;transition:transform .1s,border-color .1s;flex-shrink:0; }
 .vcp-sw:hover { transform:scale(1.25); }
 .vcp-sw.active { border-color:rgba(0,0,0,.55); }
-.vcp-sw-edit { position:relative;overflow:hidden;cursor:pointer; }
-.vcp-sw-edit::after { content:'✎';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:8px;color:#fff;background:rgba(0,0,0,.35);opacity:0;transition:opacity .12s; }
-.vcp-sw-edit:hover::after { opacity:1; }
-.vcp-sw-edit input[type="color"] { position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;padding:0;border:none; }
+.vcp-sw-edit { position:relative;overflow:visible; }
+.vcp-sw-clr-lbl { position:absolute;inset:0;display:block;cursor:pointer;border-radius:2px;overflow:hidden; }
+.vcp-sw-clr-lbl::after { content:'✎';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:8px;color:#fff;background:rgba(0,0,0,.35);opacity:0;transition:opacity .12s; }
+.vcp-sw-edit:hover .vcp-sw-clr-lbl::after { opacity:1; }
+.vcp-sw-clr-lbl input[type="color"] { position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;padding:0;border:none; }
+.vcp-sw-del { position:absolute;top:-5px;right:-5px;width:11px;height:11px;background:rgba(210,50,40,.9);color:#fff;border-radius:50%;font-size:7px;display:none;align-items:center;justify-content:center;cursor:pointer;z-index:3;line-height:1; }
+.vcp-sw-edit:hover .vcp-sw-del { display:flex; }
+.vcp-sw-add { background:var(--bg3)!important;border:1.5px dashed var(--border2)!important;display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer; }
+.vcp-sw-add span { font-size:13px;color:var(--text-muted);line-height:1;pointer-events:none; }
+.vcp-sw-add input[type="color"] { position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;padding:0;border:none; }
+.vcp-pal-reset { width:100%;margin-top:5px;background:none;border:1px solid var(--border);color:var(--text-muted);border-radius:4px;padding:3px 0;font-size:10px;cursor:pointer;font-family:inherit; }
+.vcp-pal-reset:hover { color:var(--text);border-color:var(--accent); }
 .vcp-wheel-row { display:flex;align-items:center;gap:7px; }
 input.vcp-wheel { -webkit-appearance:none;appearance:none;width:22px;height:22px;border:2px solid rgba(0,0,0,.15);border-radius:4px;padding:1px;cursor:pointer;background:none;flex-shrink:0; }
 input.vcp-wheel::-webkit-color-swatch-wrapper { padding:0; }
@@ -807,6 +815,7 @@ const PALETTES = {
   vibrant: ['#4f7cff','#a78bfa','#34d399','#fbbf24','#f87171','#60a5fa','#f472b6','#2d8a8a','#c07a30','#7c5cce','#3a9a5c','#e3a8b8'],
   pastel:  ['#c0d4ff','#d8ccff','#a8f0d4','#fde8a0','#fdc0c0','#c0dcff','#fdc0e0','#a0e0e0','#f8d0a8','#d0c0f0','#b0f0c8','#f8d8e4']
 };
+const PALETTES_DEFAULT = { sobre:[...PALETTES.sobre], vibrant:[...PALETTES.vibrant], pastel:[...PALETTES.pastel] };
 let activePaletteKey = 'vibrant';
 let COLORS = PALETTES[activePaletteKey];
 let selectedColor = COLORS[0];
@@ -874,10 +883,56 @@ let _vcpEditMode = false;
 
 function _refreshVcpSwatches() {
   const color = _vcpLieu ? lieuFictifColor(_vcpLieu) : '';
-  document.getElementById('vcp-swatches').innerHTML = COLORS.map((c, i) => _vcpEditMode
-    ? `<label class="vcp-sw vcp-sw-edit" style="background:${c};" title="Modifier cette couleur"><input type="color" value="${c}" oninput="previewPaletteSwatch(this,${i})" onchange="savePaletteSwatch(this,${i})"></label>`
-    : `<div class="vcp-sw${c.toLowerCase()===color.toLowerCase()?' active':''}" style="background:${c};" onclick="applyVcpSwatch('${c}')" title="${c}"></div>`
-  ).join('');
+  let html;
+  if (_vcpEditMode) {
+    const isCustomized = JSON.stringify(PALETTES[activePaletteKey]) !== JSON.stringify(PALETTES_DEFAULT[activePaletteKey]);
+    html = COLORS.map((c, i) =>
+      `<div class="vcp-sw vcp-sw-edit" style="background:${c};">
+        <label class="vcp-sw-clr-lbl" title="Modifier"><input type="color" value="${c}" oninput="previewPaletteSwatch(this,${i})" onchange="savePaletteSwatch(this,${i})"></label>
+        <span class="vcp-sw-del" onclick="deletePaletteSwatch(event,${i})">×</span>
+      </div>`
+    ).join('') +
+    `<label class="vcp-sw vcp-sw-add" title="Ajouter une couleur"><span>+</span><input type="color" value="#888888" onchange="addPaletteSwatch(this)"></label>` +
+    (isCustomized ? `<button class="vcp-pal-reset" onclick="resetActivePalette()">↺ Réinitialiser la palette</button>` : '');
+  } else {
+    html = COLORS.map(c =>
+      `<div class="vcp-sw${c.toLowerCase()===color.toLowerCase()?' active':''}" style="background:${c};" onclick="applyVcpSwatch('${c}')" title="${c}"></div>`
+    ).join('');
+  }
+  document.getElementById('vcp-swatches').innerHTML = html;
+}
+function deletePaletteSwatch(event, idx) {
+  event.stopPropagation();
+  if (COLORS.length <= 1) return;
+  PALETTES[activePaletteKey].splice(idx, 1);
+  COLORS.splice(idx, 1);
+  try { localStorage.setItem('lieu_palettes_custom', JSON.stringify(PALETTES)); } catch(e) {}
+  _refreshVcpSwatches();
+  renderVueLieux();
+  renderBatchAssign();
+}
+function addPaletteSwatch(input) {
+  const c = input.value;
+  PALETTES[activePaletteKey].push(c);
+  COLORS.push(c);
+  try { localStorage.setItem('lieu_palettes_custom', JSON.stringify(PALETTES)); } catch(e) {}
+  _refreshVcpSwatches();
+  renderVueLieux();
+  renderBatchAssign();
+}
+function resetActivePalette() {
+  PALETTES[activePaletteKey] = [...PALETTES_DEFAULT[activePaletteKey]];
+  COLORS = PALETTES[activePaletteKey];
+  try {
+    const custom = JSON.parse(localStorage.getItem('lieu_palettes_custom') || '{}');
+    delete custom[activePaletteKey];
+    localStorage.setItem('lieu_palettes_custom', JSON.stringify(custom));
+  } catch(e) {}
+  _refreshVcpSwatches();
+  buildColorSwatches();
+  renderVueLieux();
+  renderBatchAssign();
+  showToast('Palette réinitialisée');
 }
 function toggleVcpEditMode() {
   _vcpEditMode = !_vcpEditMode;
