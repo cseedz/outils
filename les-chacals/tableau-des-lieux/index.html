@@ -200,9 +200,13 @@ input.notes-input:focus { border-color: var(--accent); background: var(--bg3); }
 input.notes-input::placeholder { color: var(--text-dim); }
 
 /* ── LIEUX MANAGEMENT PANEL ── */
-.lieux-panel { max-width: 860px; margin: 32px auto; padding: 0 24px 60px; }
-.lieux-panel h2 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
-.lieux-panel .subtitle { color: var(--text-muted); font-size: 12px; margin-bottom: 24px; }
+#panel-lieux.active { display: flex; height: calc(100vh - var(--thead-top, 109px)); overflow: hidden; }
+.lieux-col { flex: 1; overflow-y: auto; border-right: 1px solid var(--border); min-width: 0; }
+.lieux-col:last-child { border-right: none; }
+.lieux-col-inner { padding: 28px 24px 48px; }
+.lieux-col h2 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+.lieux-col .subtitle { color: var(--text-muted); font-size: 12px; margin-bottom: 24px; }
+.batch-section h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; color: var(--text); }
 .add-lieu-form {
   background: var(--bg2); border: 1px solid var(--border); border-radius: 8px;
   padding: 18px 20px; margin-bottom: 24px;
@@ -467,7 +471,7 @@ body.is-series select.ep-col { display: inline-block !important; }
   .tech-cell { background: #fafafa; }
   select.lieu-select { color: #333; border: 1px solid #ccc; background: #fff; }
   input.notes-input { color: #333; }
-  .lieux-panel { display: none; }
+  .lieux-col { display: none; }
 
   /* ── Impression d'une carte récap ── */
   body.print-card .topbar,
@@ -597,44 +601,49 @@ body.is-series select.ep-col { display: inline-block !important; }
 
 <!-- PANEL: LIEUX DE TOURNAGE -->
 <div class="panel" id="panel-lieux">
-  <div class="lieux-panel">
-    <h2>Gestion des locations</h2>
-    <p class="subtitle">Ajoutez ici vos lieux réels. Ils seront disponibles dans le menu déroulant de la colonne "Location" du tableau principal.</p>
+  <div class="lieux-col lieux-col-left">
+    <div class="lieux-col-inner">
+      <h2>Gestion des locations</h2>
+      <p class="subtitle">Ajoutez ici vos lieux réels. Ils seront disponibles dans le menu déroulant de la colonne "Location" du tableau principal.</p>
 
-    <div class="add-lieu-form">
-      <h3>+ Ajouter une location</h3>
-      <div class="form-row" style="margin-bottom:12px;">
-        <div class="form-group" style="flex:2;">
-          <label>Nom de la location *</label>
-          <input class="form-input" type="text" id="new-lieu-nom" placeholder="ex. Maison Tremblay, Usine Bombardier...">
+      <div class="add-lieu-form">
+        <h3>+ Ajouter une location</h3>
+        <div class="form-row" style="margin-bottom:12px;">
+          <div class="form-group" style="flex:2;">
+            <label>Nom de la location *</label>
+            <input class="form-input" type="text" id="new-lieu-nom" placeholder="ex. Maison Tremblay, Usine Bombardier...">
+          </div>
+          <div class="form-group" style="flex:2;">
+            <label>Adresse / notes</label>
+            <input class="form-input" type="text" id="new-lieu-adresse" placeholder="ex. 123 rue des Pins, Saint-Jean">
+          </div>
         </div>
-        <div class="form-group" style="flex:2;">
-          <label>Adresse / notes</label>
-          <input class="form-input" type="text" id="new-lieu-adresse" placeholder="ex. 123 rue des Pins, Saint-Jean">
+        <div class="form-row" style="align-items:center;">
+          <div class="form-group" style="flex:0 0 auto;">
+            <label>Couleur</label>
+            <div class="color-row" id="color-swatches"></div>
+          </div>
+          <div style="margin-left:auto;">
+            <button class="btn btn-success" onclick="addLieu()">Ajouter le lieu</button>
+          </div>
         </div>
       </div>
-      <div class="form-row" style="align-items:center;">
-        <div class="form-group" style="flex:0 0 auto;">
-          <label>Couleur</label>
-          <div class="color-row" id="color-swatches"></div>
-        </div>
-        <div style="margin-left:auto;">
-          <button class="btn btn-success" onclick="addLieu()">Ajouter le lieu</button>
+
+      <div class="lieu-list" id="lieu-list">
+        <div class="empty-lieux">
+          <div class="icon">📍</div>
+          Aucune location pour l'instant.<br>Ajoutez-en un ci-dessus pour qu'il apparaisse dans le tableau.
         </div>
       </div>
     </div>
-
-    <div class="lieu-list" id="lieu-list">
-      <div class="empty-lieux">
-        <div class="icon">📍</div>
-        Aucune location pour l'instant.<br>Ajoutez-en un ci-dessus pour qu'il apparaisse dans le tableau.
+  </div>
+  <div class="lieux-col lieux-col-right">
+    <div class="lieux-col-inner">
+      <div class="batch-section" id="batch-section">
+        <h3>Assignation par lot</h3>
+        <p class="subtitle">Assignez une location à toutes les scènes d'un lieu fictif en un clic. Les sous-lieux peuvent être assignés séparément — les overrides individuels dans le tableau restent prioritaires.</p>
+        <div id="batch-content"></div>
       </div>
-    </div>
-
-    <div class="batch-section" id="batch-section" style="display:none;">
-      <h3>Assignation par lot</h3>
-      <p class="subtitle">Assignez une location à toutes les scènes d'un lieu fictif en un clic. Les sous-lieux peuvent être assignés séparément — les overrides individuels dans le tableau restent prioritaires.</p>
-      <div id="batch-content"></div>
     </div>
   </div>
 </div>
@@ -1241,8 +1250,10 @@ function renderBatchAssign() {
   const wrap = document.getElementById('batch-content');
   if (!section || !wrap) return;
 
-  if (!lieusTournage.length) { section.style.display = 'none'; return; }
-  section.style.display = '';
+  if (!lieusTournage.length) {
+    wrap.innerHTML = '<p style="color:var(--text-muted);font-size:12px;margin-top:8px;">Ajoutez d\'abord des locations dans le panneau de gauche.</p>';
+    return;
+  }
 
   // Build: lieu → { sous_lieu → [scenes] }
   const groups = {};
