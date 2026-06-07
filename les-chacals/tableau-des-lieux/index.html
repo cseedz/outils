@@ -363,10 +363,17 @@ input.form-input::placeholder { color: var(--text-dim); }
 .batch-section .subtitle { color: var(--text-muted); font-size: 12px; margin-bottom: 16px; }
 .batch-group { margin-bottom: 10px; border: 1px solid var(--border); border-radius: 7px; overflow: hidden; }
 .batch-group-header {
-  background: var(--bg3); padding: 7px 14px;
+  background: var(--bg3); padding: 6px 8px 6px 14px;
   font-size: 11px; font-weight: 700; letter-spacing: 0.5px;
   color: var(--text-muted); text-transform: uppercase; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 6px;
 }
+.batch-hd-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.batch-group-header .clr-picker-wrap { width: 16px; height: 16px; }
+.batch-group-header .clr-swatch { width: 16px; height: 16px; border-radius: 3px; }
+.batch-group-header .clr-swatches { gap: 2px; }
+.batch-group-header .clr-sw { width: 11px; height: 11px; border-radius: 2px; }
+.batch-group-header .clr-reset { padding: 0 4px; font-size: 11px; line-height: 16px; }
 .batch-row {
   display: flex; align-items: center; gap: 10px;
   padding: 6px 14px; background: var(--bg2);
@@ -695,15 +702,9 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
   </div>
   <div class="lieux-col lieux-col-right">
     <div class="lieux-col-inner">
-      <div class="batch-section" id="color-section">
-        <h3>Couleurs des lieux fictifs</h3>
-        <p class="subtitle">Cliquez sur la roue ou un swatch pour modifier. Les overrides sont enregistrés dans le navigateur.</p>
-        <div id="color-content"></div>
-      </div>
-
       <div class="batch-section" id="batch-section">
-        <h3>Assignation par lot</h3>
-        <p class="subtitle">Assignez une location à toutes les scènes d'un lieu fictif en un clic. Les sous-lieux peuvent être assignés séparément — les overrides individuels dans le tableau restent prioritaires.</p>
+        <h3>Lieux fictifs</h3>
+        <p class="subtitle">Couleur et assignation de location par lieu. Les overrides individuels du tableau restent prioritaires.</p>
         <div id="batch-content"></div>
       </div>
     </div>
@@ -1386,11 +1387,6 @@ function renderBatchAssign() {
   const wrap = document.getElementById('batch-content');
   if (!section || !wrap) return;
 
-  if (!lieusTournage.length) {
-    wrap.innerHTML = '<p style="color:var(--text-muted);font-size:12px;margin-top:8px;">Ajoutez d\'abord des locations dans le panneau de gauche.</p>';
-    return;
-  }
-
   // Build: lieu → { sous_lieu → [scenes] }
   const groups = {};
   scenes.forEach(s => {
@@ -1400,7 +1396,36 @@ function renderBatchAssign() {
     groups[s.lieu][sl].push(s);
   });
 
-  wrap.innerHTML = Object.keys(groups).sort().map(lieu => {
+  const sortedLieux = Object.keys(groups).sort();
+  _colorLieux = sortedLieux;
+
+  const hasOverrides = Object.keys(lieuColorOverrides).length > 0;
+  const exportLine = hasOverrides
+    ? `<button class="clr-export-btn" onclick="copyLieuColors()">↓ Copier les couleurs (JSON)</button>` : '';
+
+  const hasBatch = lieusTournage.length > 0;
+
+  wrap.innerHTML = exportLine + sortedLieux.map((lieu, idx) => {
+    const color = lieuFictifColor(lieu);
+    const isOverridden = !!(lieuColorOverrides[lieu] || LIEU_COLORS_RAW[lieu]);
+    const swatches = COLORS.map(c =>
+      `<div class="clr-sw${c.toLowerCase() === color.toLowerCase() ? ' active' : ''}" style="background:${c};" onclick="setLieuColorByIdx(${idx},'${c}')" title="${c}"></div>`
+    ).join('');
+    const resetBtn = isOverridden
+      ? `<button class="clr-reset" onclick="resetLieuColorByIdx(${idx})" title="Couleur automatique">↺</button>` : '';
+
+    const header = `<div class="batch-group-header">
+      <span class="batch-hd-name" id="clr-nm-${idx}" style="border-left:2px solid ${color};padding-left:6px;">${esc(lieu)}</span>
+      <label class="clr-picker-wrap" title="Roue chromatique">
+        <input type="color" value="${color}" oninput="previewLieuColor(${idx},this.value)" onchange="setLieuColorByIdx(${idx},this.value)">
+        <span class="clr-swatch" id="clr-sw-${idx}" style="background:${color};"></span>
+      </label>
+      <div class="clr-swatches">${swatches}</div>
+      ${resetBtn}
+    </div>`;
+
+    if (!hasBatch) return `<div class="batch-group">${header}</div>`;
+
     const souslieux = Object.keys(groups[lieu]).sort();
     const allSc = Object.values(groups[lieu]).flat();
     const totalPages = allSc.reduce((a, s) => a + parseDuree(s.duree), 0);
@@ -1425,7 +1450,7 @@ function renderBatchAssign() {
     }).join('') : '';
 
     return `<div class="batch-group">
-      <div class="batch-group-header">${esc(lieu)}</div>
+      ${header}
       <div class="batch-row batch-row-parent">
         <div class="batch-row-label"><span class="batch-tout">${hasVariety ? 'Toutes les scènes' : '—'}</span></div>
         <div class="batch-stats">${allSc.length} sc · ${fmtPages(totalPages)}</div>
@@ -1438,7 +1463,6 @@ function renderBatchAssign() {
       ${subRows}
     </div>`;
   }).join('');
-  renderColorSection();
 }
 
 function batchOptions(selectedId) {
