@@ -780,6 +780,11 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
 
 <div id="photo-lightbox" onclick="closeLightbox()"><img id="photo-lightbox-img" src="" alt=""></div>
 <div class="toast" id="toast"></div>
+<div id="loading-overlay" style="position:fixed;inset:0;background:var(--bg,#1a1a2e);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:99999;gap:12px;">
+  <div style="font-size:13px;color:var(--text-muted,#888);">Chargement du projet…</div>
+  <div style="width:120px;height:3px;background:var(--border,#333);border-radius:2px;overflow:hidden;"><div style="width:40%;height:100%;background:var(--accent,#4f7cff);border-radius:2px;animation:ldbar 1.2s ease-in-out infinite;"></div></div>
+</div>
+<style>@keyframes ldbar{0%{transform:translateX(-100%)}100%{transform:translateX(350%)}}</style>
 <div id="vlieu-color-panel" style="display:none;" onclick="event.stopPropagation()">
   <div class="vcp-palettes">
     <button class="vcp-pal-btn" data-pk="sobre" onclick="switchVcpPalette('sobre')">Sobre</button>
@@ -840,18 +845,8 @@ function buildColorSwatches() {
   });
 }
 
-function loadLieuColors() {
-  try { lieuColorOverrides = JSON.parse(localStorage.getItem('lieu_colors') || '{}'); } catch(e) { lieuColorOverrides = {}; }
-  try {
-    const custom = JSON.parse(localStorage.getItem('lieu_palettes_custom') || 'null');
-    if (custom) Object.keys(PALETTES).forEach(k => { if (custom[k] && Array.isArray(custom[k]) && custom[k].length === 12) PALETTES[k] = custom[k]; });
-  } catch(e) {}
-  const pk = localStorage.getItem('lieu_palette');
-  if (pk && PALETTES[pk]) { activePaletteKey = pk; COLORS = PALETTES[pk]; }
-}
-function saveLieuColors() {
-  localStorage.setItem('lieu_colors', JSON.stringify(lieuColorOverrides));
-}
+function loadLieuColors() { /* chargé depuis Supabase dans loadFromSupabase() */ }
+function saveLieuColors() { save(); }
 function setLieuColorByIdx(idx, color) {
   const lieu = _colorLieux[idx];
   if (!lieu) return;
@@ -906,7 +901,7 @@ function deletePaletteSwatch(event, idx) {
   if (COLORS.length <= 1) return;
   PALETTES[activePaletteKey].splice(idx, 1);
   COLORS.splice(idx, 1);
-  try { localStorage.setItem('lieu_palettes_custom', JSON.stringify(PALETTES)); } catch(e) {}
+  save();
   _refreshVcpSwatches();
   renderVueLieux();
   renderBatchAssign();
@@ -915,7 +910,7 @@ function addPaletteSwatch(input) {
   const c = input.value;
   PALETTES[activePaletteKey].push(c);
   COLORS.push(c);
-  try { localStorage.setItem('lieu_palettes_custom', JSON.stringify(PALETTES)); } catch(e) {}
+  save();
   _refreshVcpSwatches();
   renderVueLieux();
   renderBatchAssign();
@@ -923,11 +918,7 @@ function addPaletteSwatch(input) {
 function resetActivePalette() {
   PALETTES[activePaletteKey] = [...PALETTES_DEFAULT[activePaletteKey]];
   COLORS = PALETTES[activePaletteKey];
-  try {
-    const custom = JSON.parse(localStorage.getItem('lieu_palettes_custom') || '{}');
-    delete custom[activePaletteKey];
-    localStorage.setItem('lieu_palettes_custom', JSON.stringify(custom));
-  } catch(e) {}
+  save();
   _refreshVcpSwatches();
   buildColorSwatches();
   renderVueLieux();
@@ -946,7 +937,7 @@ function savePaletteSwatch(input, idx) {
   PALETTES[activePaletteKey][idx] = input.value;
   COLORS[idx] = input.value;
   input.closest('.vcp-sw-edit').style.background = input.value;
-  try { localStorage.setItem('lieu_palettes_custom', JSON.stringify(PALETTES)); } catch(e) {}
+  save();
   renderVueLieux();
   renderBatchAssign();
 }
@@ -993,7 +984,7 @@ function applyVcpSwatch(color) { _applyVcpColor(color); }
 function switchVcpPalette(key) {
   if (!PALETTES[key]) return;
   activePaletteKey = key; COLORS = PALETTES[key];
-  localStorage.setItem('lieu_palette', key);
+  save();
   _vcpEditMode = false;
   const editBtn = document.getElementById('vcp-edit-btn');
   if (editBtn) editBtn.classList.remove('active');
@@ -1122,10 +1113,16 @@ let lieuTournageInspi      = {}; // { [lieu_tournage_id]: [url, ...] }
 let lieuTournageFloorplans = {}; // { [lieu_tournage_id]: [url, ...] }
 
 // ─── STORAGE ────────────────────────────────────────────────────────────────
+let _saveDebounce = null;
 function save() {
-  const _data = { scenes, lieusTournage, lieuNotes, sousLieuNotes, lieuTournagePhotos, lieuTournageInspi, lieuTournageFloorplans };
-  localStorage.setItem(KEY, JSON.stringify(_data));
-  syncToSupabase(_data);
+  const _data = {
+    scenes, lieusTournage, lieuNotes, sousLieuNotes,
+    lieuTournagePhotos, lieuTournageInspi, lieuTournageFloorplans,
+    lieuColorOverrides, activePaletteKey,
+    lieuPalettesCustom: JSON.parse(JSON.stringify(PALETTES))
+  };
+  clearTimeout(_saveDebounce);
+  _saveDebounce = setTimeout(() => syncToSupabase(_data), 600);
 }
 
 function applyData(d) {
@@ -1166,9 +1163,7 @@ function applyData(d) {
   if (d.lieuTournageFloorplans) lieuTournageFloorplans = d.lieuTournageFloorplans;
 }
 
-function load() {
-  try { applyData(JSON.parse(localStorage.getItem(KEY) || '{}')); } catch(e) {}
-}
+function load() { /* données chargées depuis Supabase */ }
 
 // ─── SUPABASE SYNC ───────────────────────────────────────────────────────────
 function initSupabase() {
@@ -1189,7 +1184,6 @@ async function syncToSupabase(data) {
   try {
     const { error } = await sb.from('project_data').upsert({ key: KEY, data, updated_at: new Date().toISOString() });
     if (error) throw error;
-    localStorage.setItem(KEY + '_sync_ts', Date.now().toString());
     setSyncStatus('synced');
   } catch(e) {
     setSyncStatus('error');
@@ -1198,25 +1192,31 @@ async function syncToSupabase(data) {
 }
 
 async function loadFromSupabase() {
-  if (!sb) return;
+  if (!sb) { setSyncStatus('error'); return; }
   setSyncStatus('syncing');
   try {
-    const { data: row, error } = await sb.from('project_data').select('data, updated_at').eq('key', KEY).maybeSingle();
+    const { data: row, error } = await sb.from('project_data').select('data').eq('key', KEY).maybeSingle();
     if (error) throw error;
-    if (!row) { setSyncStatus('synced'); return; }
-    const remoteTs = new Date(row.updated_at).getTime();
-    const localSyncTs = parseInt(localStorage.getItem(KEY + '_sync_ts') || '0');
-    if (remoteTs > localSyncTs) {
+    if (row && row.data) {
       applyData(row.data);
-      localStorage.setItem(KEY, JSON.stringify(row.data));
-      localStorage.setItem(KEY + '_sync_ts', String(remoteTs));
-      buildTable(); renderVueLieux(); renderLieuList(); applyFilters();
-      showToast('Données récupérées depuis Supabase');
+      const d = row.data;
+      if (d.lieuColorOverrides) lieuColorOverrides = d.lieuColorOverrides;
+      if (d.activePaletteKey && PALETTES[d.activePaletteKey]) {
+        activePaletteKey = d.activePaletteKey;
+        COLORS = PALETTES[activePaletteKey];
+      }
+      if (d.lieuPalettesCustom) {
+        Object.keys(PALETTES).forEach(k => {
+          if (d.lieuPalettesCustom[k] && Array.isArray(d.lieuPalettesCustom[k]))
+            PALETTES[k] = d.lieuPalettesCustom[k];
+        });
+        COLORS = PALETTES[activePaletteKey];
+      }
     }
     setSyncStatus('synced');
   } catch(e) {
     setSyncStatus('error');
-    console.warn('Supabase read error:', e);
+    console.warn('Supabase load error:', e);
   }
 }
 
@@ -2883,23 +2883,24 @@ function updateStickyTop() {
 }
 
 // ─── INIT ────────────────────────────────────────────────────────────────────
-initSupabase();
-loadLieuColors();
-load();
-if (IS_SERIES) document.body.classList.add('is-series');
-buildColorSwatches();
-populateLieuFilter();
-populateEpFilter();
-refreshLieuTournageFilter();
-buildTable();
-renderVueLieux();
-// Ouvrir sur la vue lieux par défaut
-document.getElementById('panel-vue-lieux').classList.add('active');
-document.getElementById('panel-tableau').classList.remove('active');
-document.getElementById('controls-bar').classList.add('hidden');
-updateStickyTop();
-window.addEventListener('resize', updateStickyTop);
-loadFromSupabase();
+(async () => {
+  initSupabase();
+  if (IS_SERIES) document.body.classList.add('is-series');
+  await loadFromSupabase();
+  buildColorSwatches();
+  populateLieuFilter();
+  populateEpFilter();
+  refreshLieuTournageFilter();
+  buildTable();
+  renderVueLieux();
+  document.getElementById('panel-vue-lieux').classList.add('active');
+  document.getElementById('panel-tableau').classList.remove('active');
+  document.getElementById('controls-bar').classList.add('hidden');
+  updateStickyTop();
+  window.addEventListener('resize', updateStickyTop);
+  const ov = document.getElementById('loading-overlay');
+  if (ov) ov.remove();
+})();
 </script>
 </body>
 </html>
