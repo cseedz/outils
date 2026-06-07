@@ -1514,18 +1514,22 @@ function addScene() {
 function addSceneAfter(scId) {
   const idx = scenes.findIndex(s => s.sc === scId);
   if (idx < 0) return;
-  const newCount = scenes.filter(s => String(s.sc).startsWith('+')).length + 1;
+  const base = String(scId).replace(/\.\d+$/, '');
+  const escapedBase = base.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const pat = new RegExp('^' + escapedBase + '\\.(\\d+)$');
+  const used = scenes.map(s => { const m = String(s.sc).match(pat); return m ? parseInt(m[1], 10) : null; }).filter(n => n !== null);
+  const newSc = base + '.' + (used.length ? Math.max(...used) + 1 : 1);
   const newScene = {
-    sc: '+' + newCount, int_ext: 'INT', lieu: '', sous_lieu: '', jn: 'JOUR',
+    sc: newSc, int_ext: 'INT', lieu: '', sous_lieu: '', jn: 'JOUR',
     page: '', duree: '', lieu_tournage_id: '', notes: '',
     steadicam: false, rails: false, epaule: false, fixe: false, struck: false
   };
   scenes.splice(idx + 1, 0, newScene);
   save();
   buildTable();
-  const newTr = document.querySelector(`#tbody tr[data-sc="${newScene.sc}"]`);
+  const newTr = document.querySelector(`#tbody tr[data-sc="${newSc}"]`);
   if (newTr) newTr.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  showToast('Scène insérée');
+  showToast(`Scène ${newSc} insérée`);
 }
 
 function deleteScene(scId) {
