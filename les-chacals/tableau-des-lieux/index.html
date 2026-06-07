@@ -2334,11 +2334,19 @@ async function generateCartonsImages() {
   if (epF) list = list.filter(s => (s.ep||'') === epF);
   if (!list.length) { showToast('Aucune scène à exporter'); return; }
 
-  showToast(`Génération de ${list.length} cartons PNG…`);
+  // Dédupliquer par combinaison unique int_ext + lieu + sous_lieu
+  const seen = new Set();
+  const unique = [];
+  for (const s of list) {
+    const key = `${s.int_ext}|${s.lieu}|${s.sous_lieu}`;
+    if (!seen.has(key)) { seen.add(key); unique.push(s); }
+  }
+
+  showToast(`Génération de ${unique.length} cartons PNG uniques…`);
   const W = 1800, H = 480;
   const zip = new JSZip();
 
-  for (const s of list) {
+  for (const s of unique) {
     const canvas = document.createElement('canvas');
     canvas.width = W; canvas.height = H;
     const ctx = canvas.getContext('2d');
@@ -2404,9 +2412,10 @@ async function generateCartonsImages() {
     }
 
     const base64 = canvas.toDataURL('image/png').split(',')[1];
-    const scName = String(s.sc).replace(/\./g,'_');
-    const lieuTag = (s.lieu||'sc').replace(/[^a-zA-ZÀ-ÿ0-9]/g,'_').slice(0,20);
-    zip.file(`carton_${String(scName).padStart(3,'0')}_${lieuTag}.png`, base64, { base64: true });
+    const ieTag  = (s.int_ext||'').replace(/[^a-zA-Z]/g,'').slice(0,3);
+    const lieuTag = (s.lieu||'lieu').replace(/[^a-zA-ZÀ-ÿ0-9]/g,'_').slice(0,24);
+    const slTag  = s.sous_lieu ? '_' + s.sous_lieu.replace(/[^a-zA-ZÀ-ÿ0-9]/g,'_').slice(0,16) : '';
+    zip.file(`carton_${ieTag}_${lieuTag}${slTag}.png`, base64, { base64: true });
   }
 
   const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
@@ -2415,7 +2424,7 @@ async function generateCartonsImages() {
   a.href = url; a.download = 'cartons-' + today() + '.zip';
   a.click();
   URL.revokeObjectURL(url);
-  showToast(`${list.length} PNG exportés en ZIP`);
+  showToast(`${unique.length} cartons PNG uniques exportés en ZIP`);
 }
 
 // ─── STICKY HEADER ──────────────────────────────────────────────────────────
