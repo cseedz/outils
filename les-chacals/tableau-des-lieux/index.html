@@ -432,6 +432,13 @@ body.is-series th.ep-col { display: table-cell !important; }
 body.is-series td.ep-col { display: table-cell !important; }
 body.is-series select.ep-col { display: inline-block !important; }
 
+/* ── SCÈNE INSÉRÉE ── */
+tbody tr.scene-inserted td.sc-num { border-left: 3px solid #f59e0b; }
+tbody tr.scene-inserted { background: rgba(245,158,11,.04); }
+tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
+.sc-ins-badge { font-size: 8px; font-weight: 800; color: #f59e0b; vertical-align: super; margin-left: 2px; line-height: 1; }
+.vlieu-sc-num .sc-ins-badge { vertical-align: super; font-size: 7px; }
+
 /* ── RECAP ── */
 .recap-wrap { padding: 28px 24px 60px; }
 .recap-total { font-size: 12px; color: var(--text-muted); margin-bottom: 20px; }
@@ -595,7 +602,11 @@ body.is-series select.ep-col { display: inline-block !important; }
     <span class="legend-item"><span class="legend-dot" style="background:#22c55e"></span> Rails / Traveling</span>
     <span class="legend-item"><span class="legend-dot" style="background:#a855f7"></span> Épaule</span>
     <span class="legend-item"><span class="legend-dot" style="background:#3b82f6"></span> Fixe</span>
-    <span style="margin-left:12px;color:var(--text-muted);">Toutes les cellules sont modifiables. Les données sont sauvegardées automatiquement dans votre navigateur.</span>
+    <span class="legend-item" style="padding-left:12px;border-left:1px solid var(--border);margin-left:12px;">
+      <span style="display:inline-block;width:10px;height:10px;background:rgba(245,158,11,.15);border-left:3px solid #f59e0b;border-radius:2px;flex-shrink:0;"></span>
+      Scène insérée (non au scénario)
+    </span>
+    <span style="color:var(--text-muted);padding-left:12px;border-left:1px solid var(--border);margin-left:4px;">Toutes les cellules sont modifiables. Données sauvegardées automatiquement.</span>
   </div>
 </div>
 
@@ -689,7 +700,7 @@ const CLOUDINARY_PRESET = 'photos_locations';
 const SUPABASE_URL = 'https://dvivafrldxzhkactsvve.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2aXZhZnJsZHh6aGthY3RzdnZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyMzQ5MDgsImV4cCI6MjA5NDgxMDkwOH0.EgyxWDERi443hefaM0LxDYDhLWQYx31feKzQ1bQU5Kc';
 let sb = null;
-const IS_SERIES = SCENES_RAW.some(r => String(r.sc).includes('.'));
+const IS_SERIES = SCENES_RAW.some(r => r.ep);
 function parseEp(sc) { const s=String(sc),dot=s.indexOf('.'); if(dot===-1)return{ep:0,scNum:parseFloat(s)||0}; return{ep:parseInt(s.slice(0,dot))||0,scNum:parseInt(s.slice(dot+1))||0}; }
 function fmtEp(sc) { const {ep}=parseEp(sc); return ep>0?'E'+String(ep).padStart(2,'0'):'—'; }
 let scenes = JSON.parse(JSON.stringify(SCENES_RAW));
@@ -718,6 +729,7 @@ function applyData(d) {
       const saved = savedMap[raw.sc];
       return {
         ...raw,
+        ep:               saved ? (saved.ep !== undefined ? saved.ep : (raw.ep || '')) : (raw.ep || ''),
         steadicam:        saved ? !!saved.steadicam         : false,
         rails:            saved ? !!saved.rails             : false,
         epaule:           saved ? !!saved.epaule            : false,
@@ -887,7 +899,11 @@ function buildVSceneLine(s, showSousLieu, showDot = true) {
   const techBtns = TECH.map(([f,label,cls]) =>
     `<button class="vlieu-tech-btn${s[f]?' '+cls:''}" data-sc="${s.sc}" data-f="${f}" onclick="toggleTechVlieu(this)">${label}</button>`
   ).join('');
-  const scChip = IS_SERIES ? `${fmtEp(s.sc)}&middot;${parseEp(s.sc).scNum}` : s.sc;
+  const isInsertedVl = String(s.sc).includes('.');
+  const insertedBadge = isInsertedVl ? `<span class="sc-ins-badge">+</span>` : '';
+  const scChip = IS_SERIES
+    ? `${esc(s.ep || '?')}&middot;${esc(String(s.sc))}${insertedBadge}`
+    : `${esc(String(s.sc))}${insertedBadge}`;
   const ie = s.int_ext ? `<span class="vlieu-ie ${ieBadgeCls(s.int_ext)}">${ieLabel(s.int_ext)}</span>` : '';
   const slText = showSousLieu
     ? `<span class="vlieu-sl-text${s.sous_lieu?'':' empty'}">${esc(s.sous_lieu||'—')}</span>`
@@ -1442,9 +1458,10 @@ function buildTable() {
     const tr = document.createElement('tr');
     tr.dataset.sc = s.sc;
     if (s.struck) tr.classList.add('row-struck');
+    if (String(s.sc).includes('.')) tr.classList.add('scene-inserted');
     tr.innerHTML = `
       <td class="sc-num"><input type="text" class="sc-input" value="${esc(String(s.sc))}" data-sc="${esc(String(s.sc))}" onchange="onScEdit(this)" onblur="onScEdit(this)"><button class="insert-after-btn" title="Insérer une scène après" onclick="addSceneAfter('${s.sc}')">+</button></td>
-      <td class="ep-col sc-num">${IS_SERIES ? fmtEp(s.sc) : ''}</td>
+      <td class="ep-col sc-num"><input type="text" class="sc-input" value="${esc(s.ep||'')}" data-sc="${s.sc}" data-f="ep" placeholder="—" onchange="onLieuEdit(this)" onblur="onLieuEdit(this)"></td>
       <td>${ieSelect(s.sc, s.int_ext)}</td>
       <td class="lieu-cell"><select class="lieu-name-select" data-sc="${s.sc}" data-f="lieu" onchange="onLieuEdit(this)">${lieuScriptOpts(s.lieu)}</select></td>
       <td class="sous-lieu-cell"><input type="text" class="sous-lieu-input" placeholder="—" value="${esc(s.sous_lieu||'')}" data-sc="${s.sc}" data-f="sous_lieu" onchange="onLieuEdit(this)" onblur="onLieuEdit(this)"></td>
@@ -1525,7 +1542,7 @@ function addScene() {
   const newCount = scenes.filter(s => String(s.sc).startsWith('+')).length + 1;
   scenes.push({
     sc: '+' + newCount, int_ext: 'INT', lieu: '', sous_lieu: '', jn: 'JOUR',
-    page: '', duree: '', lieu_tournage_id: '', notes: '',
+    page: '', duree: '', lieu_tournage_id: '', notes: '', ep: '',
     steadicam: false, rails: false, epaule: false, fixe: false, struck: false
   });
   save();
@@ -1545,7 +1562,7 @@ function addSceneAfter(scId) {
   const newSc = base + '.' + (used.length ? Math.max(...used) + 1 : 1);
   const newScene = {
     sc: newSc, int_ext: 'INT', lieu: '', sous_lieu: '', jn: 'JOUR',
-    page: '', duree: '', lieu_tournage_id: '', notes: '',
+    page: '', duree: '', lieu_tournage_id: '', notes: '', ep: scenes[idx].ep || '',
     steadicam: false, rails: false, epaule: false, fixe: false, struck: false
   };
   scenes.splice(idx + 1, 0, newScene);
@@ -1588,9 +1605,9 @@ function populateLieuFilter() {
 function populateEpFilter() {
   const sel = document.getElementById('f-ep');
   if (!sel || !IS_SERIES) return;
-  const eps = [...new Set(scenes.map(s => parseEp(s.sc).ep).filter(e => e > 0))].sort((a,b) => a-b);
+  const eps = [...new Set(scenes.map(s => s.ep).filter(Boolean))].sort();
   eps.forEach(ep => {
-    const o = document.createElement('option'); o.value = ep; o.textContent = 'Épisode ' + ep; sel.appendChild(o);
+    const o = document.createElement('option'); o.value = ep; o.textContent = ep; sel.appendChild(o);
   });
 }
 
@@ -1616,7 +1633,7 @@ function applyFilters() {
       if (flt === '__none__' && s.lieu_tournage_id) show = false;
       if (flt !== '__none__' && s.lieu_tournage_id !== flt) show = false;
     }
-    if (fep && String(parseEp(s.sc).ep) !== fep) show = false;
+    if (fep && (s.ep || '') !== fep) show = false;
     if (q && show) {
       const hay = [s.sc,s.lieu,s.sous_lieu,s.jn,s.int_ext,s.notes].join(' ').toLowerCase();
       const lt = lieusTournage.find(l=>l.id===s.lieu_tournage_id);
@@ -1648,7 +1665,7 @@ function sortTable(i) {
   scenes.sort((a,b) => {
     const k=SK[i];
     if (k==='sc') { const ea=parseEp(a.sc),eb=parseEp(b.sc); if(ea.ep!==eb.ep)return(ea.ep-eb.ep)*sortDir; return(ea.scNum-eb.scNum)*sortDir; }
-    if (k==='__ep__') return (parseEp(a.sc).ep-parseEp(b.sc).ep)*sortDir;
+    if (k==='__ep__') return (a.ep||'').localeCompare(b.ep||'', 'fr') * sortDir;
     if (k==='page') return ((parseInt(a[k])||0)-(parseInt(b[k])||0))*sortDir;
     return (a[k]||'').localeCompare(b[k]||'','fr')*sortDir;
   });
@@ -1661,7 +1678,7 @@ function exportJSON() {
     version: 1,
     lieusTournage,
     scenes: scenes.map(s => ({
-      sc:s.sc, int_ext:s.int_ext, lieu:s.lieu, sous_lieu:s.sous_lieu, jn:s.jn, page:s.page, duree:s.duree,
+      sc:s.sc, ep:s.ep||'', int_ext:s.int_ext, lieu:s.lieu, sous_lieu:s.sous_lieu, jn:s.jn, page:s.page, duree:s.duree,
       lieu_tournage_id:s.lieu_tournage_id||'', notes:s.notes||'',
       steadicam:!!s.steadicam, rails:!!s.rails, epaule:!!s.epaule, fixe:!!s.fixe, struck:!!s.struck
     }))
@@ -1671,10 +1688,10 @@ function exportJSON() {
 }
 
 function exportCSV() {
-  const h = ['Sc.','INT/EXT','Lieu scén.','Sous-lieu','J/N','Page','Durée','Location','Adresse','Steadicam','Rails','Épaule','Fixe','Notes'];
+  const h = ['Sc.','Ép.','INT/EXT','Lieu scén.','Sous-lieu','J/N','Page','Durée','Location','Adresse','Steadicam','Rails','Épaule','Fixe','Notes'];
   const rows = scenes.map(s => {
     const lt = lieusTournage.find(l=>l.id===s.lieu_tournage_id);
-    return [s.sc,s.int_ext,s.lieu,s.sous_lieu||'',s.jn,s.page,s.duree,
+    return [s.sc,s.ep||'',s.int_ext,s.lieu,s.sous_lieu||'',s.jn,s.page,s.duree,
       lt?lt.nom:'', lt?lt.adresse||'':'',
       s.steadicam?'X':'', s.rails?'X':'', s.epaule?'X':'', s.fixe?'X':'',
       s.notes||''].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(';');
@@ -1783,6 +1800,7 @@ function renderRecap() {
   const JN_COLORS  = { 'JOUR':'#e3d57e', 'NUIT':'#c4a8f0', 'SOIR':'#e3a8b8', 'MATIN':'#a8e3e3', 'AUBE':'#c0b0e8', 'FIN DE JOURNÉE':'#e3c07e', '—':'#4a5070' };
 
   const totalPages = scenes.reduce((s, sc) => s + parseDuree(sc.duree), 0);
+  const insertedCount = scenes.filter(s => String(s.sc).includes('.')).length;
   const byIntExt = {}, byJN = {};
   const byTech = { steadicam:{pages:0,scenes:0}, rails:{pages:0,scenes:0}, epaule:{pages:0,scenes:0}, fixe:{pages:0,scenes:0} };
   const byLieu = {}, techByLieu = {};
@@ -2058,7 +2076,7 @@ function renderRecap() {
 
   wrap.innerHTML = `
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
-      <p class="recap-total" style="margin-bottom:0;">Total scénario : <strong>${fmtPages(totalPages)}</strong> &middot; ${scenes.length} scènes</p>
+      <p class="recap-total" style="margin-bottom:0;">Total scénario : <strong>${fmtPages(totalPages)}</strong> &middot; ${scenes.length} scènes${insertedCount > 0 ? ` &middot; <span style="color:#f59e0b;font-weight:600;">${insertedCount}&nbsp;insérée${insertedCount>1?'s':''}</span>` : ''}</p>
       <div style="margin-left:auto;display:flex;gap:6px;">
         <button class="btn btn-sm" onclick="expandAllRecap()">Tout déplier</button>
         <button class="btn btn-sm" onclick="collapseAllRecap()">Tout replier</button>
