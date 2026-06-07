@@ -764,6 +764,7 @@ function setLieuColorByIdx(idx, color) {
   lieuColorOverrides[lieu] = color;
   saveLieuColors();
   renderVueLieux();
+  renderBatchAssign();
 }
 function resetLieuColorByIdx(idx) {
   const lieu = _colorLieux[idx];
@@ -771,6 +772,7 @@ function resetLieuColorByIdx(idx) {
   delete lieuColorOverrides[lieu];
   saveLieuColors();
   renderVueLieux();
+  renderBatchAssign();
 }
 function previewLieuColor(idx, color) {
   const nm = document.getElementById('clr-nm-' + idx);
