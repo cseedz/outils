@@ -396,9 +396,10 @@ input.form-input::placeholder { color: var(--text-dim); }
 /* ── COULEURS DES LIEUX ── */
 .color-lieu-row { display:flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;margin-bottom:5px; }
 .clr-name { flex:0 0 auto;max-width:150px;font-size:11px;font-weight:600;color:var(--text);padding-left:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
-.clr-picker-wrap { position:relative;width:22px;height:22px;flex-shrink:0;cursor:pointer; }
-.clr-picker-wrap input[type="color"] { position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer;padding:0;border:none; }
-.clr-swatch { width:22px;height:22px;border-radius:4px;border:2px solid rgba(0,0,0,.18);display:block;pointer-events:none; }
+input.clr-inline-picker { -webkit-appearance:none;appearance:none;width:20px;height:20px;border:2px solid rgba(0,0,0,.18);border-radius:4px;padding:1px;cursor:pointer;flex-shrink:0;background:none; }
+input.clr-inline-picker::-webkit-color-swatch-wrapper { padding:0; }
+input.clr-inline-picker::-webkit-color-swatch { border:none;border-radius:2px; }
+.batch-group-header input.clr-inline-picker { width:16px;height:16px;border-radius:3px; }
 .clr-swatches { display:flex;flex-wrap:wrap;gap:3px;flex:1; }
 .clr-sw { width:14px;height:14px;border-radius:3px;cursor:pointer;border:1.5px solid transparent;transition:transform .1s,border-color .1s;flex-shrink:0; }
 .clr-sw:hover { transform:scale(1.3); }
@@ -772,9 +773,7 @@ function resetLieuColorByIdx(idx) {
   renderVueLieux();
 }
 function previewLieuColor(idx, color) {
-  const sw = document.getElementById('clr-sw-' + idx);
   const nm = document.getElementById('clr-nm-' + idx);
-  if (sw) sw.style.background = color;
   if (nm) nm.style.borderLeftColor = color;
 }
 function copyLieuColors() {
@@ -1416,10 +1415,7 @@ function renderBatchAssign() {
 
     const header = `<div class="batch-group-header">
       <span class="batch-hd-name" id="clr-nm-${idx}" style="border-left:2px solid ${color};padding-left:6px;">${esc(lieu)}</span>
-      <label class="clr-picker-wrap" title="Roue chromatique">
-        <input type="color" value="${color}" oninput="previewLieuColor(${idx},this.value)" onchange="setLieuColorByIdx(${idx},this.value)">
-        <span class="clr-swatch" id="clr-sw-${idx}" style="background:${color};"></span>
-      </label>
+      <input type="color" class="clr-inline-picker" value="${color}" title="Roue chromatique" oninput="previewLieuColor(${idx},this.value)" onchange="setLieuColorByIdx(${idx},this.value)">
       <div class="clr-swatches">${swatches}</div>
       ${resetBtn}
     </div>`;
