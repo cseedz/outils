@@ -425,7 +425,13 @@ input.clr-inline-picker::-webkit-color-swatch { border:none;border-radius:2px; }
 /* ── COULEUR LIEU (carte + panneau flottant) ── */
 .vlieu-clr-dot { width:14px;height:14px;border-radius:3px;border:1.5px solid rgba(0,0,0,.18);cursor:pointer;flex-shrink:0;padding:0;transition:transform .1s; }
 .vlieu-clr-dot:hover { transform:scale(1.2); }
-#vlieu-color-panel { position:fixed;z-index:9500;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:10px 11px;box-shadow:0 6px 24px rgba(0,0,0,.28);min-width:168px; }
+#vlieu-color-panel { position:fixed;z-index:9500;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:10px 11px;box-shadow:0 6px 24px rgba(0,0,0,.28);min-width:220px; }
+.vcp-palettes { display:flex;align-items:center;gap:4px;margin-bottom:7px; }
+.vcp-pal-btn { font-size:10px;padding:2px 7px;border-radius:10px;border:1px solid var(--border);background:var(--bg3);color:var(--text-muted);cursor:pointer;font-family:inherit;line-height:1.6;transition:all .1s; }
+.vcp-pal-btn.active { background:var(--accent);color:#fff;border-color:var(--accent); }
+.vcp-pal-btn:hover:not(.active) { border-color:var(--accent);color:var(--text); }
+.vcp-apply-all { font-size:10px;padding:2px 7px;border-radius:10px;border:1px solid var(--border);background:none;color:var(--text-muted);cursor:pointer;font-family:inherit;line-height:1.6;margin-left:auto; }
+.vcp-apply-all:hover { color:var(--text);border-color:var(--accent); }
 .vcp-swatches { display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px; }
 .vcp-sw { width:16px;height:16px;border-radius:3px;cursor:pointer;border:1.5px solid transparent;transition:transform .1s,border-color .1s;flex-shrink:0; }
 .vcp-sw:hover { transform:scale(1.25); }
@@ -760,6 +766,12 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
 <div id="photo-lightbox" onclick="closeLightbox()"><img id="photo-lightbox-img" src="" alt=""></div>
 <div class="toast" id="toast"></div>
 <div id="vlieu-color-panel" style="display:none;" onclick="event.stopPropagation()">
+  <div class="vcp-palettes">
+    <button class="vcp-pal-btn" data-pk="sobre" onclick="switchVcpPalette('sobre')">Sobre</button>
+    <button class="vcp-pal-btn" data-pk="vibrant" onclick="switchVcpPalette('vibrant')">Vibrant</button>
+    <button class="vcp-pal-btn" data-pk="pastel" onclick="switchVcpPalette('pastel')">Pastel</button>
+    <button class="vcp-apply-all" onclick="applyPaletteToAll()" title="Distribuer cette palette à tous les lieux">→ Tous</button>
+  </div>
   <div class="vcp-swatches" id="vcp-swatches"></div>
   <div class="vcp-wheel-row">
     <input type="color" class="vcp-wheel" id="vcp-wheel" oninput="previewVcpColor(this)" onchange="setVlieuColorFromWheel(this)">
@@ -782,7 +794,13 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
 
 <script>
 // ─── PALETTE COULEURS ───────────────────────────────────────────────────────
-const COLORS = ['#4f7cff','#a78bfa','#34d399','#fbbf24','#f87171','#60a5fa','#f472b6','#2d8a8a','#c07a30','#7c5cce','#3a9a5c','#e3a8b8'];
+const PALETTES = {
+  sobre:   ['#5e7db0','#8a7ab0','#5a9878','#c0a050','#b87878','#6888c0','#c07898','#4a8888','#b07848','#7868b0','#568a68','#c09090'],
+  vibrant: ['#4f7cff','#a78bfa','#34d399','#fbbf24','#f87171','#60a5fa','#f472b6','#2d8a8a','#c07a30','#7c5cce','#3a9a5c','#e3a8b8'],
+  pastel:  ['#c0d4ff','#d8ccff','#a8f0d4','#fde8a0','#fdc0c0','#c0dcff','#fdc0e0','#a0e0e0','#f8d0a8','#d0c0f0','#b0f0c8','#f8d8e4']
+};
+let activePaletteKey = 'vibrant';
+let COLORS = PALETTES[activePaletteKey];
 let selectedColor = COLORS[0];
 const LIEU_COLORS_RAW = {};
 let lieuColorOverrides = {};
@@ -807,6 +825,8 @@ function buildColorSwatches() {
 
 function loadLieuColors() {
   try { lieuColorOverrides = JSON.parse(localStorage.getItem('lieu_colors') || '{}'); } catch(e) { lieuColorOverrides = {}; }
+  const pk = localStorage.getItem('lieu_palette');
+  if (pk && PALETTES[pk]) { activePaletteKey = pk; COLORS = PALETTES[pk]; }
 }
 function saveLieuColors() {
   localStorage.setItem('lieu_colors', JSON.stringify(lieuColorOverrides));
@@ -849,6 +869,7 @@ function openVlieuColorPanel(event, btn) {
   document.getElementById('vcp-wheel').value = color;
   const resetBtn = document.getElementById('vcp-reset');
   resetBtn.style.display = isOverridden ? '' : 'none';
+  document.querySelectorAll('.vcp-pal-btn').forEach(b => b.classList.toggle('active', b.dataset.pk === activePaletteKey));
   const panel = document.getElementById('vlieu-color-panel');
   panel.style.display = 'block';
   const rect = btn.getBoundingClientRect();
@@ -874,6 +895,31 @@ function _applyVcpColor(color) {
   renderBatchAssign();
 }
 function applyVcpSwatch(color) { _applyVcpColor(color); }
+function switchVcpPalette(key) {
+  if (!PALETTES[key]) return;
+  activePaletteKey = key; COLORS = PALETTES[key];
+  localStorage.setItem('lieu_palette', key);
+  document.querySelectorAll('.vcp-pal-btn').forEach(b => b.classList.toggle('active', b.dataset.pk === key));
+  if (_vcpLieu) {
+    const col = lieuFictifColor(_vcpLieu);
+    document.getElementById('vcp-swatches').innerHTML = COLORS.map(c =>
+      `<div class="vcp-sw${c.toLowerCase()===col.toLowerCase()?' active':''}" style="background:${c};" onclick="applyVcpSwatch('${c}')" title="${c}"></div>`
+    ).join('');
+    document.getElementById('vcp-wheel').value = col;
+  }
+  buildColorSwatches();
+  renderVueLieux();
+  renderBatchAssign();
+}
+function applyPaletteToAll() {
+  const lieux = [...new Set(scenes.filter(s => !s.struck && s.lieu).map(s => s.lieu))].sort();
+  lieux.forEach((lieu, i) => { lieuColorOverrides[lieu] = PALETTES[activePaletteKey][i % PALETTES[activePaletteKey].length]; });
+  saveLieuColors();
+  closeVlieuColorPanel();
+  renderVueLieux();
+  renderBatchAssign();
+  showToast('Palette appliquée à tous les lieux');
+}
 function previewVcpColor(input) {
   if (!_vcpLieu) return;
   const dot = document.querySelector('.vlieu-clr-dot[data-lieu="' + _vcpLieu.replace(/"/g,'&quot;') + '"]');
