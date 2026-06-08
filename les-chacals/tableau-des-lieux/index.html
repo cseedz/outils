@@ -256,6 +256,8 @@ input.form-input::placeholder { color: var(--text-dim); }
 .lieu-photo-add { width: 64px; height: 64px; border-radius: 5px; border: 1px dashed var(--border2); background: var(--bg3); color: var(--text-dim); font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all .12s; }
 .lieu-photo-add:hover { border-color: var(--accent); color: var(--accent); background: rgba(79,124,255,.06); }
 .lieu-photo-uploading { width: 64px; height: 64px; border-radius: 5px; border: 1px solid var(--border); background: var(--bg3); display: flex; align-items: center; justify-content: center; color: var(--text-dim); font-size: 10px; flex-shrink: 0; }
+.photo-thumb-wrap { display:flex; flex-direction:column; width:64px; flex-shrink:0; }
+.photo-sl-sel { font-size:9px; background:var(--bg3); border:none; border-top:1px solid var(--border); color:var(--text-muted); padding:2px; cursor:pointer; outline:none; width:100%; border-radius:0 0 5px 5px; }
 /* Thumbnails dans les cartons vlieu */
 .vlieu-thumbs { display: flex; flex-direction: column; gap: 5px; margin-bottom: 8px; }
 .vlieu-thumbs-row { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-bottom: 2px; }
@@ -1076,8 +1078,15 @@ function renameLieu(oldLieu, newLieu) {
   showToast(`Lieu renommé : "${newLieu}"`);
 }
 function renameSousLieu(lieu, oldSl, newSl) {
+  const affected = new Set(
+    scenes.filter(s => s.lieu === lieu && (s.sous_lieu || '') === oldSl && s.lieu_tournage_id)
+          .map(s => s.lieu_tournage_id)
+  );
+  [lieuTournagePhotos, lieuTournageInspi, lieuTournageFloorplans].forEach(dict => {
+    affected.forEach(id => { (dict[id] || []).forEach(p => { if (typeof p === 'object' && p.sl === oldSl) p.sl = newSl; }); });
+  });
   scenes.forEach(s => { if (s.lieu === lieu && (s.sous_lieu || '') === oldSl) s.sous_lieu = newSl; });
-  save(); buildTable(); renderVueLieux(); renderBatchAssign();
+  save(); buildTable(); renderVueLieux(); renderBatchAssign(); renderLieuList();
   showToast(`Sous-lieu renommé : "${newSl}"`);
 }
 function commitLieuRename(input) {
@@ -1181,6 +1190,7 @@ function applyData(d) {
   if (d.lieuTournagePhotos)     lieuTournagePhotos     = d.lieuTournagePhotos;
   if (d.lieuTournageInspi)      lieuTournageInspi      = d.lieuTournageInspi;
   if (d.lieuTournageFloorplans) lieuTournageFloorplans = d.lieuTournageFloorplans;
+  _migratePhotoDicts();
 }
 
 function load() { /* données chargées depuis Supabase */ }
@@ -1488,7 +1498,7 @@ async function handleLieuPhotoInput(id, type, input) {
     try {
       const url = await uploadToCloudinary(file);
       if (!dict[id]) dict[id] = [];
-      dict[id].push(url);
+      dict[id].push({url, sl: ''});
       save();
     } catch(e) {
       showToast('Erreur upload — réessaie');
@@ -1502,15 +1512,16 @@ async function handleLieuPhotoInput(id, type, input) {
 
 function deleteLieuPhoto(id, type, url) {
   const dict = type === 'inspi' ? lieuTournageInspi : type === 'floorplans' ? lieuTournageFloorplans : lieuTournagePhotos;
-  dict[id] = (dict[id] || []).filter(u => u !== url);
+  dict[id] = (dict[id] || []).filter(p => (typeof p === 'object' ? p.url : p) !== url);
   save();
   renderLieuList();
   renderVueLieux();
 }
 
 function buildVlieuThumbs(ltIds) {
-  const lieux = ltIds.flatMap(id => lieuTournagePhotos[id] || []);
-  const inspi  = ltIds.flatMap(id => lieuTournageInspi[id]  || []);
+  const toUrl = p => typeof p === 'object' ? p.url : p;
+  const lieux = ltIds.flatMap(id => (lieuTournagePhotos[id] || []).map(toUrl));
+  const inspi  = ltIds.flatMap(id => (lieuTournageInspi[id]  || []).map(toUrl));
   if (!lieux.length && !inspi.length) return '';
 
   const buildRow = (photos, label) => {
@@ -1649,6 +1660,26 @@ function deleteLieu(id) {
   showToast('Lieu supprimé');
 }
 
+function _migratePhotoDicts() {
+  [lieuTournagePhotos, lieuTournageInspi, lieuTournageFloorplans].forEach(dict => {
+    Object.keys(dict).forEach(id => {
+      dict[id] = dict[id].map(p => typeof p === 'string' ? {url: p, sl: ''} : p);
+    });
+  });
+}
+
+function getSousLieuxForTournage(lieuId) {
+  return [...new Set(
+    scenes.filter(s => s.lieu_tournage_id === lieuId && s.sous_lieu).map(s => s.sous_lieu)
+  )].sort();
+}
+
+function setPhotoSousLieu(lieuId, type, url, sl) {
+  const dict = type==='inspi' ? lieuTournageInspi : type==='floorplans' ? lieuTournageFloorplans : lieuTournagePhotos;
+  const p = (dict[lieuId] || []).find(p => p.url === url);
+  if (p) { p.sl = sl; save(); }
+}
+
 function buildLieuFictifsSection(lieuId) {
   const linked = scenes.filter(s => s.lieu_tournage_id === lieuId && !s.struck);
   if (!linked.length) return '';
@@ -1686,12 +1717,19 @@ function renderLieuList() {
   }
   wrap.innerHTML = lieusTournage.map(l => {
     const usage = scenes.filter(s => s.lieu_tournage_id === l.id).length;
+    const sls = getSousLieuxForTournage(l.id);
     const buildPhotoRow = (type, dict, label) => {
-      const photos = dict[l.id] || [];
-      const thumbs = photos.map(url =>
-        `<div class="lieu-photo-thumb" onclick="openLightbox('${url}')">
-          <img src="${url}" loading="lazy">
-          <button class="lieu-photo-del" data-lid="${l.id}" data-type="${type}" data-url="${esc(url)}" onclick="event.stopPropagation();deleteLieuPhoto(this.dataset.lid,this.dataset.type,this.dataset.url)">✕</button>
+      const photos = (dict[l.id] || []).map(p => typeof p === 'string' ? {url: p, sl: ''} : p);
+      const thumbs = photos.map(p =>
+        `<div class="photo-thumb-wrap">
+          <div class="lieu-photo-thumb" onclick="openLightbox('${esc(p.url)}')">
+            <img src="${esc(p.url)}" loading="lazy">
+            <button class="lieu-photo-del" data-lid="${l.id}" data-type="${type}" data-url="${esc(p.url)}" onclick="event.stopPropagation();deleteLieuPhoto(this.dataset.lid,this.dataset.type,this.dataset.url)">✕</button>
+          </div>
+          <select class="photo-sl-sel" onchange="setPhotoSousLieu('${l.id}','${type}','${esc(p.url)}',this.value)">
+            <option value=""${!p.sl?' selected':''}>Général</option>
+            ${sls.map(sl => `<option value="${esc(sl)}"${p.sl===sl?' selected':''}>${esc(sl)}</option>`).join('')}
+          </select>
         </div>`
       ).join('');
       return `<div class="lieu-photos-row" id="lp_${l.id}_${type}">
@@ -2822,10 +2860,21 @@ function _openLocPDFWindow(locs, opts) {
     let photosHtml = '';
     if (opts.inclPhotos) {
       const buildPG = (label, dict) => {
-        const photos = dict[l.id] || [];
+        const photos = (dict[l.id] || []).map(p => typeof p === 'object' ? p : {url: p, sl: ''});
         if (!photos.length) return '';
-        const imgs = photos.map(url => `<div class="ph-cell"><img src="${eh(url)}" onerror="this.parentNode.style.display='none'"></div>`).join('');
-        return `<div class="ph-group"><div class="ph-label">${label}</div><div class="ph-grid cols-${opts.photoCols}">${imgs}</div></div>`;
+        const hasSl = photos.some(p => p.sl);
+        if (!hasSl) {
+          const imgs = photos.map(p => `<div class="ph-cell"><img src="${eh(p.url)}" onerror="this.parentNode.style.display='none'"></div>`).join('');
+          return `<div class="ph-group"><div class="ph-label">${label}</div><div class="ph-grid cols-${opts.photoCols}">${imgs}</div></div>`;
+        }
+        const groups = {};
+        photos.forEach(p => { const k = p.sl || ''; if (!groups[k]) groups[k] = []; groups[k].push(p); });
+        const keys = Object.keys(groups).sort((a, b) => a==='' ? -1 : b==='' ? 1 : a.localeCompare(b));
+        const subs = keys.map(k => {
+          const imgs = groups[k].map(p => `<div class="ph-cell"><img src="${eh(p.url)}" onerror="this.parentNode.style.display='none'"></div>`).join('');
+          return `<div class="ph-sub-group"><div class="ph-sub-label">${k ? eh(k) : 'Général'}</div><div class="ph-grid cols-${opts.photoCols}">${imgs}</div></div>`;
+        }).join('');
+        return `<div class="ph-group"><div class="ph-label">${label}</div>${subs}</div>`;
       };
       const pc = [
         buildPG('Repérage', lieuTournagePhotos),
@@ -2881,6 +2930,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .lf-sl-sc{color:#bbb;}
 .ph-group{margin-bottom:12px;}
 .ph-label{font-size:7.5pt;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#aaa;margin-bottom:6px;}
+.ph-sub-group{margin-bottom:8px;}
+.ph-sub-label{font-size:7pt;font-style:italic;color:#bbb;margin-bottom:4px;padding-left:2px;}
 .ph-grid{display:grid;gap:5px;}
 .cols-4{grid-template-columns:repeat(4,1fr);}
 .cols-3{grid-template-columns:repeat(3,1fr);}
