@@ -2859,28 +2859,36 @@ function _openLocPDFWindow(locs, opts) {
     // Photos
     let photosHtml = '';
     if (opts.inclPhotos) {
-      const buildPG = (label, dict) => {
-        const photos = (dict[l.id] || []).map(p => typeof p === 'object' ? p : {url: p, sl: ''});
-        if (!photos.length) return '';
-        const hasSl = photos.some(p => p.sl);
-        if (!hasSl) {
+      const catDefs = [
+        {label:'Repérage', dict: lieuTournagePhotos},
+        {label:'Inspi',    dict: lieuTournageInspi},
+        {label:'Plans',    dict: lieuTournageFloorplans}
+      ];
+      const allP = catDefs.flatMap(({label, dict}) =>
+        (dict[l.id] || []).map(p => ({...(typeof p==='object'?p:{url:p,sl:''}), cat:label}))
+      );
+      let pc = '';
+      if (!allP.some(p => p.sl)) {
+        pc = catDefs.map(({label, dict}) => {
+          const photos = (dict[l.id] || []).map(p => typeof p==='object'?p:{url:p,sl:''});
+          if (!photos.length) return '';
           const imgs = photos.map(p => `<div class="ph-cell"><img src="${eh(p.url)}" onerror="this.parentNode.style.display='none'"></div>`).join('');
           return `<div class="ph-group"><div class="ph-label">${label}</div><div class="ph-grid cols-${opts.photoCols}">${imgs}</div></div>`;
-        }
+        }).filter(Boolean).join('');
+      } else {
         const groups = {};
-        photos.forEach(p => { const k = p.sl || ''; if (!groups[k]) groups[k] = []; groups[k].push(p); });
-        const keys = Object.keys(groups).sort((a, b) => a==='' ? -1 : b==='' ? 1 : a.localeCompare(b));
-        const subs = keys.map(k => {
-          const imgs = groups[k].map(p => `<div class="ph-cell"><img src="${eh(p.url)}" onerror="this.parentNode.style.display='none'"></div>`).join('');
-          return `<div class="ph-sub-group"><div class="ph-sub-label">${k ? eh(k) : 'Général'}</div><div class="ph-grid cols-${opts.photoCols}">${imgs}</div></div>`;
-        }).join('');
-        return `<div class="ph-group"><div class="ph-label">${label}</div>${subs}</div>`;
-      };
-      const pc = [
-        buildPG('Repérage', lieuTournagePhotos),
-        buildPG('Inspi', lieuTournageInspi),
-        buildPG('Plans', lieuTournageFloorplans)
-      ].filter(Boolean).join('');
+        allP.forEach(p => { const k=p.sl||''; if(!groups[k])groups[k]={}; if(!groups[k][p.cat])groups[k][p.cat]=[]; groups[k][p.cat].push(p); });
+        const keys = Object.keys(groups).sort((a,b) => a===''?-1:b===''?1:a.localeCompare(b));
+        pc = keys.map(k => {
+          const cats = catDefs.map(({label}) => {
+            const photos = groups[k][label]||[];
+            if (!photos.length) return '';
+            const imgs = photos.map(p => `<div class="ph-cell"><img src="${eh(p.url)}" onerror="this.parentNode.style.display='none'"></div>`).join('');
+            return `<div class="ph-cat"><div class="ph-cat-label">${label}</div><div class="ph-grid cols-${opts.photoCols}">${imgs}</div></div>`;
+          }).filter(Boolean).join('');
+          return cats ? `<div class="ph-group"><div class="ph-label">${k ? eh(k) : 'Général'}</div>${cats}</div>` : '';
+        }).filter(Boolean).join('');
+      }
       if (pc) photosHtml = `<div class="section">${pc}</div>`;
     }
 
@@ -2930,8 +2938,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .lf-sl-sc{color:#bbb;}
 .ph-group{margin-bottom:12px;}
 .ph-label{font-size:7.5pt;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#aaa;margin-bottom:6px;}
-.ph-sub-group{margin-bottom:8px;}
-.ph-sub-label{font-size:7pt;font-style:italic;color:#bbb;margin-bottom:4px;padding-left:2px;}
+.ph-cat{margin-bottom:6px;}
+.ph-cat-label{font-size:7pt;font-style:italic;color:#bbb;margin-bottom:4px;}
 .ph-grid{display:grid;gap:5px;}
 .cols-4{grid-template-columns:repeat(4,1fr);}
 .cols-3{grid-template-columns:repeat(3,1fr);}
