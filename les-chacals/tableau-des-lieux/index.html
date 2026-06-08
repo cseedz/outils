@@ -282,6 +282,24 @@ input.form-input::placeholder { color: var(--text-dim); }
 .empty-lieux .icon { font-size: 28px; margin-bottom: 10px; }
 .lieu-card-notes { width:100%; box-sizing:border-box; background:transparent; border:none; border-top:1px solid var(--border); color:var(--text); font-size:12px; font-family:inherit; resize:none; padding:10px 12px; outline:none; min-height:38px; line-height:1.5; overflow:hidden; display:block; }
 .lieu-card-notes::placeholder { color:var(--text-muted); font-style:italic; }
+.lf-section { padding:10px 14px; border-top:1px solid var(--border); }
+.lf-row { display:flex; align-items:flex-start; gap:6px; margin-bottom:5px; }
+.lf-row:last-child { margin-bottom:0; }
+.lf-dot-sm { width:7px; height:7px; border-radius:50%; flex-shrink:0; margin-top:3px; }
+.lf-body { flex:1; min-width:0; }
+.lf-main { display:flex; align-items:baseline; gap:6px; flex-wrap:wrap; }
+.lf-name { font-size:11px; font-weight:600; color:var(--text); }
+.lf-sc-ct { font-size:10px; color:var(--text-muted); }
+.lf-sls { font-size:10px; color:var(--text-dim); padding-left:2px; margin-top:2px; }
+.loc-layout-picker { display:flex; gap:8px; }
+.loc-layout-btn { background:var(--bg3); border:1px solid var(--border); border-radius:6px; padding:8px 12px; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:5px; font-size:11px; color:var(--text-muted); min-width:72px; }
+.loc-layout-btn.active { border-color:var(--accent); color:var(--text); }
+.lloc-preview { display:grid; gap:2px; width:44px; height:18px; }
+.lloc-4 { grid-template-columns:repeat(4,1fr); }
+.lloc-3 { grid-template-columns:repeat(3,1fr); }
+.lloc-2 { grid-template-columns:repeat(2,1fr); }
+.lloc-preview > span { background:var(--text-muted); border-radius:1px; opacity:.5; }
+.loc-layout-btn.active .lloc-preview > span { opacity:1; }
 
 /* ── VUE LIEUX ── */
 #panel-vue-lieux.active { display: block; overflow-y: auto; height: calc(100vh - var(--thead-top, 109px)); }
@@ -1631,6 +1649,34 @@ function deleteLieu(id) {
   showToast('Lieu supprimé');
 }
 
+function buildLieuFictifsSection(lieuId) {
+  const linked = scenes.filter(s => s.lieu_tournage_id === lieuId && !s.struck);
+  if (!linked.length) return '';
+  const groups = {};
+  linked.forEach(s => {
+    if (!groups[s.lieu]) groups[s.lieu] = { sls: {}, scs: [] };
+    groups[s.lieu].scs.push(s.sc);
+    if (s.sous_lieu) {
+      if (!groups[s.lieu].sls[s.sous_lieu]) groups[s.lieu].sls[s.sous_lieu] = [];
+      groups[s.lieu].sls[s.sous_lieu].push(s.sc);
+    }
+  });
+  const rows = Object.entries(groups).map(([lieu, data]) => {
+    const col = lieuFictifColor(lieu);
+    const slText = Object.keys(data.sls).length
+      ? `<div class="lf-sls">${Object.entries(data.sls).map(([sl, scs]) => `└ ${esc(sl)} <span style="opacity:.6">(${scs.length})</span>`).join('&ensp;')}</div>`
+      : '';
+    return `<div class="lf-row">
+      <span class="lf-dot-sm" style="background:${col};"></span>
+      <div class="lf-body">
+        <div class="lf-main"><span class="lf-name">${esc(lieu)}</span><span class="lf-sc-ct">${data.scs.length}&nbsp;scène${data.scs.length!==1?'s':''}</span></div>
+        ${slText}
+      </div>
+    </div>`;
+  }).join('');
+  return `<div class="lf-section">${rows}</div>`;
+}
+
 function renderLieuList() {
   const wrap = document.getElementById('lieu-list');
   if (!lieusTournage.length) {
@@ -1670,6 +1716,7 @@ function renderLieuList() {
           <button class="btn btn-sm btn-danger" onclick="deleteLieu('${l.id}')">Supprimer</button>
         </div>
       </div>
+      ${buildLieuFictifsSection(l.id)}
       <div class="lieu-photos">
         ${buildPhotoRow('lieux', lieuTournagePhotos, 'Repérage')}
         ${buildPhotoRow('inspi', lieuTournageInspi, 'Inspi')}
@@ -2607,6 +2654,7 @@ function renderOutils() {
 
   const count = scenes.filter(s => !s.struck).length;
 
+  const locCardHtml = _buildLocationsToolCard();
   wrap.innerHTML = `<div class="outils-tool-card">
     <div class="outils-tool-hd">
       <h3>Cartons d'identification de lieux</h3>
@@ -2644,9 +2692,230 @@ function renderOutils() {
       </button>
       <span class="outils-hint">PDF&nbsp;: une page par scène avec carton en haut, reste blanc.<br>PNG&nbsp;: images individuelles (1800×480 px) importables comme stickers dans GoodNotes.</span>
     </div>
-  </div>`;
+  </div>` + locCardHtml;
 
   renderOutilsPreview();
+}
+
+function _buildLocationsToolCard() {
+  if (!lieusTournage.length) return '';
+  const locCheckboxes = lieusTournage.map(l =>
+    `<label><input type="checkbox" id="opt-loc-cb-${l.id}" checked> <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${l.couleur};margin:0 4px 0 2px;vertical-align:middle;"></span>${esc(l.nom)}</label>`
+  ).join('');
+  return `<div class="outils-tool-card">
+    <div class="outils-tool-hd">
+      <h3>Fiches de locations</h3>
+      <span class="outils-tool-badge">${lieusTournage.length} location${lieusTournage.length!==1?'s':''}</span>
+    </div>
+    <p class="outils-tool-desc">Génère un PDF de présentation des locations — une page par location, avec lieux fictifs associés, photos et notes. Idéal pour briefer les départements (art, direction photo, locations…).</p>
+
+    <div class="outils-options">
+      <div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <label style="font-size:12px;">Locations à inclure</label>
+          <span style="font-size:11px;display:flex;gap:6px;">
+            <a href="#" onclick="event.preventDefault();document.querySelectorAll('[id^=opt-loc-cb-]').forEach(c=>c.checked=true)" style="color:var(--accent);text-decoration:none;">Tout</a>
+            <span style="color:var(--text-muted)">·</span>
+            <a href="#" onclick="event.preventDefault();document.querySelectorAll('[id^=opt-loc-cb-]').forEach(c=>c.checked=false)" style="color:var(--accent);text-decoration:none;">Aucun</a>
+          </span>
+        </div>
+        <div class="outils-check-row" style="flex-direction:column;gap:6px;">${locCheckboxes}</div>
+      </div>
+
+      <div>
+        <label style="font-size:12px;display:block;margin-bottom:8px;">Contenu</label>
+        <div class="outils-check-row">
+          <label><input type="checkbox" id="opt-loc-lf" checked> Lieux fictifs</label>
+          <label><input type="checkbox" id="opt-loc-scnums"> Numéros de scènes</label>
+          <label><input type="checkbox" id="opt-loc-photos" checked> Photos</label>
+          <label><input type="checkbox" id="opt-loc-notes" checked> Notes</label>
+        </div>
+      </div>
+
+      <div>
+        <label style="font-size:12px;display:block;margin-bottom:8px;">Disposition des photos</label>
+        <div class="loc-layout-picker">
+          <button class="loc-layout-btn" data-cols="4" onclick="selectLocLayout(this)">
+            <div class="lloc-preview lloc-4"><span></span><span></span><span></span><span></span></div>
+            <span>Serrée</span>
+          </button>
+          <button class="loc-layout-btn active" data-cols="3" onclick="selectLocLayout(this)">
+            <div class="lloc-preview lloc-3"><span></span><span></span><span></span></div>
+            <span>Standard</span>
+          </button>
+          <button class="loc-layout-btn" data-cols="2" onclick="selectLocLayout(this)">
+            <div class="lloc-preview lloc-2"><span></span><span></span></div>
+            <span>Grande</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="outils-action">
+      <button class="btn btn-primary" onclick="generateLocationsPDF()">Fiches PDF →</button>
+      <span class="outils-hint">Une page par location. Attendre le chargement des images avant d'imprimer.</span>
+    </div>
+  </div>`;
+}
+
+function selectLocLayout(btn) {
+  document.querySelectorAll('.loc-layout-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function generateLocationsPDF() {
+  const inclLF     = document.getElementById('opt-loc-lf')?.checked ?? true;
+  const inclScNums = document.getElementById('opt-loc-scnums')?.checked ?? false;
+  const inclPhotos = document.getElementById('opt-loc-photos')?.checked ?? true;
+  const inclNotes  = document.getElementById('opt-loc-notes')?.checked ?? true;
+  const photoCols  = parseInt(document.querySelector('.loc-layout-btn.active')?.dataset.cols || '3');
+  const selected   = lieusTournage.filter(l => {
+    const cb = document.getElementById('opt-loc-cb-' + l.id);
+    return cb ? cb.checked : true;
+  });
+  if (!selected.length) { showToast('Aucune location sélectionnée'); return; }
+  _openLocPDFWindow(selected, { inclLF, inclScNums, inclPhotos, photoCols, inclNotes });
+  showToast(selected.length + ' fiche' + (selected.length > 1 ? 's' : '') + ' générée' + (selected.length > 1 ? 's' : ''));
+}
+
+function _openLocPDFWindow(locs, opts) {
+  function eh(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function hexRgba(hex, a) {
+    const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+    return `rgba(${r},${g},${b},${a})`;
+  }
+
+  const pages = locs.map(l => {
+    const color   = l.couleur || '#888888';
+    const colorBg = hexRgba(color, 0.07);
+    const linked  = scenes.filter(s => s.lieu_tournage_id === l.id && !s.struck);
+
+    // Lieux fictifs
+    let lfHtml = '';
+    if (opts.inclLF && linked.length) {
+      const groups = {};
+      linked.forEach(s => {
+        if (!groups[s.lieu]) groups[s.lieu] = { sls: {}, scs: [] };
+        groups[s.lieu].scs.push(s.sc);
+        if (s.sous_lieu) {
+          if (!groups[s.lieu].sls[s.sous_lieu]) groups[s.lieu].sls[s.sous_lieu] = [];
+          groups[s.lieu].sls[s.sous_lieu].push(s.sc);
+        }
+      });
+      const rows = Object.entries(groups).map(([lieu, data]) => {
+        const col = lieuFictifColor(lieu);
+        const scInfo = opts.inclScNums
+          ? `<span class="lf-sc-info">sc.&nbsp;${data.scs.map(sc => eh(String(sc))).join(', ')}</span>`
+          : `<span class="lf-sc-info">${data.scs.length}&nbsp;scène${data.scs.length!==1?'s':''}</span>`;
+        const slRows = Object.entries(data.sls).map(([sl, scs]) => {
+          const slSc = opts.inclScNums
+            ? ` <span class="lf-sl-sc">sc.&nbsp;${scs.map(sc => eh(String(sc))).join(', ')}</span>`
+            : ` <span class="lf-sl-sc">(${scs.length})</span>`;
+          return `<div class="lf-sl-row">└&nbsp;${eh(sl)}${slSc}</div>`;
+        }).join('');
+        return `<div class="lf-row"><span class="lf-dot" style="background:${col};"></span><div class="lf-body"><div class="lf-main"><span class="lf-name">${eh(lieu)}</span>${scInfo}</div>${slRows}</div></div>`;
+      }).join('');
+      lfHtml = `<div class="section"><div class="section-label">Lieux fictifs</div><div class="lf-list">${rows}</div></div>`;
+    }
+
+    // Photos
+    let photosHtml = '';
+    if (opts.inclPhotos) {
+      const buildPG = (label, dict) => {
+        const photos = dict[l.id] || [];
+        if (!photos.length) return '';
+        const imgs = photos.map(url => `<div class="ph-cell"><img src="${eh(url)}" onerror="this.parentNode.style.display='none'"></div>`).join('');
+        return `<div class="ph-group"><div class="ph-label">${label}</div><div class="ph-grid cols-${opts.photoCols}">${imgs}</div></div>`;
+      };
+      const pc = [
+        buildPG('Repérage', lieuTournagePhotos),
+        buildPG('Inspi', lieuTournageInspi),
+        buildPG('Plans', lieuTournageFloorplans)
+      ].filter(Boolean).join('');
+      if (pc) photosHtml = `<div class="section">${pc}</div>`;
+    }
+
+    // Notes
+    let notesHtml = '';
+    if (opts.inclNotes && l.notes && l.notes.trim()) {
+      notesHtml = `<div class="section"><div class="section-label">Notes</div><div class="notes-body">${eh(l.notes).replace(/\n/g,'<br>')}</div></div>`;
+    }
+
+    return `<div class="loc-page">
+  <div class="loc-header" style="background:${colorBg};border-left:5px solid ${color};">
+    <div class="loc-dot" style="background:${color};"></div>
+    <div class="loc-hi">
+      <div class="loc-title">${eh(l.nom)}</div>
+      ${l.adresse ? `<div class="loc-address">${eh(l.adresse)}</div>` : ''}
+    </div>
+    <div class="loc-badge">${linked.length}&nbsp;scène${linked.length!==1?'s':''}</div>
+  </div>
+  ${lfHtml}${photosHtml}${notesHtml}
+</div>`;
+  }).join('\n');
+
+  const css = `*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#ccc;}
+.np{background:#1a1a2e;color:#fff;padding:12px 20px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:10;}
+.np-info h1{font-size:13px;font-weight:600;}
+.np-info p{font-size:11px;color:#aaa;margin-top:2px;}
+.np button{background:#fff;color:#111;border:none;padding:8px 20px;border-radius:5px;font-size:13px;cursor:pointer;font-weight:700;flex-shrink:0;margin-left:auto;}
+.pages{padding:24px;display:flex;flex-direction:column;gap:24px;align-items:center;}
+.loc-page{width:210mm;min-height:297mm;background:#fff;box-shadow:0 3px 16px rgba(0,0,0,.22);page-break-after:always;break-after:page;}
+.loc-header{padding:20px 24px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #eee;}
+.loc-dot{width:13px;height:13px;border-radius:50%;flex-shrink:0;}
+.loc-hi{flex:1;}
+.loc-title{font-size:17pt;font-weight:800;}
+.loc-address{font-size:9.5pt;color:#666;margin-top:3px;}
+.loc-badge{font-size:9pt;color:#777;background:#f2f2f2;padding:3px 10px;border-radius:20px;flex-shrink:0;white-space:nowrap;}
+.section{padding:14px 24px;border-bottom:1px solid #f0f0f0;}
+.section-label{font-size:7.5pt;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#aaa;margin-bottom:8px;}
+.lf-list{display:flex;flex-direction:column;gap:7px;}
+.lf-row{display:flex;align-items:flex-start;gap:7px;}
+.lf-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:4px;}
+.lf-body{flex:1;}
+.lf-main{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;}
+.lf-name{font-size:10.5pt;font-weight:700;}
+.lf-sc-info{font-size:8.5pt;color:#888;}
+.lf-sl-row{font-size:8.5pt;color:#999;padding-left:2px;margin-top:2px;}
+.lf-sl-sc{color:#bbb;}
+.ph-group{margin-bottom:12px;}
+.ph-label{font-size:7.5pt;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#aaa;margin-bottom:6px;}
+.ph-grid{display:grid;gap:5px;}
+.cols-4{grid-template-columns:repeat(4,1fr);}
+.cols-3{grid-template-columns:repeat(3,1fr);}
+.cols-2{grid-template-columns:repeat(2,1fr);}
+.ph-cell img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:3px;display:block;}
+.notes-body{font-size:10pt;color:#333;line-height:1.7;}
+@media print{
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .np{display:none;}
+  .pages{padding:0;gap:0;}
+  .loc-page{box-shadow:none;min-height:unset;}
+}`;
+
+  const title = `Fiches de locations — ${locs.length} location${locs.length>1?'s':''}`;
+  const html = `<!DOCTYPE html>
+<html lang="fr">
+<head><meta charset="UTF-8"><title>${eh(title)}</title>
+<style>${css}</style>
+</head>
+<body>
+<div class="np">
+  <div class="np-info">
+    <h1>${eh(title)}</h1>
+    <p>Attendre le chargement des images avant d'imprimer.</p>
+  </div>
+  <button onclick="window.print()">Imprimer / PDF</button>
+</div>
+<div class="pages">${pages}</div>
+</body>
+</html>`;
+
+  const w = window.open('', '_blank');
+  if (!w) { showToast('Popup bloquée — autoriser les popups pour ce site'); return; }
+  w.document.write(html);
+  w.document.close();
 }
 
 function exportScenePDF(sc) {
