@@ -280,6 +280,8 @@ input.form-input::placeholder { color: var(--text-dim); }
   border: 1px dashed var(--border); border-radius: 8px;
 }
 .empty-lieux .icon { font-size: 28px; margin-bottom: 10px; }
+.lieu-card-notes { width:100%; box-sizing:border-box; background:transparent; border:none; border-top:1px solid var(--border); color:var(--text); font-size:12px; font-family:inherit; resize:none; padding:10px 12px; outline:none; min-height:38px; line-height:1.5; overflow:hidden; display:block; }
+.lieu-card-notes::placeholder { color:var(--text-muted); font-style:italic; }
 
 /* ── VUE LIEUX ── */
 #panel-vue-lieux.active { display: block; overflow-y: auto; height: calc(100vh - var(--thead-top, 109px)); }
@@ -1673,9 +1675,19 @@ function renderLieuList() {
         ${buildPhotoRow('inspi', lieuTournageInspi, 'Inspi')}
         ${buildPhotoRow('floorplans', lieuTournageFloorplans, 'Plans')}
       </div>
+      <textarea class="lieu-card-notes" data-lid="${l.id}" placeholder="Notes sur cette location…" oninput="saveLieuTournageNote(this)">${esc(l.notes||'')}</textarea>
     </div>`;
   }).join('');
   renderBatchAssign();
+}
+
+function saveLieuTournageNote(el) {
+  const l = lieusTournage.find(x => x.id === el.dataset.lid);
+  if (!l) return;
+  l.notes = el.value;
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+  save();
 }
 
 // ─── BATCH ASSIGNMENT ───────────────────────────────────────────────────────
