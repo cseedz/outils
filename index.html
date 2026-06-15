@@ -84,7 +84,37 @@
       padding-bottom: 1px; white-space: nowrap; transition: border-color 180ms ease;
     }
     .tool-link:hover { border-color: var(--text); }
-    .no-tool { font-size: 11px; color: var(--line); }
+
+    .tool-item { display: inline-flex; align-items: center; gap: 4px; }
+    .tool-remove {
+      background: none; border: none; cursor: pointer; padding: 0 1px;
+      color: var(--muted); font-size: 12px; line-height: 1;
+      opacity: 0; transition: opacity 150ms; flex-shrink: 0;
+    }
+    .tool-item:hover .tool-remove { opacity: 1; }
+    .tool-remove:hover { color: var(--text); }
+
+    .add-tool-btn {
+      background: none; border: none; cursor: pointer;
+      font-size: 15px; font-weight: 300; color: var(--muted); line-height: 1;
+      padding: 0 3px; transition: color 150ms;
+    }
+    .add-tool-btn:hover { color: var(--text); }
+
+    .tool-dropdown-wrap { position: relative; }
+    .tool-dropdown {
+      position: absolute; right: 0; top: calc(100% + 6px);
+      background: #fff; border: 1px solid var(--line);
+      border-radius: 4px; box-shadow: 0 4px 18px rgba(0,0,0,.1);
+      z-index: 200; min-width: 170px; overflow: hidden;
+    }
+    .tool-dropdown button {
+      display: block; width: 100%; text-align: left;
+      background: none; border: none; cursor: pointer;
+      padding: 10px 14px; font-size: 12px; color: var(--text);
+      transition: background 100ms;
+    }
+    .tool-dropdown button:hover { background: var(--line); }
 
     footer { margin-top: 80px; padding-top: 20px; border-top: 1px solid var(--line); }
     .footer-text { font-size: 10px; color: var(--muted); letter-spacing: 0.06em; }
@@ -121,6 +151,16 @@
     const STORAGE_KEY  = 'outils_landing_v1';
     const SUPABASE_URL = 'https://dvivafrldxzhkactsvve.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2aXZhZnJsZHh6aGthY3RzdnZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyMzQ5MDgsImV4cCI6MjA5NDgxMDkwOH0.EgyxWDERi443hefaM0LxDYDhLWQYx31feKzQ1bQU5Kc';
+
+    let projects = [];
+
+    const AVAILABLE_TOOLS = [
+      {
+        id: 'tableau-lieux',
+        label: 'Tableau des lieux',
+        buildHref: p => '/tableau-des-lieux/?p=' + encodeURIComponent(p.id) + '&n=' + encodeURIComponent(p.name)
+      }
+    ];
 
     const DEFAULT_PROJECTS = [
       { id: 'derniere-saison', name: 'La dernière saison',      format: 'Série télévision', section: 'en-cours', tools: [] },
@@ -175,9 +215,12 @@
     DEFAULT_PROJECTS.forEach(p => defaultById[p.id] = p);
 
     function mergeState(saved) {
-      if (!saved || !Array.isArray(saved)) return DEFAULT_PROJECTS;
+      if (!saved || !Array.isArray(saved)) return DEFAULT_PROJECTS.map(p => ({ ...p }));
       return saved
-        .map(s => defaultById[s.id] ? { ...defaultById[s.id], section: s.section } : null)
+        .map(s => {
+          if (!defaultById[s.id]) return null;
+          return { ...defaultById[s.id], section: s.section, tools: s.tools || [] };
+        })
         .filter(Boolean);
     }
 
@@ -185,7 +228,8 @@
       const rows = [];
       ['en-cours', 'en-dev'].forEach(section => {
         document.getElementById('list-' + section).querySelectorAll('.project').forEach(row => {
-          rows.push({ id: row.dataset.id, section });
+          const p = projects.find(x => x.id === row.dataset.id);
+          rows.push({ id: row.dataset.id, section, tools: (p && p.tools) ? p.tools : [] });
         });
       });
       return rows;
@@ -208,6 +252,39 @@
       return h;
     }
 
+    function closeAllDropdowns() {
+      document.querySelectorAll('.tool-dropdown').forEach(d => d.remove());
+    }
+
+    function addTool(projectId, toolId) {
+      const p = projects.find(x => x.id === projectId);
+      if (!p) return;
+      const toolDef = AVAILABLE_TOOLS.find(t => t.id === toolId);
+      if (!toolDef) return;
+      if (!p.tools) p.tools = [];
+      if (p.tools.some(t => t.id === toolId)) return;
+      p.tools.push({ id: toolId, label: toolDef.label, href: toolDef.buildHref(p) });
+      rebuildRow(p);
+      const state = getState();
+      saveLocal(state);
+      saveToSupabase(state);
+    }
+
+    function removeTool(projectId, toolId) {
+      const p = projects.find(x => x.id === projectId);
+      if (!p || !p.tools) return;
+      p.tools = p.tools.filter(t => t.id !== toolId);
+      rebuildRow(p);
+      const state = getState();
+      saveLocal(state);
+      saveToSupabase(state);
+    }
+
+    function rebuildRow(project) {
+      const existing = document.querySelector(`.project[data-id="${project.id}"]`);
+      if (existing) existing.replaceWith(buildRow(project));
+    }
+
     function buildRow(project) {
       const row = document.createElement('div');
       row.className = 'project';
@@ -220,31 +297,63 @@
       info.innerHTML = `<div class="project-name">${project.name}</div><div class="project-format">${project.format}</div>`;
       row.appendChild(info);
 
-      const tools = document.createElement('div');
-      tools.className = 'project-tools';
-      const tdlA = document.createElement('a');
-      tdlA.className = 'tool-link';
-      tdlA.href = '/tableau-des-lieux/?p=' + encodeURIComponent(project.id) + '&n=' + encodeURIComponent(project.name);
-      tdlA.textContent = 'Tableau des lieux';
-      tools.appendChild(tdlA);
-      if (project.tools && project.tools.length) {
-        project.tools.forEach(t => {
-          const a = document.createElement('a');
-          a.className = 'tool-link';
-          a.href = t.href;
-          a.textContent = t.label;
-          tools.appendChild(a);
+      const toolsDiv = document.createElement('div');
+      toolsDiv.className = 'project-tools';
+
+      (project.tools || []).forEach(t => {
+        const item = document.createElement('span');
+        item.className = 'tool-item';
+        const a = document.createElement('a');
+        a.className = 'tool-link';
+        a.href = t.href;
+        a.textContent = t.label;
+        const rmBtn = document.createElement('button');
+        rmBtn.className = 'tool-remove';
+        rmBtn.title = 'Retirer';
+        rmBtn.textContent = '×';
+        rmBtn.addEventListener('click', e => { e.stopPropagation(); e.preventDefault(); removeTool(project.id, t.id); });
+        item.appendChild(a);
+        item.appendChild(rmBtn);
+        toolsDiv.appendChild(item);
+      });
+
+      const addedIds = new Set((project.tools || []).map(t => t.id));
+      const remaining = AVAILABLE_TOOLS.filter(t => !addedIds.has(t.id));
+      if (remaining.length) {
+        const wrap = document.createElement('span');
+        wrap.className = 'tool-dropdown-wrap';
+        const btn = document.createElement('button');
+        btn.className = 'add-tool-btn';
+        btn.title = 'Ajouter un outil';
+        btn.textContent = '+';
+        btn.addEventListener('click', e => {
+          e.stopPropagation();
+          if (wrap.querySelector('.tool-dropdown')) { closeAllDropdowns(); return; }
+          closeAllDropdowns();
+          const dd = document.createElement('div');
+          dd.className = 'tool-dropdown';
+          remaining.forEach(toolDef => {
+            const item = document.createElement('button');
+            item.textContent = toolDef.label;
+            item.addEventListener('click', e => { e.stopPropagation(); addTool(project.id, toolDef.id); });
+            dd.appendChild(item);
+          });
+          wrap.appendChild(dd);
         });
+        wrap.appendChild(btn);
+        toolsDiv.appendChild(wrap);
       }
-      row.appendChild(tools);
+
+      row.appendChild(toolsDiv);
       return row;
     }
 
-    function render(projects) {
+    function render(p) {
+      projects = p;
       ['en-cours', 'en-dev'].forEach(section => {
         const list = document.getElementById('list-' + section);
         list.innerHTML = '';
-        projects.filter(p => p.section === section).forEach(p => list.appendChild(buildRow(p)));
+        projects.filter(pr => pr.section === section).forEach(pr => list.appendChild(buildRow(pr)));
       });
     }
 
@@ -300,6 +409,8 @@
       saveLocal(state);
       saveToSupabase(state);
     });
+
+    document.addEventListener('click', closeAllDropdowns);
 
     // ── Init ──────────────────────────────────────────────────────────────────
     async function init() {
