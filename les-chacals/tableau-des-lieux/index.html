@@ -595,6 +595,59 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
 .outils-action { margin-top: 22px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .outils-hint { font-size: 11px; color: var(--text-muted); line-height: 1.5; }
 
+/* ── VERSIONS TAB ── */
+#panel-versions.active { display: block; overflow-y: auto; height: calc(100vh - var(--thead-top, 109px)); }
+
+/* ── FDX IMPORT DIALOG ── */
+.fdx-import-btn {
+  background: var(--bg3); border: 1px solid var(--border); cursor: pointer;
+  padding: 5px 11px; border-radius: 5px; font-size: 11px; font-family: inherit;
+  color: var(--text); white-space: nowrap; transition: background 0.12s;
+  margin-left: 10px; flex-shrink: 0;
+}
+.fdx-import-btn:hover { background: var(--bg2); border-color: var(--border2); }
+.fdx-modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 2000;
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.fdx-modal {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 12px;
+  width: 100%; max-width: 620px; padding: 28px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.18); max-height: 85vh; overflow-y: auto;
+}
+.fdx-modal-hd { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+.fdx-modal-hd h2 { font-size: 16px; font-weight: 700; }
+.fdx-modal-sub { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+.fdx-modal-close { background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 16px; padding: 0; }
+.fdx-modal-close:hover { color: var(--text); }
+.fdx-errors { background: #fff8e1; border: 1px solid #e8c840; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; }
+.fdx-err-hd { font-size: 12px; font-weight: 700; color: #7a5c00; margin-bottom: 6px; }
+.fdx-err-item { font-size: 11px; color: #7a5c00; margin-top: 3px; font-family: monospace; }
+.fdx-diff-wrap { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+.fdx-diff-section { border-radius: 8px; padding: 12px 16px; }
+.fdx-added    { background: #f0faf4; border: 1px solid #a8d8bc; }
+.fdx-removed  { background: #fff5f5; border: 1px solid #e0b0b0; }
+.fdx-modified { background: #fffbf0; border: 1px solid #e0d080; }
+.fdx-no-diff  { font-size: 12px; color: var(--text-muted); padding: 8px 0; }
+.fdx-diff-hd  { font-size: 12px; font-weight: 700; margin-bottom: 8px; }
+.fdx-added .fdx-diff-hd   { color: #2a7045; }
+.fdx-removed .fdx-diff-hd { color: #cc3333; }
+.fdx-modified .fdx-diff-hd{ color: #7a5c00; }
+.fdx-diff-note { font-weight: 400; color: var(--text-muted); font-size: 11px; }
+.fdx-diff-items { display: flex; flex-wrap: wrap; gap: 4px; }
+.fdx-sc-chip { font-size: 11px; background: rgba(255,255,255,0.7); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; font-family: monospace; }
+.fdx-diff-mod-row { font-size: 12px; margin-top: 5px; line-height: 1.5; }
+.fdx-diff-change { color: var(--text-muted); font-size: 11px; }
+.fdx-modal-actions { display: flex; justify-content: space-between; align-items: center; padding-top: 16px; border-top: 1px solid var(--border); gap: 8px; flex-wrap: wrap; }
+/* ── VER CARD ── */
+.ver-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin-bottom: 14px; }
+.ver-card-hd { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.ver-card-hd h3 { font-size: 14px; font-weight: 700; }
+.ver-badge { font-size: 11px; font-weight: 600; color: var(--text-muted); background: var(--bg3); border: 1px solid var(--border); padding: 2px 8px; border-radius: 10px; }
+.ver-delta { font-size: 11px; font-weight: 700; }
+.ver-delta.pos { color: #2a7045; } .ver-delta.neg { color: #cc3333; }
+.ver-preview-text { font-size: 11px; font-family: monospace; white-space: pre; overflow-y: auto; max-height: 340px; padding: 12px; background: var(--bg3); border-radius: 6px; line-height: 1.7; }
+
 /* ── PRINT ── */
 @media print {
   .topbar { position: static; } .controls-bar { display: none; } .legend { display: none; }
@@ -642,8 +695,11 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
       <button class="tab-btn" onclick="switchTab('lieux')">Locations</button>
       <button class="tab-btn" onclick="switchTab('recap')">Récapitulatif</button>
       <button class="tab-btn" onclick="switchTab('outils')">Outils</button>
+      <button class="tab-btn" onclick="switchTab('versions')">Versions</button>
     </div>
     <div id="sync-dot" class="sync-dot idle" title="Non connecté"></div>
+    <input type="file" id="fdx-file-input" accept=".fdx" style="display:none" onchange="onFdxFileSelected(event)">
+    <button class="fdx-import-btn" onclick="triggerFdxUpload()" title="Importer un fichier Final Draft (.fdx)">Importer FDX</button>
     <a href="/" style="font-size:11px;color:var(--text-muted);text-decoration:none;letter-spacing:0.04em;padding:4px 0 4px 16px;border-left:1px solid var(--border);margin-left:12px;white-space:nowrap;flex-shrink:0;" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--text-muted)'">← Outils</a>
   </div>
 </div>
@@ -798,6 +854,11 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
 <!-- PANEL: OUTILS -->
 <div class="panel" id="panel-outils">
   <div class="outils-wrap" id="outils-content"></div>
+</div>
+
+<!-- PANEL: VERSIONS -->
+<div class="panel" id="panel-versions">
+  <div class="outils-wrap" id="versions-content"></div>
 </div>
 
 <div id="photo-lightbox" onclick="closeLightbox()"><img id="photo-lightbox-img" src="" alt=""></div>
@@ -1128,7 +1189,9 @@ const CLOUDINARY_PRESET = 'photos_locations';
 const SUPABASE_URL = 'https://dvivafrldxzhkactsvve.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2aXZhZnJsZHh6aGthY3RzdnZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyMzQ5MDgsImV4cCI6MjA5NDgxMDkwOH0.EgyxWDERi443hefaM0LxDYDhLWQYx31feKzQ1bQU5Kc';
 let sb = null;
-const IS_SERIES = SCENES_RAW.some(r => r.ep);
+let IS_SERIES = SCENES_RAW.some(r => r.ep);
+let imported_scenes_raw = null;  // set on FDX import; overrides SCENES_RAW as base
+let fdxVersions = [];  // archived FDX versions { id, date, label, scene_count, prev_scene_count, scenes_raw }
 function parseEp(sc) { const s=String(sc),dot=s.indexOf('.'); if(dot===-1)return{ep:0,scNum:parseFloat(s)||0}; return{ep:parseInt(s.slice(0,dot))||0,scNum:parseInt(s.slice(dot+1))||0}; }
 function fmtEp(sc) { const {ep}=parseEp(sc); return ep>0?'E'+String(ep).padStart(2,'0'):'—'; }
 let scenes = JSON.parse(JSON.stringify(SCENES_RAW));
@@ -1148,18 +1211,21 @@ function save() {
     scenes, lieusTournage, lieuNotes, sousLieuNotes,
     lieuTournagePhotos, lieuTournageInspi, lieuTournageFloorplans,
     lieuColorOverrides, activePaletteKey,
-    lieuPalettesCustom: JSON.parse(JSON.stringify(PALETTES))
+    lieuPalettesCustom: JSON.parse(JSON.stringify(PALETTES)),
+    imported_scenes_raw, fdxVersions
   };
   clearTimeout(_saveDebounce);
   _saveDebounce = setTimeout(() => syncToSupabase(_data), 600);
 }
 
 function applyData(d) {
+  const baseScenes = (d.imported_scenes_raw && d.imported_scenes_raw.length)
+    ? d.imported_scenes_raw : SCENES_RAW;
   if (d.scenes && d.scenes.length) {
     const savedMap = {};
     d.scenes.forEach(s => { savedMap[s.sc] = s; });
-    const scriptScs = new Set(SCENES_RAW.map(r => r.sc));
-    scenes = SCENES_RAW.map(raw => {
+    const scriptScs = new Set(baseScenes.map(r => r.sc));
+    scenes = baseScenes.map(raw => {
       const saved = savedMap[raw.sc];
       return {
         ...raw,
@@ -1183,7 +1249,11 @@ function applyData(d) {
         });
       }
     });
+  } else if (baseScenes !== SCENES_RAW || !scenes.length) {
+    scenes = JSON.parse(JSON.stringify(baseScenes));
   }
+  if (d.imported_scenes_raw) imported_scenes_raw = d.imported_scenes_raw;
+  if (d.fdxVersions) fdxVersions = d.fdxVersions;
   if (d.lieusTournage) lieusTournage = d.lieusTournage;
   if (d.lieuNotes) lieuNotes = d.lieuNotes;
   if (d.sousLieuNotes) sousLieuNotes = d.sousLieuNotes;
@@ -1253,17 +1323,19 @@ async function loadFromSupabase() {
 // ─── TABS ───────────────────────────────────────────────────────────────────
 function switchTab(tab) {
   document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active',
-    (i===0&&tab==='vue-lieux')||(i===1&&tab==='tableau')||(i===2&&tab==='lieux')||(i===3&&tab==='recap')||(i===4&&tab==='outils')));
+    (i===0&&tab==='vue-lieux')||(i===1&&tab==='tableau')||(i===2&&tab==='lieux')||(i===3&&tab==='recap')||(i===4&&tab==='outils')||(i===5&&tab==='versions')));
   document.getElementById('panel-vue-lieux').classList.toggle('active', tab==='vue-lieux');
   document.getElementById('panel-tableau').classList.toggle('active', tab==='tableau');
   document.getElementById('panel-lieux').classList.toggle('active', tab==='lieux');
   document.getElementById('panel-recap').classList.toggle('active', tab==='recap');
   document.getElementById('panel-outils').classList.toggle('active', tab==='outils');
+  document.getElementById('panel-versions').classList.toggle('active', tab==='versions');
   document.getElementById('controls-bar').classList.toggle('hidden', tab!=='tableau');
   if (tab === 'vue-lieux') renderVueLieux();
   if (tab === 'lieux') renderLieuList();
   if (tab === 'recap') renderRecap();
   if (tab === 'outils') renderOutils();
+  if (tab === 'versions') renderVersions();
   updateStickyTop();
 }
 
@@ -3220,6 +3292,274 @@ function updateStickyTop() {
     const controlsH = controls && !controls.classList.contains('hidden') ? controls.offsetHeight : 0;
     document.documentElement.style.setProperty('--thead-top', (topbarH + controlsH) + 'px');
   });
+}
+
+// ─── FDX PARSER (JS port of extraire_fdx.py) ─────────────────────────────────
+function _fdxParseHeading(text) {
+  text = text.replace(/\xa0/g,' ').replace(/\s+/g,' ').trim();
+  text = text.replace(/\s*\*{1,2}\s*[A-ZÀ-Ü\s]+$/, '').trim();
+  const ieM = text.match(/^(INT\.?\/EXT\.?|EXT\.?\/INT\.?|INT\.?EXT\.?|EXT\.?INT\.?|INT\.?|EXT\.?)\s*\.?\s*/i);
+  let int_ext = '—', rest = text;
+  if (ieM) {
+    int_ext = ieM[1].toUpperCase().replace(/\./g,'').replace(/INTEXT/,'INT/EXT').replace(/EXTINT/,'EXT/INT');
+    rest = text.slice(ieM[0].length).trim();
+  }
+  const segs = rest.split(/\s+[-–]\s+/);
+  const locationRaw = segs[0].trim();
+  const jn = segs[1] ? segs[1].split(/\s+[-–]\s+/)[0].trim().toUpperCase() : '—';
+  let lieu = '', sous_lieu = '';
+  const slashPos = locationRaw.indexOf('/');
+  const parenPos = locationRaw.indexOf('(');
+  if (slashPos !== -1 && (parenPos === -1 || slashPos < parenPos)) {
+    const parts = locationRaw.split('/', 2);
+    lieu = parts[0].trim().toUpperCase();
+    sous_lieu = parts[1].replace(/\s*\(.*\)\s*$/, '').trim().toUpperCase();
+  } else if (parenPos !== -1) {
+    const m = locationRaw.match(/^(.+?)\s*\((.+)\)\s*$/);
+    if (m) { lieu = m[1].trim().toUpperCase(); sous_lieu = m[2].trim().toUpperCase(); }
+    else { lieu = locationRaw.trim().toUpperCase(); sous_lieu = ''; }
+  } else {
+    lieu = locationRaw.trim().toUpperCase();
+    sous_lieu = '';
+  }
+  return { int_ext, lieu, sous_lieu, jn };
+}
+
+function parseFDXToScenes(xmlString) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(xmlString, 'application/xml');
+  const parseErr = doc.querySelector('parsererror');
+  if (parseErr) throw new Error('XML invalide : ' + (parseErr.textContent || '').slice(0, 120));
+  const content = doc.querySelector('Content');
+  if (!content) throw new Error('Aucun bloc <Content> dans ce fichier FDX');
+  const paragraphs = Array.from(content.children);
+  const errors = [], scenes = [];
+  const seenNums = new Set();
+  for (const para of paragraphs) {
+    if (para.getAttribute('Type') !== 'Scene Heading') continue;
+    const number = para.getAttribute('Number') || '';
+    const props = para.querySelector('SceneProperties');
+    const page = props ? (props.getAttribute('Page') || '0') : '0';
+    const duree = props ? (props.getAttribute('Length') || '0') : '0';
+    const rawText = Array.from(para.querySelectorAll('Text')).map(t => t.textContent||'').join('').trim();
+    if (!rawText) { errors.push(`Scène ${number||'?'} : en-tête vide`); continue; }
+    const { int_ext, lieu, sous_lieu, jn } = _fdxParseHeading(rawText);
+    if (!lieu || lieu === '—') errors.push(`Scène ${number} : lieu vide (${rawText.slice(0,60)})`);
+    if (seenNums.has(number)) errors.push(`Doublon : scène ${number}`);
+    seenNums.add(number);
+    scenes.push({ sc: number, int_ext, lieu, sous_lieu: sous_lieu || '', jn, page, duree });
+  }
+  return { scenes, errors };
+}
+
+// ─── DIFF ENGINE ─────────────────────────────────────────────────────────────
+function diffScenes(oldRaw, newRaw) {
+  const oldMap = new Map((oldRaw||[]).map(s => [s.sc, s]));
+  const newMap = new Map(newRaw.map(s => [s.sc, s]));
+  const added=[], removed=[], modified=[], unchanged=[];
+  for (const [sc, ns] of newMap) {
+    const os = oldMap.get(sc);
+    if (!os) { added.push(ns); }
+    else {
+      const changed = os.lieu!==ns.lieu || os.sous_lieu!==ns.sous_lieu ||
+                      os.jn!==ns.jn || os.page!==ns.page ||
+                      os.duree!==ns.duree || os.int_ext!==ns.int_ext;
+      if (changed) modified.push({ old: os, new: ns }); else unchanged.push(ns);
+    }
+  }
+  for (const [sc, os] of oldMap) { if (!newMap.has(sc)) removed.push(os); }
+  return { added, removed, modified, unchanged };
+}
+
+// ─── IMPORT DIALOG ───────────────────────────────────────────────────────────
+let _pendingImport = null;
+
+function triggerFdxUpload() {
+  document.getElementById('fdx-file-input').click();
+}
+
+function onFdxFileSelected(evt) {
+  const file = evt.target.files[0];
+  if (!file) return;
+  evt.target.value = '';
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const { scenes: newScenes, errors } = parseFDXToScenes(e.target.result);
+      if (!newScenes.length) { showToast('Aucune scène trouvée dans ce FDX'); return; }
+      const currentBase = imported_scenes_raw && imported_scenes_raw.length ? imported_scenes_raw : SCENES_RAW;
+      const diff = diffScenes(currentBase, newScenes);
+      _pendingImport = { newScenes, diff, filename: file.name, errors };
+      _showImportDialog();
+    } catch(err) { showToast('Erreur FDX : ' + err.message); }
+  };
+  reader.readAsText(file);
+}
+
+function _showImportDialog() {
+  const { newScenes, diff, filename, errors } = _pendingImport;
+  const { added, removed, modified, unchanged } = diff;
+  let errHtml = '';
+  if (errors.length) {
+    errHtml = `<div class="fdx-errors">
+      <div class="fdx-err-hd">⚠ ${errors.length} erreur${errors.length>1?'s':''} d'intégration</div>
+      ${errors.map(e=>`<div class="fdx-err-item">${e}</div>`).join('')}
+    </div>`;
+  }
+  let diffHtml = '';
+  if (added.length) diffHtml += `<div class="fdx-diff-section fdx-added">
+    <div class="fdx-diff-hd">+ ${added.length} scène${added.length>1?'s':''} ajoutée${added.length>1?'s':''}</div>
+    <div class="fdx-diff-items">${added.map(s=>`<span class="fdx-sc-chip">${s.sc}</span>`).join('')}</div>
+  </div>`;
+  if (removed.length) diffHtml += `<div class="fdx-diff-section fdx-removed">
+    <div class="fdx-diff-hd">− ${removed.length} scène${removed.length>1?'s':''} supprimée${removed.length>1?'s':''} <span class="fdx-diff-note">(conservées biffées)</span></div>
+    <div class="fdx-diff-items">${removed.map(s=>`<span class="fdx-sc-chip">${s.sc}</span>`).join('')}</div>
+  </div>`;
+  if (modified.length) diffHtml += `<div class="fdx-diff-section fdx-modified">
+    <div class="fdx-diff-hd">↻ ${modified.length} scène${modified.length>1?'s':''} modifiée${modified.length>1?'s':''}</div>
+    <div class="fdx-diff-items">${modified.map(m=>{
+      const ch=[];
+      if(m.old.lieu!==m.new.lieu) ch.push(`lieu: ${m.old.lieu} → ${m.new.lieu}`);
+      if(m.old.sous_lieu!==m.new.sous_lieu) ch.push(`sous-lieu: ${m.old.sous_lieu||'—'} → ${m.new.sous_lieu||'—'}`);
+      if(m.old.jn!==m.new.jn) ch.push(`${m.old.jn} → ${m.new.jn}`);
+      if(m.old.int_ext!==m.new.int_ext) ch.push(`${m.old.int_ext} → ${m.new.int_ext}`);
+      if(m.old.page!==m.new.page) ch.push(`p.${m.old.page} → p.${m.new.page}`);
+      return `<div class="fdx-diff-mod-row"><strong>${m.new.sc}</strong> <span class="fdx-diff-change">${ch.join(' · ')}</span></div>`;
+    }).join('')}</div>
+  </div>`;
+  if (!added.length && !removed.length && !modified.length)
+    diffHtml = `<div class="fdx-no-diff">Aucun changement — ${unchanged.length} scènes identiques.</div>`;
+
+  const el = document.createElement('div');
+  el.className = 'fdx-modal-overlay'; el.id = 'fdx-modal-overlay';
+  el.onclick = (e) => { if(e.target===el) closeImportDialog(); };
+  el.innerHTML = `<div class="fdx-modal">
+    <div class="fdx-modal-hd">
+      <div><h2>Importer FDX</h2><div class="fdx-modal-sub">${filename} &middot; ${newScenes.length} scènes</div></div>
+      <button class="fdx-modal-close" onclick="closeImportDialog()">✕</button>
+    </div>
+    ${errHtml}
+    <div class="fdx-diff-wrap">${diffHtml}</div>
+    <div class="fdx-modal-actions">
+      <button class="btn btn-danger btn-sm" onclick="closeImportDialog()">Annuler</button>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-sm" onclick="applyImport('overwrite')" title="Remplace tout et réinitialise les annotations">Écraser tout</button>
+        <button class="btn btn-primary btn-sm" onclick="applyImport('merge')">Merger — préserver les annotations</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(el);
+}
+
+function closeImportDialog() {
+  const el = document.getElementById('fdx-modal-overlay');
+  if (el) el.remove();
+  _pendingImport = null;
+}
+
+function applyImport(mode) {
+  if (!_pendingImport) return;
+  const { newScenes, filename } = _pendingImport;
+  const currentBase = imported_scenes_raw && imported_scenes_raw.length ? imported_scenes_raw : SCENES_RAW;
+  if (currentBase.length) {
+    fdxVersions = [{
+      id: Date.now(),
+      date: new Date().toISOString().split('T')[0],
+      label: filename.replace(/\.fdx$/i,''),
+      scene_count: newScenes.length,
+      prev_scene_count: currentBase.length,
+      scenes_raw: JSON.parse(JSON.stringify(currentBase))
+    }, ...fdxVersions].slice(0, 20);
+  }
+  imported_scenes_raw = newScenes;
+  if (mode === 'overwrite') {
+    scenes = JSON.parse(JSON.stringify(newScenes));
+  } else {
+    const savedMap = new Map(scenes.map(s=>[s.sc,s]));
+    const newSet = new Set(newScenes.map(s=>s.sc));
+    scenes = newScenes.map(ns => {
+      const saved = savedMap.get(ns.sc);
+      return { ...ns,
+        ep:               saved ? (saved.ep||'') : '',
+        steadicam:        saved ? !!saved.steadicam : false,
+        rails:            saved ? !!saved.rails     : false,
+        epaule:           saved ? !!saved.epaule    : false,
+        fixe:             saved ? !!saved.fixe      : false,
+        lieu_tournage_id: saved ? (saved.lieu_tournage_id||'') : '',
+        notes:            saved ? (saved.notes||'') : '',
+        struck:           saved ? !!saved.struck    : false
+      };
+    });
+    savedMap.forEach((s, sc) => {
+      if (!newSet.has(sc)) scenes.push({ ...s, struck: true });
+    });
+  }
+  closeImportDialog();
+  save();
+  buildTable(); renderVueLieux(); populateLieuFilter(); populateEpFilter(); refreshLieuTournageFilter();
+  IS_SERIES = scenes.some(s => parseEp(s.sc).ep > 0);
+  if (IS_SERIES) document.body.classList.add('is-series');
+  showToast(`FDX importé — ${newScenes.length} scènes`);
+}
+
+// ─── VERSIONS TAB ────────────────────────────────────────────────────────────
+function renderVersions() {
+  const wrap = document.getElementById('versions-content');
+  if (!wrap) return;
+  if (!fdxVersions.length) {
+    wrap.innerHTML = `<div class="outils-tool-card" style="max-width:620px;">
+      <p class="outils-tool-desc" style="margin:0;">Aucune version archivée. Chaque import FDX crée une archive de la version précédente, consultable ici.</p>
+    </div>`;
+    return;
+  }
+  const currentCount = (imported_scenes_raw && imported_scenes_raw.length) ? imported_scenes_raw.length : SCENES_RAW.length;
+  wrap.innerHTML = `<p class="outils-tool-desc" style="margin-bottom:20px;">${fdxVersions.length} version${fdxVersions.length>1?'s archivées':' archivée'} — version active&nbsp;: ${currentCount} scènes.</p>
+  ${fdxVersions.map((v,idx) => {
+    const delta = v.scene_count - v.prev_scene_count;
+    const dStr = delta===0?'':(delta>0?`+${delta}`:`${delta}`);
+    const dCls = delta>0?'pos':delta<0?'neg':'';
+    return `<div class="ver-card">
+      <div class="ver-card-hd">
+        <h3>${v.label}</h3>
+        <span class="ver-badge">${v.scene_count} scènes</span>
+        ${dStr?`<span class="ver-delta ${dCls}">${dStr} vs précédent</span>`:''}
+        <span class="ver-badge">${v.date}</span>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-sm" onclick="previewVersion(${idx})">Consulter</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteVersion(${idx})">Supprimer</button>
+      </div>
+    </div>`;
+  }).join('')}`;
+}
+
+function previewVersion(idx) {
+  const v = fdxVersions[idx]; if (!v) return;
+  const lines = v.scenes_raw.map(s =>
+    `${String(s.sc).padStart(4,' ')}. ${s.int_ext.padEnd(7,' ')} ${s.lieu}${s.sous_lieu?' / '+s.sous_lieu:''} — ${s.jn}  p.${s.page}  ${s.duree}`
+  ).join('\n');
+  const overlay = document.createElement('div');
+  overlay.className = 'fdx-modal-overlay';
+  overlay.onclick = (e) => { if(e.target===overlay) overlay.remove(); };
+  overlay.innerHTML = `<div class="fdx-modal" style="max-height:80vh;display:flex;flex-direction:column;">
+    <div class="fdx-modal-hd">
+      <div><h2>${v.label}</h2><div class="fdx-modal-sub">${v.date} &middot; ${v.scene_count} scènes</div></div>
+      <button class="fdx-modal-close" onclick="this.closest('.fdx-modal-overlay').remove()">✕</button>
+    </div>
+    <div class="ver-preview-text">${lines}</div>
+    <div class="fdx-modal-actions" style="margin-top:12px;">
+      <span></span>
+      <button class="btn btn-sm" onclick="this.closest('.fdx-modal-overlay').remove()">Fermer</button>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+}
+
+function deleteVersion(idx) {
+  if (!confirm('Supprimer cette version archivée ?')) return;
+  fdxVersions.splice(idx, 1);
+  save(); renderVersions();
+  showToast('Version supprimée');
 }
 
 // ─── INIT ────────────────────────────────────────────────────────────────────
