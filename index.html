@@ -165,7 +165,7 @@
     const DEFAULT_PROJECTS = [
       { id: 'derniere-saison', name: 'La dernière saison',      format: 'Série télévision', section: 'en-cours', tools: [] },
       { id: 'premier-trio',    name: 'Premier trio — Saison 4', format: 'Série télévision', section: 'en-cours', tools: [] },
-      { id: 'les-chacals',     name: 'Les Chacals',             format: 'Long-métrage',     section: 'en-dev',   tools: [] },
+      { id: 'les-chacals',     name: 'Les Chacals',             format: 'Long-métrage',     section: 'en-dev',   tools: [{ id: 'tableau-lieux', label: 'Tableau des lieux', href: '/tableau-des-lieux/?p=les-chacals&n=Les+Chacals' }] },
       { id: 'aimer-pour-deux', name: 'Aimer pour deux',         format: 'Long-métrage',     section: 'en-dev',   tools: [] },
       { id: 'au-dela-terril',  name: 'Au-delà du terril',       format: 'Long-métrage',     section: 'en-dev',   tools: [] },
       { id: 'contritions',     name: 'Contritions / Clippeurs', format: 'Long-métrage',     section: 'en-dev',   tools: [] },
@@ -219,7 +219,8 @@
       return saved
         .map(s => {
           if (!defaultById[s.id]) return null;
-          return { ...defaultById[s.id], section: s.section, tools: s.tools || [] };
+          const def = defaultById[s.id];
+          return { ...def, section: s.section, tools: (s.tools && s.tools.length) ? s.tools : (def.tools || []) };
         })
         .filter(Boolean);
     }
