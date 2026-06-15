@@ -312,7 +312,7 @@
         rmBtn.className = 'tool-remove';
         rmBtn.title = 'Retirer';
         rmBtn.textContent = '×';
-        rmBtn.addEventListener('click', e => { e.stopPropagation(); e.preventDefault(); removeTool(project.id, t.id); });
+        rmBtn.addEventListener('click', e => { e.stopPropagation(); e.preventDefault(); if (confirm('Retirer « ' + t.label + ' » de ce projet ?')) removeTool(project.id, t.id); });
         item.appendChild(a);
         item.appendChild(rmBtn);
         toolsDiv.appendChild(item);
