@@ -125,7 +125,7 @@
     const DEFAULT_PROJECTS = [
       { id: 'derniere-saison', name: 'La dernière saison',      format: 'Série télévision', section: 'en-cours', tools: [] },
       { id: 'premier-trio',    name: 'Premier trio — Saison 4', format: 'Série télévision', section: 'en-cours', tools: [] },
-      { id: 'les-chacals',     name: 'Les Chacals',             format: 'Long-métrage',     section: 'en-dev',   tools: [{ label: 'Tableau des lieux', href: '/les-chacals/tableau-des-lieux/' }] },
+      { id: 'les-chacals',     name: 'Les Chacals',             format: 'Long-métrage',     section: 'en-dev',   tools: [] },
       { id: 'aimer-pour-deux', name: 'Aimer pour deux',         format: 'Long-métrage',     section: 'en-dev',   tools: [] },
       { id: 'au-dela-terril',  name: 'Au-delà du terril',       format: 'Long-métrage',     section: 'en-dev',   tools: [] },
       { id: 'contritions',     name: 'Contritions / Clippeurs', format: 'Long-métrage',     section: 'en-dev',   tools: [] },
@@ -222,6 +222,11 @@
 
       const tools = document.createElement('div');
       tools.className = 'project-tools';
+      const tdlA = document.createElement('a');
+      tdlA.className = 'tool-link';
+      tdlA.href = '/tableau-des-lieux/?p=' + encodeURIComponent(project.id) + '&n=' + encodeURIComponent(project.name);
+      tdlA.textContent = 'Tableau des lieux';
+      tools.appendChild(tdlA);
       if (project.tools && project.tools.length) {
         project.tools.forEach(t => {
           const a = document.createElement('a');
@@ -230,8 +235,6 @@
           a.textContent = t.label;
           tools.appendChild(a);
         });
-      } else {
-        tools.innerHTML = '<span class="no-tool">—</span>';
       }
       row.appendChild(tools);
       return row;
