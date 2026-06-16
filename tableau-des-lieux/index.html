@@ -579,7 +579,8 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
   transition: color .12s, background .12s; font-family: inherit; line-height: 1;
 }
 .recap-collapse-btn:hover { color: var(--text); background: var(--bg3); }
-.stat-table { width: 100%; border-collapse: collapse; }
+.stat-table { width: 100%; border-collapse: collapse; min-width: 0; }
+.recap-card { overflow-x: auto; }
 .stat-table th { color: var(--text-muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; padding: 0 8px 8px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
 .stat-table td { padding: 7px 8px; font-size: 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
 .stat-table tbody tr:last-child td { border-bottom: none; }
@@ -2575,7 +2576,7 @@ function buildCharCard(charIndex, ch, cb) {
   const epHeader = IS_SERIES ? `<th style="white-space:nowrap;">Épisodes</th>` : '';
   const rows = sorted.map(([name, v]) => {
     const isSpeaker = v.lines > 0;
-    const w = Math.round(v.scenesPresent.length / maxScenes * 140);
+    const pct = Math.round(v.scenesPresent.length / maxScenes * 100);
     const barColor = isSpeaker ? 'var(--accent)' : 'var(--text-dim)';
     const barOp = isSpeaker ? '1' : '.4';
     const linesCell = isSpeaker
@@ -2593,7 +2594,7 @@ function buildCharCard(charIndex, ch, cb) {
       <td style="min-width:120px;">${nameCell}</td>
       <td class="stat-num">${v.scenesPresent.length}</td>
       ${linesCell}
-      <td><span style="display:inline-block;width:${w}px;height:5px;background:${barColor};border-radius:3px;vertical-align:middle;opacity:${barOp};"></span></td>
+      <td style="width:25%;min-width:40px;"><div style="height:5px;background:${barColor};border-radius:3px;opacity:${barOp};width:${pct}%;"></div></td>
       ${epCell}
     </tr>`;
   }).join('');
@@ -2634,7 +2635,7 @@ function buildCharCard_rows(charIndex) {
   const epHeader = IS_SERIES ? `<th style="white-space:nowrap;">Épisodes</th>` : '';
   const rows = sorted.map(([name, v]) => {
     const isSpeaker = v.lines > 0;
-    const w = Math.round(v.scenesPresent.length / maxScenes * 140);
+    const pct = Math.round(v.scenesPresent.length / maxScenes * 100);
     const barColor = isSpeaker ? 'var(--accent)' : 'var(--text-dim)';
     const barOp = isSpeaker ? '1' : '.4';
     const linesCell = isSpeaker ? `<td class="stat-num">${v.lines}</td>` : `<td class="stat-num char-silent">—</td>`;
@@ -2915,7 +2916,7 @@ function renderRecap() {
   });
 
   // ── Cartons repliables ────────────────────────────────────────────────────
-  const RC_IDS = ['rc-intext','rc-jn','rc-lieu','rc-tech-lieu','rc-matrix'];
+  const RC_IDS = ['rc-chars','rc-intext','rc-jn','rc-lieu','rc-tech-lieu','rc-matrix'];
   const rcCollapsed = JSON.parse(localStorage.getItem('rc-collapsed') || '{}');
 
   function ch(title, id) {
@@ -2963,7 +2964,7 @@ function toggleRecapCard(id) {
 }
 
 function collapseAllRecap() {
-  const RC_IDS = ['rc-intext','rc-jn','rc-lieu','rc-tech-lieu','rc-matrix'];
+  const RC_IDS = ['rc-chars','rc-intext','rc-jn','rc-lieu','rc-tech-lieu','rc-matrix'];
   const rc = {};
   RC_IDS.forEach(id => {
     const body = document.getElementById('rcbd-' + id);
@@ -2976,7 +2977,7 @@ function collapseAllRecap() {
 }
 
 function expandAllRecap() {
-  const RC_IDS = ['rc-intext','rc-jn','rc-lieu','rc-tech-lieu','rc-matrix'];
+  const RC_IDS = ['rc-chars','rc-intext','rc-jn','rc-lieu','rc-tech-lieu','rc-matrix'];
   const rc = {};
   RC_IDS.forEach(id => {
     const body = document.getElementById('rcbd-' + id);
