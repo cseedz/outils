@@ -3818,6 +3818,9 @@ function triggerFdxUpload() {
 function _scSort(a, b) {
   const ae = parseEp(a.sc), be = parseEp(b.sc);
   if (ae.ep !== be.ep) return ae.ep - be.ep;
+  // Page number = primary story-order indicator; scene number is fallback only
+  const ap = parseFloat(a.page) || 0, bp = parseFloat(b.page) || 0;
+  if (ap !== bp) return ap - bp;
   if (ae.scNum !== be.scNum) return ae.scNum - be.scNum;
   return ae.suffix.localeCompare(be.suffix);
 }
