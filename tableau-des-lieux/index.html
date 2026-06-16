@@ -583,8 +583,8 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
 .recap-card { overflow-x: auto; }
 .stat-table th { color: var(--text-muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; padding: 0 8px 8px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
 .stat-th-sort { cursor: pointer; user-select: none; }
-.stat-th-sort:hover { color: var(--text); }
-.char-sort-ind { color: var(--accent); font-size: 9px; }
+.stat-th-sort:hover { color: var(--text); background: var(--bg3); }
+.char-sort-ind { color: var(--accent); font-size: 9px; margin-left: 3px; }
 .stat-table td { padding: 7px 8px; font-size: 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
 .stat-table tbody tr:last-child td { border-bottom: none; }
 .stat-table tbody tr:hover td { background: var(--row-hover); }
@@ -1310,6 +1310,7 @@ function applyData(d) {
   }
   if (d.fdxImportMeta) fdxImportMeta = d.fdxImportMeta;
   if (d.totalEpisodes) totalEpisodes = d.totalEpisodes;
+  IS_SERIES = scenes.some(s => parseEp(s.sc).ep > 0);
   if (d.lieusTournage) lieusTournage = d.lieusTournage;
   if (d.lieuNotes) lieuNotes = d.lieuNotes;
   if (d.sousLieuNotes) sousLieuNotes = d.sousLieuNotes;
@@ -2619,10 +2620,12 @@ function _buildCharTable(charIndex) {
     return (b[1].scenesPresent.length - a[1].scenesPresent.length) || (b[1].lines - a[1].lines);
   });
   const maxScenes = Math.max(...entries.map(([,v]) => v.scenesPresent.length), 1);
+  const isSeries = scenes.some(s => parseEp(s.sc).ep > 0);
   const ind = col => _charSortBy === col ? ' <span class="char-sort-ind">▼</span>' : '';
-  const th = (col, label, cls) =>
-    `<th class="stat-th-sort${cls?' '+cls:''}" onclick="setCharSort('${col}')">${label}${ind(col)}</th>`;
-  const epCol = IS_SERIES ? `<th style="white-space:nowrap;">Épisodes</th>` : '';
+  const th = (col, label, w) =>
+    `<th class="stat-th-sort" style="width:${w}" onclick="setCharSort('${col}')">${label}${ind(col)}</th>`;
+  const epColHeader = isSeries ? `<th style="width:18%;white-space:nowrap;">Épisodes</th>` : '';
+  const barW = isSeries ? '20%' : '30%';
   const rows = sorted.map(([name, v]) => {
     const isSpeaker = v.lines > 0;
     const pct = Math.round(v.scenesPresent.length / maxScenes * 100);
@@ -2631,20 +2634,20 @@ function _buildCharTable(charIndex) {
     const linesCell = isSpeaker ? `<td class="stat-num">${v.lines}</td>` : `<td class="stat-num char-silent">—</td>`;
     const nameCell = isSpeaker ? esc(name) : `<span class="char-silent">${esc(name)}</span>`;
     let epCell = '';
-    if (IS_SERIES) {
+    if (isSeries) {
       const charEps = [...new Set(v.scenesPresent.map(sc => parseEp(sc).ep).filter(Boolean))].sort((a,b)=>a-b);
       epCell = `<td>${charEps.map(e => `<span class="char-ep-chip">E${e}</span>`).join('')}</td>`;
     }
     return `<tr>
-      <td style="min-width:120px;">${nameCell}</td>
+      <td>${nameCell}</td>
       <td class="stat-num">${v.scenesPresent.length}</td>
       ${linesCell}
-      <td style="width:25%;min-width:40px;"><div style="height:5px;background:${barColor};border-radius:3px;opacity:${barOp};width:${pct}%;"></div></td>
+      <td><div style="height:5px;background:${barColor};border-radius:3px;opacity:${barOp};width:${pct}%;"></div></td>
       ${epCell}
     </tr>`;
   }).join('');
-  return `<table class="stat-table">
-    <thead><tr>${th('az','Personnage')}${th('scenes','Scènes','stat-num')}${th('lines','Répliques','stat-num')}<th></th>${epCol}</tr></thead>
+  return `<table class="stat-table" style="table-layout:fixed;">
+    <thead><tr>${th('az','Personnage','auto')}${th('scenes','Scènes','8%')}${th('lines','Répliques','10%')}<th style="width:${barW};"></th>${epColHeader}</tr></thead>
     <tbody>${rows}</tbody>
   </table>`;
 }
