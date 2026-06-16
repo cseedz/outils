@@ -366,12 +366,15 @@ input.form-input::placeholder { color: var(--text-dim); }
 .vlieu-tech-btn.act-e { background:#a855f7; border-color:#a855f7; color:#fff; }
 .vlieu-tech-btn.act-f { background:#3b82f6; border-color:#3b82f6; color:#fff; }
 /* Sync Supabase */
-.sync-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; margin-left: auto; margin-right: 4px; align-self: center; transition: background .3s; cursor: default; margin-bottom: 12px; }
+.sync-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; margin-left: auto; margin-right: 3px; align-self: center; transition: background .3s; cursor: default; margin-bottom: 12px; }
 .sync-dot.idle    { background: var(--text-dim); }
 .sync-dot.syncing { background: #fbbf24; animation: sync-pulse .9s infinite; }
 .sync-dot.synced  { background: var(--accent3); }
 .sync-dot.error   { background: var(--danger); }
 @keyframes sync-pulse { 0%,100%{opacity:1} 50%{opacity:.25} }
+#sync-size { font-size: 9px; color: var(--text-dim); white-space: nowrap; font-variant-numeric: tabular-nums; margin-right: 10px; margin-bottom: 12px; align-self: center; cursor: default; }
+#sync-size.warn   { color: #f59e0b; }
+#sync-size.danger { color: var(--danger); font-weight: 600; }
 /* Floating location menu */
 #vlieu-loc-menu { position:fixed; background:var(--bg2); border:1px solid var(--border2); border-radius:7px; padding:4px 0; z-index:2000; min-width:150px; box-shadow:0 6px 20px rgba(0,0,0,.5); display:none; }
 #vlieu-loc-menu .vlm-item { padding:5px 12px; font-size:11px; cursor:pointer; display:flex; align-items:center; gap:7px; }
@@ -708,6 +711,7 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
       <button class="tab-btn" onclick="switchTab('versions')">Versions</button>
     </div>
     <div id="sync-dot" class="sync-dot idle" title="Non connecté"></div>
+    <span id="sync-size" title="Taille des données sauvegardées dans Supabase"></span>
     <input type="file" id="fdx-file-input" accept=".fdx" multiple style="display:none" onchange="onFdxFileSelected(event)">
     <button class="fdx-import-btn" onclick="triggerFdxUpload()" title="Importer un fichier Final Draft (.fdx)">Importer FDX</button>
     <a href="/" style="font-size:11px;color:var(--text-muted);text-decoration:none;letter-spacing:0.04em;padding:4px 0 4px 16px;border-left:1px solid var(--border);margin-left:12px;white-space:nowrap;flex-shrink:0;" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--text-muted)'">← Outils</a>
@@ -1304,10 +1308,32 @@ function setSyncStatus(s) {
   dot.title = labels[s] || s;
 }
 
+function updateSyncSize(bytes) {
+  const el = document.getElementById('sync-size');
+  if (!el) return;
+  const kb = bytes / 1024;
+  const label = kb >= 1024 ? (kb / 1024).toFixed(2) + ' Mo' : Math.round(kb) + ' Ko';
+  el.textContent = label;
+  const WARN = 1.5 * 1024 * 1024;  // 1.5 Mo
+  const DANGER = 3 * 1024 * 1024;  // 3 Mo
+  if (bytes >= DANGER) {
+    el.className = 'danger';
+    el.title = `⚠ Données volumineuses : ${label}\nEnvisage de supprimer des versions archivées (onglet Versions)\nou de réimporter sans stocker le texte des scènes.`;
+  } else if (bytes >= WARN) {
+    el.className = 'warn';
+    el.title = `Données en croissance : ${label}\nAucun problème immédiat, mais à surveiller.`;
+  } else {
+    el.className = '';
+    el.title = `Données Supabase : ${label}`;
+  }
+}
+
 async function syncToSupabase(data) {
   if (!sb) return;
   setSyncStatus('syncing');
   try {
+    const payloadSize = new Blob([JSON.stringify(data)]).size;
+    updateSyncSize(payloadSize);
     const { error } = await sb.from('project_data').upsert({ key: KEY, data, updated_at: new Date().toISOString() });
     if (error) throw error;
     setSyncStatus('synced');
