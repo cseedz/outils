@@ -707,7 +707,7 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
       <button class="tab-btn" onclick="switchTab('versions')">Versions</button>
     </div>
     <div id="sync-dot" class="sync-dot idle" title="Non connecté"></div>
-    <input type="file" id="fdx-file-input" accept=".fdx" style="display:none" onchange="onFdxFileSelected(event)">
+    <input type="file" id="fdx-file-input" accept=".fdx" multiple style="display:none" onchange="onFdxFileSelected(event)">
     <button class="fdx-import-btn" onclick="triggerFdxUpload()" title="Importer un fichier Final Draft (.fdx)">Importer FDX</button>
     <a href="/" style="font-size:11px;color:var(--text-muted);text-decoration:none;letter-spacing:0.04em;padding:4px 0 4px 16px;border-left:1px solid var(--border);margin-left:12px;white-space:nowrap;flex-shrink:0;" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--text-muted)'">← Outils</a>
   </div>
@@ -3477,8 +3477,7 @@ function diffScenes(oldRaw, newRaw) {
 
 // ─── IMPORT DIALOG ───────────────────────────────────────────────────────────
 let _pendingImport = null;
-let _pendingXml = null;
-let _pendingFilename = null;
+let _pendingFiles = []; // [{ name, content }] — supports batch import
 
 function triggerFdxUpload() {
   document.getElementById('fdx-file-input').click();
@@ -3489,38 +3488,50 @@ function _scSort(a, b) {
   return ae.ep !== be.ep ? ae.ep - be.ep : ae.scNum - be.scNum;
 }
 
-function _runParse(opts) {
+function _runBatchParse(opts) {
   try {
-    const { scenes: newScenes, errors } = parseFDXToScenes(_pendingXml, opts);
-    if (!newScenes.length) { showToast('Aucune scène trouvée dans ce FDX'); return; }
+    let allNewScenes = [];
+    let allErrors = [];
+    for (const { name, content } of _pendingFiles) {
+      const { scenes: ns, errors } = parseFDXToScenes(content, opts);
+      allNewScenes = [...allNewScenes, ...ns];
+      allErrors = [...allErrors, ...errors.map(e => _pendingFiles.length > 1 ? `[${name}] ${e}` : e)];
+    }
+    // Dernier fichier gagne en cas de doublon de sc (même épisode importé deux fois)
+    const scMap = new Map();
+    allNewScenes.forEach(s => scMap.set(s.sc, s));
+    const newScenes = [...scMap.values()].sort(_scSort);
+    if (!newScenes.length) { showToast('Aucune scène trouvée dans ces fichiers FDX'); return; }
     const currentBase = imported_scenes_raw && imported_scenes_raw.length ? imported_scenes_raw : SCENES_RAW;
-    // Épisodes couverts par ce FDX (0 = long-métrage)
     const newEps = new Set(newScenes.map(s => parseEp(s.sc).ep));
-    // Diff seulement sur les scènes des mêmes épisodes
     const relevantBase = currentBase.filter(s => newEps.has(parseEp(s.sc).ep));
     const diff = diffScenes(relevantBase, newScenes);
     const isNewEpisode = relevantBase.length === 0 && currentBase.length > 0;
-    _pendingImport = { newScenes, diff, filename: _pendingFilename, errors, newEps, isNewEpisode };
+    const filename = _pendingFiles.length === 1 ? _pendingFiles[0].name : `${_pendingFiles.length} fichiers FDX`;
+    _pendingImport = { newScenes, diff, filename, errors: allErrors, newEps, isNewEpisode };
     _showImportDialog();
   } catch(err) { showToast('Erreur FDX : ' + err.message); }
 }
 
 function onFdxFileSelected(evt) {
-  const file = evt.target.files[0];
-  if (!file) return;
+  const files = Array.from(evt.target.files);
   evt.target.value = '';
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    _pendingXml = e.target.result;
-    _pendingFilename = file.name;
-    const detected = _detectFdxOptions(_pendingXml);
+  if (!files.length) return;
+  Promise.all(files.map(f => new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = e => res({ name: f.name, content: e.target.result });
+    r.onerror = () => rej(new Error(`Impossible de lire ${f.name}`));
+    r.readAsText(f);
+  }))).then(fileContents => {
+    fileContents.sort((a, b) => a.name.localeCompare(b.name));
+    _pendingFiles = fileContents;
+    const detected = _detectFdxOptions(fileContents[0].content);
     if (detected.suggestDash || detected.hasCompactNums || (detected.isSeries && !totalEpisodes)) {
       _showFdxOptionsDialog(detected);
     } else {
-      _runParse({});
+      _runBatchParse({});
     }
-  };
-  reader.readAsText(file);
+  }).catch(err => showToast('Erreur lecture FDX : ' + err.message));
 }
 
 function _showFdxOptionsDialog(detected) {
@@ -3602,7 +3613,7 @@ function _showFdxOptionsDialog(detected) {
       <div class="fdx-modal-hd">
         <div>
           <h2>Paramètres d'import</h2>
-          <div class="fdx-modal-sub">${_pendingFilename}</div>
+          <div class="fdx-modal-sub">${_pendingFiles.length === 1 ? _pendingFiles[0].name : `${_pendingFiles.length} fichiers sélectionnés`}</div>
         </div>
         <button class="fdx-modal-close" onclick="document.getElementById('fdx-opts-overlay').remove()">✕</button>
       </div>
@@ -3630,7 +3641,7 @@ function _applyFdxOptions() {
     if (n > 0) totalEpisodes = n;
   }
   document.getElementById('fdx-opts-overlay')?.remove();
-  _runParse(opts);
+  _runBatchParse(opts);
 }
 
 function _showImportDialog() {
@@ -3708,7 +3719,7 @@ function applyImport(mode) {
     fdxVersions = [{
       id: Date.now(),
       date: new Date().toISOString().split('T')[0],
-      label: filename.replace(/\.fdx$/i,''),
+      label: _pendingFiles.length > 1 ? _pendingFiles.map(f => f.name.replace(/\.fdx$/i,'')).join(', ') : filename.replace(/\.fdx$/i,''),
       scene_count: newScenes.length,
       prev_scene_count: currentBase.length,
       scenes_raw: JSON.parse(JSON.stringify(currentBase))
