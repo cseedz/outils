@@ -118,6 +118,12 @@
 
     footer { margin-top: 80px; padding-top: 20px; border-top: 1px solid var(--line); }
     .footer-text { font-size: 10px; color: var(--muted); letter-spacing: 0.06em; }
+    .tool-size { font-size: 9px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; opacity: .7; }
+    .tool-size.warn   { color: #e6930a; opacity: 1; }
+    .tool-size.danger { color: #cc3333; opacity: 1; font-weight: 600; }
+    #storage-summary  { font-size: 10px; color: var(--muted); letter-spacing: 0.04em; margin-top: 6px; display: block; }
+    #storage-summary.warn   { color: #e6930a; }
+    #storage-summary.danger { color: #cc3333; font-weight: 600; }
   </style>
 </head>
 <body>
@@ -143,6 +149,7 @@
 
     <footer>
       <p class="footer-text">outils.charlesgrenier.com</p>
+      <span id="storage-summary"></span>
     </footer>
 
   </div>
@@ -294,6 +301,7 @@
     function rebuildRow(project) {
       const existing = document.querySelector(`.project[data-id="${project.id}"]`);
       if (existing) existing.replaceWith(buildRow(project));
+      loadSizes();
     }
 
     function buildRow(project) {
@@ -323,7 +331,11 @@
         rmBtn.title = 'Retirer';
         rmBtn.textContent = '×';
         rmBtn.addEventListener('click', e => { e.stopPropagation(); e.preventDefault(); if (confirm('Retirer « ' + t.label + ' » de ' + project.name + ' ?\n\nToutes les données (scènes, annotations, locations, photos) seront supprimées définitivement de Supabase.')) removeTool(project.id, t.id); });
+        const sizeEl = document.createElement('span');
+        sizeEl.className = 'tool-size';
+        if (t.supabaseKey) item.dataset.sbKey = t.supabaseKey;
         item.appendChild(a);
+        item.appendChild(sizeEl);
         item.appendChild(rmBtn);
         toolsDiv.appendChild(item);
       });
@@ -423,6 +435,41 @@
 
     document.addEventListener('click', closeAllDropdowns);
 
+    // ── Storage sizes ─────────────────────────────────────────────────────────
+    async function loadSizes() {
+      if (!sb) return;
+      try {
+        const { data: rows, error } = await sb.from('project_data').select('key, data');
+        if (error || !rows) return;
+        let totalBytes = 0;
+        const sizeByKey = {};
+        rows.forEach(row => {
+          const bytes = new Blob([JSON.stringify(row.data)]).size;
+          totalBytes += bytes;
+          sizeByKey[row.key] = bytes;
+        });
+        // Per-tool labels
+        document.querySelectorAll('.tool-item[data-sb-key]').forEach(item => {
+          const bytes = sizeByKey[item.dataset.sbKey];
+          if (bytes === undefined) return;
+          const sizeEl = item.querySelector('.tool-size');
+          if (!sizeEl) return;
+          const kb = bytes / 1024;
+          sizeEl.textContent = kb >= 1024 ? (kb / 1024).toFixed(2) + ' Mo' : Math.round(kb) + ' Ko';
+          sizeEl.title = 'Données Supabase : ' + sizeEl.textContent;
+          sizeEl.className = 'tool-size' + (bytes > 3e6 ? ' danger' : bytes > 1.5e6 ? ' warn' : '');
+        });
+        // Footer total
+        const el = document.getElementById('storage-summary');
+        if (!el) return;
+        const kb = totalBytes / 1024;
+        const label = kb >= 1024 ? (kb / 1024).toFixed(2) + ' Mo' : Math.round(kb) + ' Ko';
+        el.textContent = `Supabase — ${label} total · ${rows.length} entrée${rows.length > 1 ? 's' : ''}`;
+        el.className = totalBytes > 8e6 ? 'danger' : totalBytes > 4e6 ? 'warn' : '';
+        el.title = el.textContent;
+      } catch(e) { console.warn('Erreur chargement tailles:', e); }
+    }
+
     // ── Init ──────────────────────────────────────────────────────────────────
     async function init() {
       // Afficher local immédiatement (pas de flash)
@@ -434,6 +481,7 @@
         saveLocal(remote);
         render(mergeState(remote));
       }
+      loadSizes();
     }
 
     init();
