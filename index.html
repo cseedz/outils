@@ -158,7 +158,8 @@
       {
         id: 'tableau-lieux',
         label: 'Tableau des lieux',
-        buildHref: p => '/tableau-des-lieux/?p=' + encodeURIComponent(p.id) + '&n=' + encodeURIComponent(p.name)
+        buildHref: p => '/tableau-des-lieux/?p=' + encodeURIComponent(p.id) + '&n=' + encodeURIComponent(p.name),
+        buildKey:  p => p.id === 'les-chacals' ? 'chacals_v2' : p.id + '_tdl'
       }
     ];
 
@@ -264,21 +265,30 @@
       if (!toolDef) return;
       if (!p.tools) p.tools = [];
       if (p.tools.some(t => t.id === toolId)) return;
-      p.tools.push({ id: toolId, label: toolDef.label, href: toolDef.buildHref(p) });
+      p.tools.push({ id: toolId, label: toolDef.label, href: toolDef.buildHref(p), supabaseKey: toolDef.buildKey ? toolDef.buildKey(p) : null });
       rebuildRow(p);
       const state = getState();
       saveLocal(state);
       saveToSupabase(state);
     }
 
-    function removeTool(projectId, toolId) {
+    async function removeTool(projectId, toolId) {
       const p = projects.find(x => x.id === projectId);
       if (!p || !p.tools) return;
+      const tool = p.tools.find(t => t.id === toolId);
+      if (!tool) return;
       p.tools = p.tools.filter(t => t.id !== toolId);
       rebuildRow(p);
       const state = getState();
       saveLocal(state);
       saveToSupabase(state);
+      // Supprimer les données de l'outil dans Supabase
+      const toolDef = AVAILABLE_TOOLS.find(t => t.id === toolId);
+      const sbKey = tool.supabaseKey || (toolDef && toolDef.buildKey ? toolDef.buildKey(p) : null);
+      if (sbKey && sb) {
+        try { await sb.from('project_data').delete().eq('key', sbKey); }
+        catch(e) { console.warn('Erreur suppression données outil:', e); }
+      }
     }
 
     function rebuildRow(project) {
@@ -312,7 +322,7 @@
         rmBtn.className = 'tool-remove';
         rmBtn.title = 'Retirer';
         rmBtn.textContent = '×';
-        rmBtn.addEventListener('click', e => { e.stopPropagation(); e.preventDefault(); if (confirm('Retirer « ' + t.label + ' » de ce projet ?')) removeTool(project.id, t.id); });
+        rmBtn.addEventListener('click', e => { e.stopPropagation(); e.preventDefault(); if (confirm('Retirer « ' + t.label + ' » de ' + project.name + ' ?\n\nToutes les données (scènes, annotations, locations, photos) seront supprimées définitivement de Supabase.')) removeTool(project.id, t.id); });
         item.appendChild(a);
         item.appendChild(rmBtn);
         toolsDiv.appendChild(item);
