@@ -1229,7 +1229,16 @@ let imported_scenes_raw = null;  // set on FDX import; overrides SCENES_RAW as b
 let fdxVersions = [];  // archived FDX versions { id, date, label, ep, scene_count, prev_scene_count, scenes_raw }
 let fdxImportMeta = {}; // { [ep]: { label, date, scene_count } } — tracks current import info per episode
 let totalEpisodes = 0; // total ep count for the series (0 = unknown/long-métrage)
-function parseEp(sc) { const s=String(sc),dot=s.indexOf('.'); if(dot===-1)return{ep:0,scNum:parseFloat(s)||0}; return{ep:parseInt(s.slice(0,dot))||0,scNum:parseInt(s.slice(dot+1))||0}; }
+function parseEp(sc) {
+  const s = String(sc), dot = s.indexOf('.');
+  if (dot === -1) {
+    const m = s.match(/^(\d+)([A-Za-z]?)$/);
+    return { ep: 0, scNum: m ? parseInt(m[1]) : (parseFloat(s) || 0), suffix: m ? m[2].toUpperCase() : '' };
+  }
+  const after = s.slice(dot + 1);
+  const m = after.match(/^(\d+)([A-Za-z]?)$/);
+  return { ep: parseInt(s.slice(0, dot)) || 0, scNum: m ? parseInt(m[1]) : (parseFloat(after) || 0), suffix: m ? m[2].toUpperCase() : '' };
+}
 function fmtEp(sc) { const {ep}=parseEp(sc); return ep>0?'E'+String(ep).padStart(2,'0'):'—'; }
 let scenes = JSON.parse(JSON.stringify(SCENES_RAW));
 let lieusTournage = []; // {id, nom, adresse, couleur}
@@ -2408,7 +2417,7 @@ function sortTable(i) {
   });
   scenes.sort((a,b) => {
     const k=SK[i];
-    if (k==='sc') { const ea=parseEp(a.sc),eb=parseEp(b.sc); if(ea.ep!==eb.ep)return(ea.ep-eb.ep)*sortDir; return(ea.scNum-eb.scNum)*sortDir; }
+    if (k==='sc') { const ea=parseEp(a.sc),eb=parseEp(b.sc); if(ea.ep!==eb.ep)return(ea.ep-eb.ep)*sortDir; if(ea.scNum!==eb.scNum)return(ea.scNum-eb.scNum)*sortDir; return ea.suffix.localeCompare(eb.suffix)*sortDir; }
     if (k==='__ep__') return (a.ep||'').localeCompare(b.ep||'', 'fr') * sortDir;
     if (k==='page') return ((parseInt(a[k])||0)-(parseInt(b[k])||0))*sortDir;
     return (a[k]||'').localeCompare(b[k]||'','fr')*sortDir;
@@ -2553,6 +2562,14 @@ function buildCharIndex() {
 }
 
 let _charSortBy = 'scenes'; // 'scenes' | 'lines' | 'az'
+let _rcSortState = {}; // { tableId: { col, dir } }  dir: 1=asc -1=desc
+
+function rcTableSort(tableId, col) {
+  const prev = _rcSortState[tableId] || {};
+  const dir = prev.col === col ? -prev.dir : -1;
+  _rcSortState[tableId] = { col, dir };
+  renderRecap();
+}
 
 function setCharSort(key) {
   _charSortBy = key;
@@ -2657,6 +2674,62 @@ function buildCharCard_rows(charIndex) {
   return _buildCharTable(charIndex);
 }
 
+function buildCharLieuCard(ch, cb) {
+  const byLieuFictif = {};
+  (imported_scenes_raw || []).forEach(s => {
+    const lieu = s.lieu || '—';
+    if (!byLieuFictif[lieu]) byLieuFictif[lieu] = { chars: new Set(), scenes: new Set(), pages: 0 };
+    (s.charPresent || []).forEach(c => byLieuFictif[lieu].chars.add(c));
+    byLieuFictif[lieu].scenes.add(String(s.sc));
+    byLieuFictif[lieu].pages += parseDuree(s.duree || '');
+  });
+  if (!Object.keys(byLieuFictif).length) return '';
+
+  const ss = _rcSortState['rc-char-lieu'] || { col: 'chars', dir: -1 };
+  const entries = Object.entries(byLieuFictif).sort((a, b) => {
+    if (ss.col === 'lieu')   return a[0].localeCompare(b[0], 'fr') * (ss.dir === -1 ? 1 : -1);
+    if (ss.col === 'scenes') return (b[1].scenes.size - a[1].scenes.size) * (ss.dir === -1 ? 1 : -1);
+    if (ss.col === 'pages')  return (b[1].pages - a[1].pages) * (ss.dir === -1 ? 1 : -1);
+    return (b[1].chars.size - a[1].chars.size) * (ss.dir === -1 ? 1 : -1);
+  });
+
+  const maxChars = Math.max(...entries.map(([, v]) => v.chars.size), 1);
+  const totalPages = entries.reduce((s, [, v]) => s + v.pages, 0);
+  const pieData = entries.map(([lieu, v]) => ({ value: v.chars.size, color: lieuFictifColor(lieu), label: lieu }));
+  const pie = svgPie(pieData, 110);
+
+  const ind = col => ss.col === col ? ` <span class="char-sort-ind">${ss.dir === -1 ? '▼' : '▲'}</span>` : '';
+  const th = (col, label, style) =>
+    `<th class="stat-th-sort"${style ? ` style="${style}"` : ''} onclick="rcTableSort('rc-char-lieu','${col}')">${label}${ind(col)}</th>`;
+
+  const rows = entries.map(([lieu, v]) => {
+    const color = lieuFictifColor(lieu);
+    const pct = Math.round(v.chars.size / maxChars * 100);
+    return `<tr>
+      <td><span style="display:inline-flex;align-items:center;gap:7px;"><span style="width:9px;height:9px;border-radius:50%;background:${color};flex-shrink:0;"></span>${esc(lieu)}</span></td>
+      <td class="stat-num">${v.chars.size}</td>
+      <td style="width:120px;min-width:40px;"><div style="height:5px;background:${color};border-radius:3px;width:${pct}%;"></div></td>
+      <td class="stat-num">${v.scenes.size}</td>
+      <td class="stat-num">${fmtPages(v.pages)}</td>
+    </tr>`;
+  }).join('');
+
+  const tableHTML = `<table class="stat-table"><thead><tr>
+    ${th('lieu','Lieu fictif')}${th('chars','Personnages','width:10%')}
+    <th style="width:20%;"></th>
+    ${th('scenes','Scènes','width:8%')}${th('pages','Pages','width:9%')}
+  </tr></thead><tbody>${rows}</tbody></table>`;
+
+  const content = pie
+    ? `<div style="display:flex;gap:22px;align-items:flex-start;">${pie}<div style="flex:1;min-width:0;">${tableHTML}</div></div>`
+    : tableHTML;
+
+  return `<div class="recap-card recap-full" id="rc-char-lieu">
+    ${ch('Personnages par lieux','rc-char-lieu')}
+    ${cb(content,'rc-char-lieu')}
+  </div>`;
+}
+
 function renderRecap() {
   const wrap = document.getElementById('recap-content');
   const TECH_LABELS = { steadicam:'Steadicam', rails:'Rails / Traveling', epaule:'Caméra épaule', fixe:'Fixe' };
@@ -2698,16 +2771,26 @@ function renderRecap() {
   }
   function pct(v) { return totalPages > 0 ? Math.round(v / totalPages * 100) : 0; }
 
-  function groupTable(obj, hLabel, color, colorMap) {
+  function groupTable(obj, hLabel, color, colorMap, tableId) {
+    const ss = tableId ? (_rcSortState[tableId] || { col: 'pages', dir: -1 }) : { col: 'pages', dir: -1 };
+    const sortFn = (a, b) => {
+      if (ss.col === 'scenes') return (b[1].scenes - a[1].scenes) * (ss.dir === -1 ? 1 : -1);
+      if (ss.col === 'label') return a[0].localeCompare(b[0], 'fr') * (ss.dir === -1 ? 1 : -1);
+      return (b[1].pages - a[1].pages) * (ss.dir === -1 ? 1 : -1);
+    };
+    const sorted = Object.entries(obj).sort(sortFn);
     const max = Math.max(...Object.values(obj).map(v => v.pages), 0);
-    const rows = Object.entries(obj).sort((a,b) => b[1].pages - a[1].pages).map(([k,v]) => {
+    const rows = sorted.map(([k, v]) => {
       const c = colorMap ? (colorMap[k] || '#4a5070') : color;
       const label = colorMap
         ? `<span style="display:inline-flex;align-items:center;gap:7px;"><span style="width:9px;height:9px;border-radius:50%;background:${c};flex-shrink:0;"></span>${k}</span>`
         : k;
       return `<tr><td>${label}</td><td class="stat-num">${fmtPages(v.pages)}</td><td class="stat-pct">${pct(v.pages)}%</td><td style="width:170px;">${bar(v.pages,max,c)}</td><td class="stat-pct">${v.scenes} sc.</td></tr>`;
     }).join('');
-    return `<table class="stat-table"><thead><tr><th>${hLabel}</th><th>Pages</th><th>%</th><th></th><th>Scènes</th></tr></thead><tbody>${rows}</tbody></table>`;
+    if (!tableId) return `<table class="stat-table"><thead><tr><th>${hLabel}</th><th>Pages</th><th>%</th><th></th><th>Scènes</th></tr></thead><tbody>${rows}</tbody></table>`;
+    const ind = col => ss.col === col ? ` <span class="char-sort-ind">${ss.dir === -1 ? '▼' : '▲'}</span>` : '';
+    const th = (col, label, style) => `<th class="stat-th-sort"${style ? ` style="${style}"` : ''} onclick="rcTableSort('${tableId}','${col}')">${label}${ind(col)}</th>`;
+    return `<table class="stat-table"><thead><tr>${th('label',hLabel)}${th('pages','Pages')}${th('pages','%')}<th></th>${th('scenes','Scènes')}</tr></thead><tbody>${rows}</tbody></table>`;
   }
 
   // Tech card
@@ -2726,7 +2809,14 @@ function renderRecap() {
   });
 
   // Lieu tournage card
-  const allLieuIds = Object.keys(byLieu).sort((a,b) => (byLieu[b]?.pages||0) - (byLieu[a]?.pages||0));
+  const lieuSS = _rcSortState['rc-lieu'] || { col: 'pages', dir: -1 };
+  const lieuSortFn = (a, b) => {
+    const ltA = lieusTournage.find(l => l.id === a), ltB = lieusTournage.find(l => l.id === b);
+    if (lieuSS.col === 'nom') return (ltA?.nom||'').localeCompare(ltB?.nom||'','fr') * (lieuSS.dir === -1 ? 1 : -1);
+    if (lieuSS.col === 'scenes') return ((byLieu[b]?.scenes||0) - (byLieu[a]?.scenes||0)) * (lieuSS.dir === -1 ? 1 : -1);
+    return ((byLieu[b]?.pages||0) - (byLieu[a]?.pages||0)) * (lieuSS.dir === -1 ? 1 : -1);
+  };
+  const allLieuIds = Object.keys(byLieu).sort(lieuSortFn);
   const maxLieu = Math.max(...Object.values(byLieu).map(v => v.pages), 1);
   const lieuRows = allLieuIds.map(id => {
     const v = byLieu[id];
@@ -2739,7 +2829,9 @@ function renderRecap() {
       <td style="width:170px;">${bar(v.pages,maxLieu,col)}</td>
       <td class="stat-pct">${v.scenes} sc.</td></tr>`;
   }).join('');
-  const lieuHTML = `<table class="stat-table"><thead><tr><th>Location</th><th>Pages</th><th>%</th><th></th><th>Scènes</th></tr></thead><tbody>${lieuRows}</tbody></table>`;
+  const lieuInd = col => lieuSS.col === col ? ` <span class="char-sort-ind">${lieuSS.dir === -1 ? '▼' : '▲'}</span>` : '';
+  const lieuTh = (col, label) => `<th class="stat-th-sort" onclick="rcTableSort('rc-lieu','${col}')">${label}${lieuInd(col)}</th>`;
+  const lieuHTML = `<table class="stat-table"><thead><tr>${lieuTh('nom','Location')}${lieuTh('pages','Pages')}<th>%</th><th></th>${lieuTh('scenes','Scènes')}</tr></thead><tbody>${lieuRows}</tbody></table>`;
 
   // ── Portraits tech (frise narrative + stats + lieux + gap) ──────────────
   const N_SEGS = 30;
@@ -2923,7 +3015,7 @@ function renderRecap() {
   });
 
   // ── Cartons repliables ────────────────────────────────────────────────────
-  const RC_IDS = ['rc-chars','rc-intext','rc-jn','rc-lieu','rc-tech-lieu','rc-matrix'];
+  const RC_IDS = ['rc-chars','rc-intext','rc-jn','rc-lieu','rc-char-lieu','rc-tech-lieu','rc-matrix'];
   const rcCollapsed = JSON.parse(localStorage.getItem('rc-collapsed') || '{}');
 
   function ch(title, id) {
@@ -2950,9 +3042,10 @@ function renderRecap() {
     </div>
     <div class="recap-grid">
       ${buildCharCard(buildCharIndex(), ch, cb)}
-      <div class="recap-card" id="rc-intext">${ch('INT / EXT','rc-intext')}${cb(pieWrap(intExtPie, groupTable(byIntExt,'INT/EXT','var(--accent)',IE_COLORS), 100),'rc-intext')}</div>
-      <div class="recap-card" id="rc-jn">${ch('Moment (Jour / Nuit)','rc-jn')}${cb(pieWrap(jnPie, groupTable(byJN,'Moment','var(--accent3)',JN_COLORS), 100),'rc-jn')}</div>
+      <div class="recap-card" id="rc-intext">${ch('INT / EXT','rc-intext')}${cb(pieWrap(intExtPie, groupTable(byIntExt,'INT/EXT','var(--accent)',IE_COLORS,'rc-intext'), 100),'rc-intext')}</div>
+      <div class="recap-card" id="rc-jn">${ch('Moment (Jour / Nuit)','rc-jn')}${cb(pieWrap(jnPie, groupTable(byJN,'Moment','var(--accent3)',JN_COLORS,'rc-jn'), 100),'rc-jn')}</div>
       <div class="recap-card recap-full" id="rc-lieu">${ch('Pages par location','rc-lieu')}${cb(pieWrap(lieuPie, lieuHTML, 120),'rc-lieu')}</div>
+      ${buildCharLieuCard(ch, cb)}
       <div class="recap-card recap-full" id="rc-tech-lieu">${ch('Distribution technique','rc-tech-lieu')}${cb(techLieuHTML,'rc-tech-lieu')}</div>
       <div class="recap-card recap-full" id="rc-matrix">${ch('Détail numérique — Technologie × Location','rc-matrix')}${cb(matrixHTML,'rc-matrix')}</div>
     </div>`;
@@ -2971,7 +3064,7 @@ function toggleRecapCard(id) {
 }
 
 function collapseAllRecap() {
-  const RC_IDS = ['rc-chars','rc-intext','rc-jn','rc-lieu','rc-tech-lieu','rc-matrix'];
+  const RC_IDS = ['rc-chars','rc-intext','rc-jn','rc-lieu','rc-char-lieu','rc-tech-lieu','rc-matrix'];
   const rc = {};
   RC_IDS.forEach(id => {
     const body = document.getElementById('rcbd-' + id);
@@ -2984,7 +3077,7 @@ function collapseAllRecap() {
 }
 
 function expandAllRecap() {
-  const RC_IDS = ['rc-chars','rc-intext','rc-jn','rc-lieu','rc-tech-lieu','rc-matrix'];
+  const RC_IDS = ['rc-chars','rc-intext','rc-jn','rc-lieu','rc-char-lieu','rc-tech-lieu','rc-matrix'];
   const rc = {};
   RC_IDS.forEach(id => {
     const body = document.getElementById('rcbd-' + id);
@@ -3724,7 +3817,9 @@ function triggerFdxUpload() {
 
 function _scSort(a, b) {
   const ae = parseEp(a.sc), be = parseEp(b.sc);
-  return ae.ep !== be.ep ? ae.ep - be.ep : ae.scNum - be.scNum;
+  if (ae.ep !== be.ep) return ae.ep - be.ep;
+  if (ae.scNum !== be.scNum) return ae.scNum - be.scNum;
+  return ae.suffix.localeCompare(be.suffix);
 }
 
 function _runBatchParse(opts) {
