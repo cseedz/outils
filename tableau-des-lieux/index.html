@@ -1229,6 +1229,15 @@ let imported_scenes_raw = null;  // set on FDX import; overrides SCENES_RAW as b
 let fdxVersions = [];  // archived FDX versions { id, date, label, ep, scene_count, prev_scene_count, scenes_raw }
 let fdxImportMeta = {}; // { [ep]: { label, date, scene_count } } — tracks current import info per episode
 let totalEpisodes = 0; // total ep count for the series (0 = unknown/long-métrage)
+function _fixEpFields() {
+  scenes.forEach(s => {
+    if (!s.ep) {
+      const epNum = parseEp(s.sc).ep;
+      if (epNum > 0) s.ep = String(epNum);
+    }
+  });
+}
+
 function parseEp(sc) {
   const s = String(sc), dot = s.indexOf('.');
   if (dot === -1) {
@@ -1319,6 +1328,7 @@ function applyData(d) {
   }
   if (d.fdxImportMeta) fdxImportMeta = d.fdxImportMeta;
   if (d.totalEpisodes) totalEpisodes = d.totalEpisodes;
+  _fixEpFields();
   IS_SERIES = scenes.some(s => parseEp(s.sc).ep > 0);
   document.body.classList.toggle('is-series', IS_SERIES);
   if (d.lieusTournage) lieusTournage = d.lieusTournage;
@@ -4122,6 +4132,7 @@ function applyImport(mode) {
     scenes = [...keptScenes, ...mergedNew].sort(_scSort);
   }
 
+  _fixEpFields();
   closeImportDialog();
   save();
   buildTable(); renderVueLieux(); populateLieuFilter(); populateEpFilter(); refreshLieuTournageFilter();
