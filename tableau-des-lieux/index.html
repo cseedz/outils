@@ -909,8 +909,8 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
 // ─── PALETTE COULEURS ───────────────────────────────────────────────────────
 const PALETTES = {
   sobre:   ['#E51515','#F0620F','#ECB213','#83C313','#12BA4A','#0FB39D','#0F91D2','#1D62ED','#4A23E7','#A412E2','#EC13B6','#ED1D5B'],
-  vibrant: ['#4f7cff','#a78bfa','#34d399','#fbbf24','#f87171','#60a5fa','#f472b6','#2d8a8a','#c07a30','#7c5cce','#3a9a5c','#e3a8b8'],
-  pastel:  ['#c0d4ff','#d8ccff','#a8f0d4','#fde8a0','#fdc0c0','#c0dcff','#fdc0e0','#a0e0e0','#f8d0a8','#d0c0f0','#b0f0c8','#f8d8e4']
+  vibrant: ['#EF4444','#F97316','#EAB308','#84CC16','#22C55E','#10B981','#06B6D4','#38BDF8','#3B82F6','#8B5CF6','#A855F7','#EC4899'],
+  pastel:  ['#FCA5A5','#FDBA74','#FDE68A','#BEF264','#86EFAC','#6EE7B7','#A5F3FC','#BAE6FD','#A5B4FC','#C4B5FD','#E9D5FF','#FBCFE8']
 };
 const PALETTES_DEFAULT = { sobre:[...PALETTES.sobre], vibrant:[...PALETTES.vibrant], pastel:[...PALETTES.pastel] };
 let activePaletteKey = 'vibrant';
@@ -1331,9 +1331,18 @@ async function loadFromSupabase() {
         COLORS = PALETTES[activePaletteKey];
       }
       if (d.lieuPalettesCustom) {
+        // Known old defaults that should be superseded by new defaults
+        const _oldDefaults = {
+          vibrant: '#4f7cff',
+          pastel:  '#c0d4ff'
+        };
         Object.keys(PALETTES).forEach(k => {
-          if (d.lieuPalettesCustom[k] && Array.isArray(d.lieuPalettesCustom[k]))
+          if (d.lieuPalettesCustom[k] && Array.isArray(d.lieuPalettesCustom[k])) {
+            const old0 = _oldDefaults[k];
+            const saved0 = (d.lieuPalettesCustom[k][0] || '').toLowerCase();
+            if (old0 && saved0 === old0) return; // old default → use new code default
             PALETTES[k] = d.lieuPalettesCustom[k];
+          }
         });
         COLORS = PALETTES[activePaletteKey];
       }
