@@ -2531,7 +2531,7 @@ function buildCharIndex() {
 
 let _charSortBy = 'scenes'; // 'scenes' | 'lines' | 'az'
 
-function buildCharCard(charIndex) {
+function buildCharCard(charIndex, ch, cb) {
   const entries = Object.entries(charIndex);
   if (!entries.length) return '';
 
@@ -2918,7 +2918,7 @@ function renderRecap() {
       </div>
     </div>
     <div class="recap-grid">
-      ${buildCharCard(buildCharIndex())}
+      ${buildCharCard(buildCharIndex(), ch, cb)}
       <div class="recap-card" id="rc-intext">${ch('INT / EXT','rc-intext')}${cb(pieWrap(intExtPie, groupTable(byIntExt,'INT/EXT','var(--accent)',IE_COLORS), 100),'rc-intext')}</div>
       <div class="recap-card" id="rc-jn">${ch('Moment (Jour / Nuit)','rc-jn')}${cb(pieWrap(jnPie, groupTable(byJN,'Moment','var(--accent3)',JN_COLORS), 100),'rc-jn')}</div>
       <div class="recap-card recap-full" id="rc-lieu">${ch('Pages par location','rc-lieu')}${cb(pieWrap(lieuPie, lieuHTML, 120),'rc-lieu')}</div>
