@@ -1311,6 +1311,7 @@ function applyData(d) {
   if (d.fdxImportMeta) fdxImportMeta = d.fdxImportMeta;
   if (d.totalEpisodes) totalEpisodes = d.totalEpisodes;
   IS_SERIES = scenes.some(s => parseEp(s.sc).ep > 0);
+  document.body.classList.toggle('is-series', IS_SERIES);
   if (d.lieusTournage) lieusTournage = d.lieusTournage;
   if (d.lieuNotes) lieuNotes = d.lieuNotes;
   if (d.sousLieuNotes) sousLieuNotes = d.sousLieuNotes;
@@ -4197,10 +4198,10 @@ function renderVersions() {
   populateEpFilter();
   refreshLieuTournageFilter();
   buildTable();
-  renderVueLieux();
   document.getElementById('panel-vue-lieux').classList.add('active');
   document.getElementById('panel-tableau').classList.remove('active');
   document.getElementById('controls-bar').classList.add('hidden');
+  renderVueLieux();
   updateStickyTop();
   window.addEventListener('resize', updateStickyTop);
   const ov = document.getElementById('loading-overlay');
