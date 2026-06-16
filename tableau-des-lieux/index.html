@@ -566,6 +566,11 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
 .recap-card-hd { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .recap-card-hd h3 { margin-bottom: 0; }
 .recap-card h3 { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); margin-bottom: 16px; }
+.char-sort-btn { font-size: 10px; background: var(--bg3); border: 1px solid var(--border); color: var(--text-muted); padding: 2px 8px; border-radius: 4px; cursor: pointer; font-family: inherit; transition: all .12s; }
+.char-sort-btn:hover { color: var(--text); border-color: var(--border2); }
+.char-sort-btn.active { background: rgba(79,124,255,.12); border-color: var(--accent); color: var(--accent); }
+.char-ep-chip { display:inline-block; font-size:9px; padding:1px 5px; border-radius:3px; background:var(--bg3); border:1px solid var(--border); color:var(--text-muted); margin:1px; white-space:nowrap; }
+.char-silent { color: var(--text-dim); font-style: italic; }
 .btn-print-card { background: none; border: 1px solid var(--border); color: var(--text-muted); cursor: pointer; font-size: 11px; padding: 3px 9px; border-radius: 4px; font-family: inherit; transition: all 0.12s; white-space: nowrap; }
 .btn-print-card:hover { color: var(--text); border-color: var(--border2); background: var(--bg3); }
 .recap-collapse-btn {
@@ -2507,6 +2512,120 @@ function svgPie(data, size) {
   return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="flex-shrink:0;">${paths}</svg>`;
 }
 
+function buildCharIndex() {
+  const chars = {};
+  (imported_scenes_raw || []).forEach(s => {
+    (s.charPresent || []).forEach(name => {
+      if (!chars[name]) chars[name] = { scenesPresent: [], scenesSpeak: [], lines: 0 };
+      if (!chars[name].scenesPresent.includes(s.sc)) chars[name].scenesPresent.push(s.sc);
+    });
+    Object.entries(s.charLines || {}).forEach(([name, n]) => {
+      if (!chars[name]) chars[name] = { scenesPresent: [], scenesSpeak: [], lines: 0 };
+      if (!chars[name].scenesPresent.includes(s.sc)) chars[name].scenesPresent.push(s.sc);
+      if (!chars[name].scenesSpeak.includes(s.sc)) chars[name].scenesSpeak.push(s.sc);
+      chars[name].lines += n;
+    });
+  });
+  return chars;
+}
+
+let _charSortBy = 'scenes'; // 'scenes' | 'lines' | 'az'
+
+function buildCharCard(charIndex) {
+  const entries = Object.entries(charIndex);
+  if (!entries.length) return '';
+
+  const sorted = [...entries].sort((a, b) => {
+    if (_charSortBy === 'az')    return a[0].localeCompare(b[0]);
+    if (_charSortBy === 'lines') return (b[1].lines - a[1].lines) || (b[1].scenesPresent.length - a[1].scenesPresent.length);
+    return (b[1].scenesPresent.length - a[1].scenesPresent.length) || (b[1].lines - a[1].lines);
+  });
+
+  const maxScenes = Math.max(...entries.map(([,v]) => v.scenesPresent.length), 1);
+  const totalLines = entries.reduce((s, [,v]) => s + v.lines, 0);
+
+  // Épisodes uniques couverts, si série
+  const allEps = IS_SERIES
+    ? [...new Set((imported_scenes_raw || []).map(s => parseEp(s.sc).ep).filter(Boolean))].sort((a,b)=>a-b)
+    : [];
+
+  const epHeader = IS_SERIES ? `<th style="white-space:nowrap;">Épisodes</th>` : '';
+  const rows = sorted.map(([name, v]) => {
+    const isSpeaker = v.lines > 0;
+    const w = Math.round(v.scenesPresent.length / maxScenes * 140);
+    const barColor = isSpeaker ? 'var(--accent)' : 'var(--text-dim)';
+    const barOp = isSpeaker ? '1' : '.4';
+    const linesCell = isSpeaker
+      ? `<td class="stat-num">${v.lines}</td>`
+      : `<td class="stat-num char-silent">—</td>`;
+    const nameCell = isSpeaker ? esc(name) : `<span class="char-silent">${esc(name)}</span>`;
+
+    let epCell = '';
+    if (IS_SERIES) {
+      const charEps = [...new Set(v.scenesPresent.map(sc => parseEp(sc).ep).filter(Boolean))].sort((a,b)=>a-b);
+      epCell = `<td>${charEps.map(e => `<span class="char-ep-chip">E${e}</span>`).join('')}</td>`;
+    }
+
+    return `<tr>
+      <td style="min-width:120px;">${nameCell}</td>
+      <td class="stat-num">${v.scenesPresent.length}</td>
+      ${linesCell}
+      <td><span style="display:inline-block;width:${w}px;height:5px;background:${barColor};border-radius:3px;vertical-align:middle;opacity:${barOp};"></span></td>
+      ${epCell}
+    </tr>`;
+  }).join('');
+
+  const speakerCount = entries.filter(([,v]) => v.lines > 0).length;
+  const silentCount = entries.length - speakerCount;
+
+  const sortBtns = [
+    ['scenes', 'Scènes'],
+    ['lines',  'Répliques'],
+    ['az',     'A–Z']
+  ].map(([k, lbl]) =>
+    `<button class="char-sort-btn${_charSortBy === k ? ' active' : ''}" onclick="_charSortBy='${k}';document.getElementById('rc-chars-body').innerHTML=buildCharCard_rows(buildCharIndex());">${lbl}</button>`
+  ).join('');
+
+  return `<div class="recap-card recap-full" id="rc-chars">
+    ${ch('Personnages','rc-chars')}
+    ${cb(`<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+      <span style="font-size:11px;color:var(--text-muted);">${entries.length} personnages &middot; ${speakerCount} parlants &middot; ${silentCount} silencieux &middot; ${totalLines} répliques</span>
+      <div style="margin-left:auto;display:flex;gap:6px;">${sortBtns}</div>
+    </div>
+    <div id="rc-chars-body">
+      <table class="stat-table"><thead><tr><th>Personnage</th><th>Scènes</th><th>Répliques</th><th></th>${epHeader}</tr></thead>
+      <tbody>${rows}</tbody></table>
+    </div>`,'rc-chars')}
+  </div>`;
+}
+
+function buildCharCard_rows(charIndex) {
+  // Rebuid only the table for sort toggle (avoids full recap re-render)
+  const entries = Object.entries(charIndex);
+  const sorted = [...entries].sort((a, b) => {
+    if (_charSortBy === 'az')    return a[0].localeCompare(b[0]);
+    if (_charSortBy === 'lines') return (b[1].lines - a[1].lines) || (b[1].scenesPresent.length - a[1].scenesPresent.length);
+    return (b[1].scenesPresent.length - a[1].scenesPresent.length) || (b[1].lines - a[1].lines);
+  });
+  const maxScenes = Math.max(...entries.map(([,v]) => v.scenesPresent.length), 1);
+  const epHeader = IS_SERIES ? `<th style="white-space:nowrap;">Épisodes</th>` : '';
+  const rows = sorted.map(([name, v]) => {
+    const isSpeaker = v.lines > 0;
+    const w = Math.round(v.scenesPresent.length / maxScenes * 140);
+    const barColor = isSpeaker ? 'var(--accent)' : 'var(--text-dim)';
+    const barOp = isSpeaker ? '1' : '.4';
+    const linesCell = isSpeaker ? `<td class="stat-num">${v.lines}</td>` : `<td class="stat-num char-silent">—</td>`;
+    const nameCell = isSpeaker ? esc(name) : `<span class="char-silent">${esc(name)}</span>`;
+    let epCell = '';
+    if (IS_SERIES) {
+      const charEps = [...new Set(v.scenesPresent.map(sc => parseEp(sc).ep).filter(Boolean))].sort((a,b)=>a-b);
+      epCell = `<td>${charEps.map(e => `<span class="char-ep-chip">E${e}</span>`).join('')}</td>`;
+    }
+    return `<tr><td style="min-width:120px;">${nameCell}</td><td class="stat-num">${v.scenesPresent.length}</td>${linesCell}<td><span style="display:inline-block;width:${w}px;height:5px;background:${barColor};border-radius:3px;vertical-align:middle;opacity:${barOp};"></span></td>${epCell}</tr>`;
+  }).join('');
+  return `<table class="stat-table"><thead><tr><th>Personnage</th><th>Scènes</th><th>Répliques</th><th></th>${epHeader}</tr></thead><tbody>${rows}</tbody></table>`;
+}
+
 function renderRecap() {
   const wrap = document.getElementById('recap-content');
   const TECH_LABELS = { steadicam:'Steadicam', rails:'Rails / Traveling', epaule:'Caméra épaule', fixe:'Fixe' };
@@ -2799,6 +2918,7 @@ function renderRecap() {
       </div>
     </div>
     <div class="recap-grid">
+      ${buildCharCard(buildCharIndex())}
       <div class="recap-card" id="rc-intext">${ch('INT / EXT','rc-intext')}${cb(pieWrap(intExtPie, groupTable(byIntExt,'INT/EXT','var(--accent)',IE_COLORS), 100),'rc-intext')}</div>
       <div class="recap-card" id="rc-jn">${ch('Moment (Jour / Nuit)','rc-jn')}${cb(pieWrap(jnPie, groupTable(byJN,'Moment','var(--accent3)',JN_COLORS), 100),'rc-jn')}</div>
       <div class="recap-card recap-full" id="rc-lieu">${ch('Pages par location','rc-lieu')}${cb(pieWrap(lieuPie, lieuHTML, 120),'rc-lieu')}</div>
@@ -3506,19 +3626,40 @@ function parseFDXToScenes(xmlString, opts = {}) {
     if (!lieu || lieu === '—') errors.push(`Scène ${number} : lieu vide (${rawText.slice(0,60)})`);
     if (seenNums.has(number)) errors.push(`Doublon : scène ${number}`);
     seenNums.add(number);
-    // Capture du corps de scène (action + dialogues)
+    // Capture du corps de scène + personnages
     const bodyParts = [];
+    const charLines = {};          // { NAME: nb_répliques }
+    const charPresentSet = new Set(); // présents (General paragraphs)
     for (let j = i + 1; j < paragraphs.length; j++) {
       const next = paragraphs[j];
       if (next.getAttribute('Type') === 'Scene Heading') break;
       const type = next.getAttribute('Type') || '';
       const t = Array.from(next.querySelectorAll('Text')).map(n => n.textContent||'').join('').trim();
       if (!t) continue;
-      if (type === 'Character') bodyParts.push((bodyParts.length ? '\n' : '') + t.toUpperCase() + ' :');
-      else if (type === 'Parenthetical') bodyParts.push('(' + t + ')');
-      else if (type === 'Dialogue' || type === 'Action' || type === 'General') bodyParts.push(t);
+      if (type === 'Character') {
+        const name = t.replace(/\s*\(.*?\)\s*$/, '').trim().toUpperCase(); // strip (V.O.), (O.S.)…
+        if (name) charLines[name] = (charLines[name] || 0) + 1;
+        bodyParts.push((bodyParts.length ? '\n' : '') + t.toUpperCase() + ' :');
+      } else if (type === 'General') {
+        bodyParts.push(t);
+        // Listes de présence type (XAVIER, RAPH, ÉMILE)
+        const castM = t.match(/^\((.+)\)$/);
+        if (castM) {
+          castM[1].split(',').forEach(part => {
+            const name = part.replace(/\(.*?\)/g, '').trim().toUpperCase();
+            if (name && name.length >= 2 && name.length < 50) charPresentSet.add(name);
+          });
+        }
+      } else if (type === 'Parenthetical') {
+        bodyParts.push('(' + t + ')');
+      } else if (type === 'Dialogue' || type === 'Action') {
+        bodyParts.push(t);
+      }
     }
-    scenes.push({ sc: number, int_ext, lieu, sous_lieu: sous_lieu || '', jn, page, duree, text: bodyParts.join('\n') });
+    // Les parlants sont aussi présents
+    Object.keys(charLines).forEach(n => charPresentSet.add(n));
+    const charPresent = [...charPresentSet];
+    scenes.push({ sc: number, int_ext, lieu, sous_lieu: sous_lieu || '', jn, page, duree, text: bodyParts.join('\n'), charLines, charPresent });
   }
   return { scenes, errors };
 }
