@@ -2548,6 +2548,12 @@ function buildCharIndex() {
 
 let _charSortBy = 'scenes'; // 'scenes' | 'lines' | 'az'
 
+function setCharSort(key) {
+  _charSortBy = key;
+  document.getElementById('rc-chars-body').innerHTML = buildCharCard_rows(buildCharIndex());
+  document.querySelectorAll('.char-sort-btn').forEach(b => b.classList.toggle('active', b.dataset.sort === key));
+}
+
 function buildCharCard(charIndex, ch, cb) {
   const entries = Object.entries(charIndex);
   if (!entries.length) return '';
@@ -2600,7 +2606,7 @@ function buildCharCard(charIndex, ch, cb) {
     ['lines',  'Répliques'],
     ['az',     'A–Z']
   ].map(([k, lbl]) =>
-    `<button class="char-sort-btn${_charSortBy === k ? ' active' : ''}" onclick="_charSortBy='${k}';document.getElementById('rc-chars-body').innerHTML=buildCharCard_rows(buildCharIndex());">${lbl}</button>`
+    `<button class="char-sort-btn${_charSortBy === k ? ' active' : ''}" data-sort="${k}" onclick="setCharSort('${k}')">${lbl}</button>`
   ).join('');
 
   return `<div class="recap-card recap-full" id="rc-chars">
