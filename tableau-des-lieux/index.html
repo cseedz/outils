@@ -1139,6 +1139,7 @@ function mergeLieuCancel() {
 }
 function renameLieu(oldLieu, newLieu) {
   scenes.forEach(s => { if (s.lieu === oldLieu) s.lieu = newLieu; });
+  imported_scenes_raw.forEach(s => { if (s.lieu === oldLieu) s.lieu = newLieu; });
   if (lieuColorOverrides[oldLieu]) {
     lieuColorOverrides[newLieu] = lieuColorOverrides[oldLieu];
     delete lieuColorOverrides[oldLieu];
@@ -1156,6 +1157,7 @@ function renameSousLieu(lieu, oldSl, newSl) {
     affected.forEach(id => { (dict[id] || []).forEach(p => { if (typeof p === 'object' && p.sl === oldSl) p.sl = newSl; }); });
   });
   scenes.forEach(s => { if (s.lieu === lieu && (s.sous_lieu || '') === oldSl) s.sous_lieu = newSl; });
+  imported_scenes_raw.forEach(s => { if (s.lieu === lieu && (s.sous_lieu || '') === oldSl) s.sous_lieu = newSl; });
   save(); buildTable(); renderVueLieux(); renderBatchAssign(); renderLieuList();
   showToast(`Sous-lieu renommé : "${newSl}"`);
 }
