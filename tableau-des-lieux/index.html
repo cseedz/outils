@@ -3274,7 +3274,7 @@ function renderOutilsPreview() {
   const metaInline = [jnStr, pgStr].filter(Boolean).map(m => ` — ${m}`).join('');
   box.innerHTML = `<div style="display:inline-flex;flex-direction:column;align-items:center;gap:4px;padding:10px 22px;border:2.5px solid ${br};border-radius:5px;background:${bg};min-width:200px;max-width:340px;">
     <span style="font-size:14px;font-weight:800;color:${br};letter-spacing:.2px;text-align:center;line-height:1.2;">${esc(previewSc.int_ext||'')} ${esc(previewSc.lieu||'—')}${metaInline}</span>
-    ${previewSc.sous_lieu?`<span style="font-size:11px;font-style:italic;color:${br};opacity:.85;">${esc(previewSc.sous_lieu)}</span>`:''}
+    ${previewSc.sous_lieu?`<span style="font-size:13px;font-weight:700;color:${br};opacity:1;">${esc(previewSc.sous_lieu)}</span>`:''}
   </div>`;
 }
 
