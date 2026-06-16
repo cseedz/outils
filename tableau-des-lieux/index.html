@@ -1207,6 +1207,7 @@ let sb = null;
 let IS_SERIES = SCENES_RAW.some(r => r.ep);
 let imported_scenes_raw = null;  // set on FDX import; overrides SCENES_RAW as base
 let fdxVersions = [];  // archived FDX versions { id, date, label, scene_count, prev_scene_count, scenes_raw }
+let totalEpisodes = 0; // total ep count for the series (0 = unknown/long-métrage)
 function parseEp(sc) { const s=String(sc),dot=s.indexOf('.'); if(dot===-1)return{ep:0,scNum:parseFloat(s)||0}; return{ep:parseInt(s.slice(0,dot))||0,scNum:parseInt(s.slice(dot+1))||0}; }
 function fmtEp(sc) { const {ep}=parseEp(sc); return ep>0?'E'+String(ep).padStart(2,'0'):'—'; }
 let scenes = JSON.parse(JSON.stringify(SCENES_RAW));
@@ -1227,7 +1228,7 @@ function save() {
     lieuTournagePhotos, lieuTournageInspi, lieuTournageFloorplans,
     lieuColorOverrides, activePaletteKey,
     lieuPalettesCustom: JSON.parse(JSON.stringify(PALETTES)),
-    imported_scenes_raw, fdxVersions
+    imported_scenes_raw, fdxVersions, totalEpisodes
   };
   clearTimeout(_saveDebounce);
   _saveDebounce = setTimeout(() => syncToSupabase(_data), 600);
@@ -1277,6 +1278,7 @@ function applyData(d) {
   }
   if (d.imported_scenes_raw) imported_scenes_raw = d.imported_scenes_raw;
   if (d.fdxVersions) fdxVersions = d.fdxVersions;
+  if (d.totalEpisodes) totalEpisodes = d.totalEpisodes;
   if (d.lieusTournage) lieusTournage = d.lieusTournage;
   if (d.lieuNotes) lieuNotes = d.lieuNotes;
   if (d.sousLieuNotes) sousLieuNotes = d.sousLieuNotes;
@@ -1462,6 +1464,26 @@ function lieuFictifColor(lieu) {
 }
 
 function buildMiniRibbon(lieu, color) {
+  if (IS_SERIES && totalEpisodes > 0) {
+    let html = '';
+    for (let ep = 1; ep <= totalEpisodes; ep++) {
+      const epScenes = scenes.filter(s => parseEp(s.sc).ep === ep);
+      const borderL = ep > 1 ? 'border-left:1px solid rgba(0,0,0,.18);' : '';
+      if (!epScenes.length) {
+        html += `<div style="flex:1;${borderL}background:var(--bg3);height:100%;min-width:2px;opacity:0.3;" title="Ép. ${ep} — non importé"></div>`;
+      } else {
+        const epTotal = epScenes.reduce((a,s) => a + (parseDuree(s.duree) || 0.1), 0);
+        const inner = epScenes.map(s => {
+          const p = parseDuree(s.duree) || 0.1;
+          const pct = (p / epTotal * 100).toFixed(3);
+          const bg = s.lieu === lieu ? color : 'var(--bg3)';
+          return `<div style="flex:${pct};background:${bg};height:100%;min-width:1px;" title="Sc.${s.sc} — ${esc(s.lieu)}"></div>`;
+        }).join('');
+        html += `<div style="flex:1;${borderL}display:flex;height:100%;">${inner}</div>`;
+      }
+    }
+    return html;
+  }
   const total = scenes.reduce((a,s) => a + (parseDuree(s.duree) || 0.1), 0);
   return scenes.map(s => {
     const p = parseDuree(s.duree) || 0.1;
@@ -3346,7 +3368,7 @@ function _detectFdxOptions(xmlString) {
   });
   const hasCompact = nums.some(n => /^\d{3,4}$/.test(n) && parseInt(n) >= 100);
   const hasDot    = nums.some(n => /^\d+\.\d+$/.test(n));
-  return { suggestDash: dashSubCount >= 2, hasCompactNums: hasCompact && !hasDot };
+  return { suggestDash: dashSubCount >= 2, hasCompactNums: hasCompact && !hasDot, isSeries: hasCompact || hasDot };
 }
 
 function _fdxParseHeading(text, opts = {}) {
@@ -3483,7 +3505,7 @@ function onFdxFileSelected(evt) {
     _pendingXml = e.target.result;
     _pendingFilename = file.name;
     const detected = _detectFdxOptions(_pendingXml);
-    if (detected.suggestDash || detected.hasCompactNums) {
+    if (detected.suggestDash || detected.hasCompactNums || (detected.isSeries && !totalEpisodes)) {
       _showFdxOptionsDialog(detected);
     } else {
       _runParse({});
@@ -3496,7 +3518,7 @@ function _showFdxOptionsDialog(detected) {
   const existing = document.getElementById('fdx-opts-overlay');
   if (existing) existing.remove();
 
-  let sepSection = '', serieSection = '';
+  let sepSection = '', serieSection = '', nbEpSection = '';
 
   if (detected.suggestDash) {
     sepSection = `
@@ -3551,6 +3573,18 @@ function _showFdxOptionsDialog(detected) {
     </div>`;
   }
 
+  if (detected.isSeries && !totalEpisodes) {
+    nbEpSection = `
+    <div class="fdx-opts-section">
+      <div class="fdx-opts-label">Nombre total d'épisodes de la série</div>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:8px;">
+        <input id="fdx-total-eps" type="number" min="1" max="500" placeholder="ex. 13"
+          style="width:76px;padding:6px 10px;border-radius:6px;border:1px solid var(--border2);background:var(--bg);color:var(--text);font-family:inherit;font-size:13px;outline:none;">
+        <span style="font-size:11px;color:var(--text-muted);line-height:1.4;">Calibre le strip de position dans les cartons<br>pour représenter l'ensemble de la série.</span>
+      </div>
+    </div>`;
+  }
+
   const ov = document.createElement('div');
   ov.id = 'fdx-opts-overlay';
   ov.className = 'fdx-modal-overlay';
@@ -3565,6 +3599,7 @@ function _showFdxOptionsDialog(detected) {
       </div>
       ${sepSection}
       ${serieSection}
+      ${nbEpSection}
       <div class="fdx-modal-actions" style="margin-top:20px;">
         <button onclick="document.getElementById('fdx-opts-overlay').remove()" style="background:none;border:none;cursor:pointer;font-size:13px;color:var(--text-muted);">Annuler</button>
         <button onclick="_applyFdxOptions()" style="background:var(--text);color:var(--bg);border:none;border-radius:6px;padding:8px 18px;font-size:13px;cursor:pointer;font-family:inherit;">Continuer →</button>
@@ -3580,6 +3615,11 @@ function _applyFdxOptions() {
   if (sepEl) opts.sep = sepEl.value;
   const serieEl = document.querySelector('input[name="fdx-serie"]:checked');
   if (serieEl && serieEl.value === 'compact') opts.serieFormat = 'compact';
+  const epEl = document.getElementById('fdx-total-eps');
+  if (epEl && epEl.value) {
+    const n = parseInt(epEl.value);
+    if (n > 0) totalEpisodes = n;
+  }
   document.getElementById('fdx-opts-overlay')?.remove();
   _runParse(opts);
 }
