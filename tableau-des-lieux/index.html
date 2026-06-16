@@ -620,6 +620,15 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
 .fdx-modal-sub { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
 .fdx-modal-close { background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 16px; padding: 0; }
 .fdx-modal-close:hover { color: var(--text); }
+.fdx-opts-section { margin-bottom: 20px; }
+.fdx-opts-section:last-of-type { margin-bottom: 0; }
+.fdx-opts-label { font-size: 12px; font-weight: 700; margin-bottom: 10px; color: var(--text); }
+.fdx-opts-choices { display: flex; flex-direction: column; gap: 7px; }
+.fdx-opts-choice { display: flex; align-items: flex-start; gap: 9px; cursor: pointer; }
+.fdx-opts-choice input[type=radio] { margin-top: 2px; flex-shrink: 0; accent-color: var(--accent, #555); }
+.fdx-opts-choice-body { display: flex; flex-direction: column; gap: 2px; }
+.fdx-opts-choice-title { font-size: 12px; color: var(--text); }
+.fdx-opts-choice-ex { font-size: 11px; color: var(--text-muted); font-family: monospace; }
 .fdx-errors { background: #fff8e1; border: 1px solid #e8c840; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; }
 .fdx-err-hd { font-size: 12px; font-weight: 700; color: #7a5c00; margin-bottom: 6px; }
 .fdx-err-item { font-size: 11px; color: #7a5c00; margin-top: 3px; font-family: monospace; }
@@ -3316,7 +3325,29 @@ function updateStickyTop() {
 }
 
 // ─── FDX PARSER (JS port of extraire_fdx.py) ─────────────────────────────────
-function _fdxParseHeading(text) {
+const _JN_RE = /^(JOUR|SOIR|NUIT|MATIN|AUBE|CRÉPUSCULE|FIN DE JOURNÉE|CONTINU[E]?)$/i;
+
+function _detectFdxOptions(xmlString) {
+  const doc = new DOMParser().parseFromString(xmlString, 'application/xml');
+  const paras = Array.from(doc.querySelectorAll('Paragraph[Type="Scene Heading"]'));
+  let dashSubCount = 0;
+  const nums = [];
+  paras.forEach(p => {
+    const n = p.getAttribute('Number') || '';
+    if (n) nums.push(n);
+    const text = Array.from(p.querySelectorAll('Text')).map(t => t.textContent).join('').trim();
+    const rest = text.replace(/^(INT\.?\/EXT\.?|EXT\.?\/INT\.?|INT\.?|EXT\.?)\s*\.?\s*/i, '').trim();
+    if (!rest.includes('/') && !rest.includes('(')) {
+      const segs = rest.split(/\s+[–—\-]\s+/);
+      if (segs.length >= 3 && _JN_RE.test(segs[segs.length - 1].trim())) dashSubCount++;
+    }
+  });
+  const hasCompact = nums.some(n => /^\d{3,4}$/.test(n) && parseInt(n) >= 100);
+  const hasDot    = nums.some(n => /^\d+\.\d+$/.test(n));
+  return { suggestDash: dashSubCount >= 2, hasCompactNums: hasCompact && !hasDot };
+}
+
+function _fdxParseHeading(text, opts = {}) {
   text = text.replace(/\xa0/g,' ').replace(/\s+/g,' ').trim();
   text = text.replace(/\s*\*{1,2}\s*[A-ZÀ-Ü\s]+$/, '').trim();
   const ieM = text.match(/^(INT\.?\/EXT\.?|EXT\.?\/INT\.?|INT\.?EXT\.?|EXT\.?INT\.?|INT\.?|EXT\.?)\s*\.?\s*/i);
@@ -3325,28 +3356,40 @@ function _fdxParseHeading(text) {
     int_ext = ieM[1].toUpperCase().replace(/\./g,'').replace(/INTEXT/,'INT/EXT').replace(/EXTINT/,'EXT/INT');
     rest = text.slice(ieM[0].length).trim();
   }
-  const segs = rest.split(/\s+[-–]\s+/);
-  const locationRaw = segs[0].trim();
-  const jn = segs[1] ? segs[1].split(/\s+[-–]\s+/)[0].trim().toUpperCase() : '—';
-  let lieu = '', sous_lieu = '';
-  const slashPos = locationRaw.indexOf('/');
-  const parenPos = locationRaw.indexOf('(');
-  if (slashPos !== -1 && (parenPos === -1 || slashPos < parenPos)) {
-    const parts = locationRaw.split('/', 2);
-    lieu = parts[0].trim().toUpperCase();
-    sous_lieu = parts[1].replace(/\s*\(.*\)\s*$/, '').trim().toUpperCase();
-  } else if (parenPos !== -1) {
-    const m = locationRaw.match(/^(.+?)\s*\((.+)\)\s*$/);
-    if (m) { lieu = m[1].trim().toUpperCase(); sous_lieu = m[2].trim().toUpperCase(); }
-    else { lieu = locationRaw.trim().toUpperCase(); sous_lieu = ''; }
+  let lieu = '', sous_lieu = '', jn = '—';
+  if (opts.sep === 'dash') {
+    // MAISON — SALON — JOUR : dernier segment = JN, milieu = sous-lieu
+    const segs = rest.split(/\s+[–—\-]\s+/);
+    lieu = segs[0].trim().toUpperCase();
+    if (segs.length >= 3) {
+      sous_lieu = segs.slice(1, -1).join(' / ').trim().toUpperCase();
+      jn = segs[segs.length - 1].trim().toUpperCase();
+    } else if (segs.length === 2) {
+      jn = segs[1].trim().toUpperCase();
+    }
   } else {
-    lieu = locationRaw.trim().toUpperCase();
-    sous_lieu = '';
+    const segs = rest.split(/\s+[-–]\s+/);
+    const locationRaw = segs[0].trim();
+    jn = segs[1] ? segs[1].split(/\s+[-–]\s+/)[0].trim().toUpperCase() : '—';
+    const slashPos = locationRaw.indexOf('/');
+    const parenPos = locationRaw.indexOf('(');
+    if (slashPos !== -1 && (parenPos === -1 || slashPos < parenPos)) {
+      const parts = locationRaw.split('/', 2);
+      lieu = parts[0].trim().toUpperCase();
+      sous_lieu = parts[1].replace(/\s*\(.*\)\s*$/, '').trim().toUpperCase();
+    } else if (parenPos !== -1) {
+      const m = locationRaw.match(/^(.+?)\s*\((.+)\)\s*$/);
+      if (m) { lieu = m[1].trim().toUpperCase(); sous_lieu = m[2].trim().toUpperCase(); }
+      else { lieu = locationRaw.trim().toUpperCase(); sous_lieu = ''; }
+    } else {
+      lieu = locationRaw.trim().toUpperCase();
+      sous_lieu = '';
+    }
   }
   return { int_ext, lieu, sous_lieu, jn };
 }
 
-function parseFDXToScenes(xmlString) {
+function parseFDXToScenes(xmlString, opts = {}) {
   const parser = new DOMParser();
   const doc = parser.parseFromString(xmlString, 'application/xml');
   const parseErr = doc.querySelector('parsererror');
@@ -3358,13 +3401,20 @@ function parseFDXToScenes(xmlString) {
   const seenNums = new Set();
   for (const para of paragraphs) {
     if (para.getAttribute('Type') !== 'Scene Heading') continue;
-    const number = para.getAttribute('Number') || '';
+    let number = para.getAttribute('Number') || '';
+    // Format compact série : 103 → 1.03
+    if (opts.serieFormat === 'compact' && /^\d{3,4}$/.test(number)) {
+      const n = parseInt(number);
+      const sc_num = n % 100;
+      const ep_num = Math.floor(n / 100);
+      number = ep_num + '.' + String(sc_num).padStart(2, '0');
+    }
     const props = para.querySelector('SceneProperties');
     const page = props ? (props.getAttribute('Page') || '0') : '0';
     const duree = props ? (props.getAttribute('Length') || '0') : '0';
     const rawText = Array.from(para.querySelectorAll('Text')).map(t => t.textContent||'').join('').trim();
     if (!rawText) { errors.push(`Scène ${number||'?'} : en-tête vide`); continue; }
-    const { int_ext, lieu, sous_lieu, jn } = _fdxParseHeading(rawText);
+    const { int_ext, lieu, sous_lieu, jn } = _fdxParseHeading(rawText, opts);
     if (!lieu || lieu === '—') errors.push(`Scène ${number} : lieu vide (${rawText.slice(0,60)})`);
     if (seenNums.has(number)) errors.push(`Doublon : scène ${number}`);
     seenNums.add(number);
@@ -3394,9 +3444,22 @@ function diffScenes(oldRaw, newRaw) {
 
 // ─── IMPORT DIALOG ───────────────────────────────────────────────────────────
 let _pendingImport = null;
+let _pendingXml = null;
+let _pendingFilename = null;
 
 function triggerFdxUpload() {
   document.getElementById('fdx-file-input').click();
+}
+
+function _runParse(opts) {
+  try {
+    const { scenes: newScenes, errors } = parseFDXToScenes(_pendingXml, opts);
+    if (!newScenes.length) { showToast('Aucune scène trouvée dans ce FDX'); return; }
+    const currentBase = imported_scenes_raw && imported_scenes_raw.length ? imported_scenes_raw : SCENES_RAW;
+    const diff = diffScenes(currentBase, newScenes);
+    _pendingImport = { newScenes, diff, filename: _pendingFilename, errors };
+    _showImportDialog();
+  } catch(err) { showToast('Erreur FDX : ' + err.message); }
 }
 
 function onFdxFileSelected(evt) {
@@ -3405,16 +3468,108 @@ function onFdxFileSelected(evt) {
   evt.target.value = '';
   const reader = new FileReader();
   reader.onload = (e) => {
-    try {
-      const { scenes: newScenes, errors } = parseFDXToScenes(e.target.result);
-      if (!newScenes.length) { showToast('Aucune scène trouvée dans ce FDX'); return; }
-      const currentBase = imported_scenes_raw && imported_scenes_raw.length ? imported_scenes_raw : SCENES_RAW;
-      const diff = diffScenes(currentBase, newScenes);
-      _pendingImport = { newScenes, diff, filename: file.name, errors };
-      _showImportDialog();
-    } catch(err) { showToast('Erreur FDX : ' + err.message); }
+    _pendingXml = e.target.result;
+    _pendingFilename = file.name;
+    const detected = _detectFdxOptions(_pendingXml);
+    if (detected.suggestDash || detected.hasCompactNums) {
+      _showFdxOptionsDialog(detected);
+    } else {
+      _runParse({});
+    }
   };
   reader.readAsText(file);
+}
+
+function _showFdxOptionsDialog(detected) {
+  const existing = document.getElementById('fdx-opts-overlay');
+  if (existing) existing.remove();
+
+  let sepSection = '', serieSection = '';
+
+  if (detected.suggestDash) {
+    sepSection = `
+    <div class="fdx-opts-section">
+      <div class="fdx-opts-label">Séparateur de sous-lieu détecté</div>
+      <div class="fdx-opts-choices">
+        <label class="fdx-opts-choice">
+          <input type="radio" name="fdx-sep" value="dash" checked>
+          <div class="fdx-opts-choice-body">
+            <span class="fdx-opts-choice-title">Tiret / cadratin</span>
+            <span class="fdx-opts-choice-ex">INT. MAISON — SALON — JOUR</span>
+          </div>
+        </label>
+        <label class="fdx-opts-choice">
+          <input type="radio" name="fdx-sep" value="slash">
+          <div class="fdx-opts-choice-body">
+            <span class="fdx-opts-choice-title">Barre oblique</span>
+            <span class="fdx-opts-choice-ex">INT. MAISON / SALON — JOUR</span>
+          </div>
+        </label>
+        <label class="fdx-opts-choice">
+          <input type="radio" name="fdx-sep" value="paren">
+          <div class="fdx-opts-choice-body">
+            <span class="fdx-opts-choice-title">Parenthèse</span>
+            <span class="fdx-opts-choice-ex">INT. MAISON (SALON) — JOUR</span>
+          </div>
+        </label>
+      </div>
+    </div>`;
+  }
+
+  if (detected.hasCompactNums) {
+    serieSection = `
+    <div class="fdx-opts-section">
+      <div class="fdx-opts-label">Numérotation des scènes — série détectée</div>
+      <div class="fdx-opts-choices">
+        <label class="fdx-opts-choice">
+          <input type="radio" name="fdx-serie" value="compact" checked>
+          <div class="fdx-opts-choice-body">
+            <span class="fdx-opts-choice-title">Format compact</span>
+            <span class="fdx-opts-choice-ex">103 = épisode 1, scène 03</span>
+          </div>
+        </label>
+        <label class="fdx-opts-choice">
+          <input type="radio" name="fdx-serie" value="dot">
+          <div class="fdx-opts-choice-body">
+            <span class="fdx-opts-choice-title">Format ep.scène</span>
+            <span class="fdx-opts-choice-ex">1.03 — numéroter tel quel</span>
+          </div>
+        </label>
+      </div>
+    </div>`;
+  }
+
+  const ov = document.createElement('div');
+  ov.id = 'fdx-opts-overlay';
+  ov.className = 'fdx-modal-overlay';
+  ov.innerHTML = `
+    <div class="fdx-modal" style="max-width:460px;">
+      <div class="fdx-modal-hd">
+        <div>
+          <h2>Paramètres d'import</h2>
+          <div class="fdx-modal-sub">${_pendingFilename}</div>
+        </div>
+        <button class="fdx-modal-close" onclick="document.getElementById('fdx-opts-overlay').remove()">✕</button>
+      </div>
+      ${sepSection}
+      ${serieSection}
+      <div class="fdx-modal-actions" style="margin-top:20px;">
+        <button onclick="document.getElementById('fdx-opts-overlay').remove()" style="background:none;border:none;cursor:pointer;font-size:13px;color:var(--text-muted);">Annuler</button>
+        <button onclick="_applyFdxOptions()" style="background:var(--text);color:var(--bg);border:none;border-radius:6px;padding:8px 18px;font-size:13px;cursor:pointer;font-family:inherit;">Continuer →</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+}
+
+function _applyFdxOptions() {
+  const opts = {};
+  const sepEl = document.querySelector('input[name="fdx-sep"]:checked');
+  if (sepEl) opts.sep = sepEl.value;
+  const serieEl = document.querySelector('input[name="fdx-serie"]:checked');
+  if (serieEl && serieEl.value === 'compact') opts.serieFormat = 'compact';
+  document.getElementById('fdx-opts-overlay')?.remove();
+  _runParse(opts);
 }
 
 function _showImportDialog() {
