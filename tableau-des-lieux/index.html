@@ -227,11 +227,11 @@ input.notes-input::placeholder { color: var(--text-dim); }
 .form-row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
 .form-group { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 140px; }
 .form-group label { font-size: 11px; color: var(--text-muted); font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
-input.form-input, input.color-picker-wrap {
+input.form-input, select.form-input, input.color-picker-wrap {
   background: var(--bg3); border: 1px solid var(--border); color: var(--text);
   padding: 7px 10px; border-radius: 5px; font-size: 13px; font-family: inherit; outline: none;
 }
-input.form-input:focus { border-color: var(--accent); }
+input.form-input:focus, select.form-input:focus { border-color: var(--accent); }
 input.form-input::placeholder { color: var(--text-dim); }
 .color-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .color-swatch { width: 26px; height: 26px; border-radius: 5px; border: 2px solid transparent; cursor: pointer; transition: transform 0.1s, border-color 0.1s; flex-shrink: 0; }
@@ -843,6 +843,14 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
           <div class="form-group" style="flex:2;">
             <label>Adresse / notes</label>
             <input class="form-input" type="text" id="new-lieu-adresse" placeholder="ex. 123 rue des Pins, Saint-Jean">
+          </div>
+        </div>
+        <div class="form-row" style="margin-bottom:12px;">
+          <div class="form-group" style="flex:2;">
+            <label>Lieu fictif (optionnel)</label>
+            <select class="form-input" id="new-lieu-fictif">
+              <option value="">— Aucun —</option>
+            </select>
           </div>
         </div>
         <div class="form-row" style="align-items:center;">
@@ -1872,15 +1880,25 @@ function addLieu() {
   const nom = document.getElementById('new-lieu-nom').value.trim();
   if (!nom) { showToast('Le nom est requis'); return; }
   const adresse = document.getElementById('new-lieu-adresse').value.trim();
+  const lieuFictif = document.getElementById('new-lieu-fictif').value;
   const id = 'l_' + Date.now();
   lieusTournage.push({ id, nom, adresse, couleur: selectedColor });
+  let assignedCount = 0;
+  if (lieuFictif) {
+    scenes.forEach(s => { if (s.lieu === lieuFictif) { s.lieu_tournage_id = id; assignedCount++; } });
+  }
   document.getElementById('new-lieu-nom').value = '';
   document.getElementById('new-lieu-adresse').value = '';
+  document.getElementById('new-lieu-fictif').value = '';
   save();
+  buildTable();
   renderLieuList();
+  renderVueLieux();
   refreshAllLieuDropdowns();
   refreshLieuTournageFilter();
-  showToast('Lieu ajouté : ' + nom);
+  showToast(assignedCount
+    ? `Lieu ajouté : ${nom} — ${assignedCount} scène${assignedCount>1?'s':''} assignée${assignedCount>1?'s':''}`
+    : 'Lieu ajouté : ' + nom);
 }
 
 function deleteLieu(id) {
@@ -2028,6 +2046,14 @@ function renderBatchAssign() {
 
   const sortedLieux = Object.keys(groups).sort();
   _colorLieux = sortedLieux;
+
+  const fictifSel = document.getElementById('new-lieu-fictif');
+  if (fictifSel) {
+    const cur = fictifSel.value;
+    fictifSel.innerHTML = '<option value="">— Aucun —</option>' +
+      sortedLieux.map(lieu => `<option value="${esc(lieu)}">${esc(lieu)}</option>`).join('');
+    if (sortedLieux.includes(cur)) fictifSel.value = cur;
+  }
 
   const hasOverrides = Object.keys(lieuColorOverrides).length > 0;
   const exportLine = hasOverrides
