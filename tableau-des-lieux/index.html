@@ -3451,13 +3451,23 @@ function triggerFdxUpload() {
   document.getElementById('fdx-file-input').click();
 }
 
+function _scSort(a, b) {
+  const ae = parseEp(a.sc), be = parseEp(b.sc);
+  return ae.ep !== be.ep ? ae.ep - be.ep : ae.scNum - be.scNum;
+}
+
 function _runParse(opts) {
   try {
     const { scenes: newScenes, errors } = parseFDXToScenes(_pendingXml, opts);
     if (!newScenes.length) { showToast('Aucune scène trouvée dans ce FDX'); return; }
     const currentBase = imported_scenes_raw && imported_scenes_raw.length ? imported_scenes_raw : SCENES_RAW;
-    const diff = diffScenes(currentBase, newScenes);
-    _pendingImport = { newScenes, diff, filename: _pendingFilename, errors };
+    // Épisodes couverts par ce FDX (0 = long-métrage)
+    const newEps = new Set(newScenes.map(s => parseEp(s.sc).ep));
+    // Diff seulement sur les scènes des mêmes épisodes
+    const relevantBase = currentBase.filter(s => newEps.has(parseEp(s.sc).ep));
+    const diff = diffScenes(relevantBase, newScenes);
+    const isNewEpisode = relevantBase.length === 0 && currentBase.length > 0;
+    _pendingImport = { newScenes, diff, filename: _pendingFilename, errors, newEps, isNewEpisode };
     _showImportDialog();
   } catch(err) { showToast('Erreur FDX : ' + err.message); }
 }
@@ -3573,7 +3583,7 @@ function _applyFdxOptions() {
 }
 
 function _showImportDialog() {
-  const { newScenes, diff, filename, errors } = _pendingImport;
+  const { newScenes, diff, filename, errors, isNewEpisode } = _pendingImport;
   const { added, removed, modified, unchanged } = diff;
   let errHtml = '';
   if (errors.length) {
@@ -3605,6 +3615,9 @@ function _showImportDialog() {
   </div>`;
   if (!added.length && !removed.length && !modified.length)
     diffHtml = `<div class="fdx-no-diff">Aucun changement — ${unchanged.length} scènes identiques.</div>`;
+  const episodeNote = isNewEpisode
+    ? `<div class="fdx-errors" style="background:#f0f8ff;border-color:#a0c8e8;"><div class="fdx-err-hd" style="color:#1a4a70;">Nouvel épisode détecté</div><div style="font-size:11px;color:#1a4a70;">Les scènes des épisodes existants seront conservées intactes.</div></div>`
+    : '';
 
   const el = document.createElement('div');
   el.className = 'fdx-modal-overlay'; el.id = 'fdx-modal-overlay';
@@ -3614,6 +3627,7 @@ function _showImportDialog() {
       <div><h2>Importer FDX</h2><div class="fdx-modal-sub">${filename} &middot; ${newScenes.length} scènes</div></div>
       <button class="fdx-modal-close" onclick="closeImportDialog()">✕</button>
     </div>
+    ${episodeNote}
     ${errHtml}
     <div class="fdx-diff-wrap">${diffHtml}</div>
     <div class="fdx-modal-actions">
@@ -3635,8 +3649,10 @@ function closeImportDialog() {
 
 function applyImport(mode) {
   if (!_pendingImport) return;
-  const { newScenes, filename } = _pendingImport;
+  const { newScenes, filename, newEps } = _pendingImport;
   const currentBase = imported_scenes_raw && imported_scenes_raw.length ? imported_scenes_raw : SCENES_RAW;
+
+  // Archive avant modification
   if (currentBase.length) {
     fdxVersions = [{
       id: Date.now(),
@@ -3647,13 +3663,24 @@ function applyImport(mode) {
       scenes_raw: JSON.parse(JSON.stringify(currentBase))
     }, ...fdxVersions].slice(0, 20);
   }
-  imported_scenes_raw = newScenes;
+
+  // imported_scenes_raw : conserver les épisodes non-touchés + les nouvelles scènes
+  const keptBase = currentBase.filter(s => !newEps.has(parseEp(s.sc).ep));
+  imported_scenes_raw = [...keptBase, ...newScenes].sort(_scSort);
+
   if (mode === 'overwrite') {
-    scenes = JSON.parse(JSON.stringify(newScenes));
+    // Garder annotations des épisodes non-touchés, écraser les épisodes importés
+    const keptScenes = scenes.filter(s => !newEps.has(parseEp(s.sc).ep));
+    const freshScenes = newScenes.map(ns => ({ ...ns, ep:'', steadicam:false, rails:false, epaule:false, fixe:false, lieu_tournage_id:'', notes:'', struck:false }));
+    scenes = [...keptScenes, ...freshScenes].sort(_scSort);
   } else {
-    const savedMap = new Map(scenes.map(s=>[s.sc,s]));
-    const newSet = new Set(newScenes.map(s=>s.sc));
-    scenes = newScenes.map(ns => {
+    // Merger : garder annotations existantes pour les scènes mises à jour
+    const savedMap = new Map(scenes.map(s => [s.sc, s]));
+    const newSet   = new Set(newScenes.map(s => s.sc));
+    // Scènes des épisodes non-touchés → intactes
+    const keptScenes = scenes.filter(s => !newEps.has(parseEp(s.sc).ep));
+    // Nouvelles scènes avec annotations récupérées
+    const mergedNew = newScenes.map(ns => {
       const saved = savedMap.get(ns.sc);
       return { ...ns,
         ep:               saved ? (saved.ep||'') : '',
@@ -3666,10 +3693,15 @@ function applyImport(mode) {
         struck:           saved ? !!saved.struck    : false
       };
     });
+    // Scènes supprimées dans l'épisode importé → biffées
     savedMap.forEach((s, sc) => {
-      if (!newSet.has(sc)) scenes.push({ ...s, struck: true });
+      if (!newSet.has(sc) && newEps.has(parseEp(sc).ep)) {
+        mergedNew.push({ ...s, struck: true });
+      }
     });
+    scenes = [...keptScenes, ...mergedNew].sort(_scSort);
   }
+
   closeImportDialog();
   save();
   buildTable(); renderVueLieux(); populateLieuFilter(); populateEpFilter(); refreshLieuTournageFilter();
