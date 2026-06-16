@@ -1779,12 +1779,26 @@ async function handleLieuPhotoInput(id, type, input) {
   renderVueLieux();
 }
 
+function _cloudinaryPublicId(url) {
+  const afterUpload = String(url || '').split('/upload/')[1];
+  if (!afterUpload) return null;
+  return afterUpload.replace(/^v\d+\//, '').replace(/\.[a-zA-Z0-9]+$/, '');
+}
+
+function _deleteFromCloudinary(url) {
+  const publicId = _cloudinaryPublicId(url);
+  if (!publicId || !sb) return;
+  sb.functions.invoke('delete-cloudinary-photo', { body: { publicId } })
+    .catch(e => console.warn('Suppression Cloudinary échouée:', e));
+}
+
 function deleteLieuPhoto(id, type, url) {
   const dict = type === 'inspi' ? lieuTournageInspi : type === 'floorplans' ? lieuTournageFloorplans : lieuTournagePhotos;
   dict[id] = (dict[id] || []).filter(p => (typeof p === 'object' ? p.url : p) !== url);
   save();
   renderLieuList();
   renderVueLieux();
+  _deleteFromCloudinary(url);
 }
 
 function buildVlieuThumbs(ltIds) {
@@ -1976,6 +1990,10 @@ function deleteLieu(id) {
   const l = lieusTournage.find(x => x.id === id);
   if (!l) return;
   if (!confirm('Supprimer "' + l.nom + '" ? Les scènes assignées à ce lieu seront remises à "Non défini".')) return;
+  [lieuTournagePhotos, lieuTournageInspi, lieuTournageFloorplans].forEach(dict => {
+    (dict[id] || []).forEach(p => _deleteFromCloudinary(typeof p === 'object' ? p.url : p));
+    delete dict[id];
+  });
   lieusTournage = lieusTournage.filter(x => x.id !== id);
   scenes.forEach(s => { if (s.lieu_tournage_id === id) s.lieu_tournage_id = ''; });
   save();
