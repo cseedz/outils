@@ -582,6 +582,9 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
 .stat-table { width: 100%; border-collapse: collapse; min-width: 0; }
 .recap-card { overflow-x: auto; }
 .stat-table th { color: var(--text-muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; padding: 0 8px 8px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
+.stat-th-sort { cursor: pointer; user-select: none; }
+.stat-th-sort:hover { color: var(--text); }
+.char-sort-ind { color: var(--accent); font-size: 9px; }
 .stat-table td { padding: 7px 8px; font-size: 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
 .stat-table tbody tr:last-child td { border-bottom: none; }
 .stat-table tbody tr:hover td { background: var(--row-hover); }
@@ -2551,8 +2554,7 @@ let _charSortBy = 'scenes'; // 'scenes' | 'lines' | 'az'
 
 function setCharSort(key) {
   _charSortBy = key;
-  document.getElementById('rc-chars-body').innerHTML = buildCharCard_rows(buildCharIndex());
-  document.querySelectorAll('.char-sort-btn').forEach(b => b.classList.toggle('active', b.dataset.sort === key));
+  document.getElementById('rc-chars-body').innerHTML = _buildCharTable(buildCharIndex());
 }
 
 function buildCharCard(charIndex, ch, cb) {
@@ -2602,29 +2604,14 @@ function buildCharCard(charIndex, ch, cb) {
   const speakerCount = entries.filter(([,v]) => v.lines > 0).length;
   const silentCount = entries.length - speakerCount;
 
-  const sortBtns = [
-    ['scenes', 'Scènes'],
-    ['lines',  'Répliques'],
-    ['az',     'A–Z']
-  ].map(([k, lbl]) =>
-    `<button class="char-sort-btn${_charSortBy === k ? ' active' : ''}" data-sort="${k}" onclick="setCharSort('${k}')">${lbl}</button>`
-  ).join('');
-
   return `<div class="recap-card recap-full" id="rc-chars">
     ${ch('Personnages','rc-chars')}
-    ${cb(`<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
-      <span style="font-size:11px;color:var(--text-muted);">${entries.length} personnages &middot; ${speakerCount} parlants &middot; ${silentCount} silencieux &middot; ${totalLines} répliques</span>
-      <div style="margin-left:auto;display:flex;gap:6px;">${sortBtns}</div>
-    </div>
-    <div id="rc-chars-body">
-      <table class="stat-table"><thead><tr><th>Personnage</th><th>Scènes</th><th>Répliques</th><th></th>${epHeader}</tr></thead>
-      <tbody>${rows}</tbody></table>
-    </div>`,'rc-chars')}
+    ${cb(`<p style="font-size:11px;color:var(--text-muted);margin:0 0 14px;">${entries.length} personnages &middot; ${speakerCount} parlants &middot; ${silentCount} silencieux &middot; ${totalLines} répliques</p>
+    <div id="rc-chars-body">${_buildCharTable(charIndex)}</div>`,'rc-chars')}
   </div>`;
 }
 
-function buildCharCard_rows(charIndex) {
-  // Rebuid only the table for sort toggle (avoids full recap re-render)
+function _buildCharTable(charIndex) {
   const entries = Object.entries(charIndex);
   const sorted = [...entries].sort((a, b) => {
     if (_charSortBy === 'az')    return a[0].localeCompare(b[0]);
@@ -2632,7 +2619,10 @@ function buildCharCard_rows(charIndex) {
     return (b[1].scenesPresent.length - a[1].scenesPresent.length) || (b[1].lines - a[1].lines);
   });
   const maxScenes = Math.max(...entries.map(([,v]) => v.scenesPresent.length), 1);
-  const epHeader = IS_SERIES ? `<th style="white-space:nowrap;">Épisodes</th>` : '';
+  const ind = col => _charSortBy === col ? ' <span class="char-sort-ind">▼</span>' : '';
+  const th = (col, label, cls) =>
+    `<th class="stat-th-sort${cls?' '+cls:''}" onclick="setCharSort('${col}')">${label}${ind(col)}</th>`;
+  const epCol = IS_SERIES ? `<th style="white-space:nowrap;">Épisodes</th>` : '';
   const rows = sorted.map(([name, v]) => {
     const isSpeaker = v.lines > 0;
     const pct = Math.round(v.scenesPresent.length / maxScenes * 100);
@@ -2645,9 +2635,22 @@ function buildCharCard_rows(charIndex) {
       const charEps = [...new Set(v.scenesPresent.map(sc => parseEp(sc).ep).filter(Boolean))].sort((a,b)=>a-b);
       epCell = `<td>${charEps.map(e => `<span class="char-ep-chip">E${e}</span>`).join('')}</td>`;
     }
-    return `<tr><td style="min-width:120px;">${nameCell}</td><td class="stat-num">${v.scenesPresent.length}</td>${linesCell}<td><span style="display:inline-block;width:${w}px;height:5px;background:${barColor};border-radius:3px;vertical-align:middle;opacity:${barOp};"></span></td>${epCell}</tr>`;
+    return `<tr>
+      <td style="min-width:120px;">${nameCell}</td>
+      <td class="stat-num">${v.scenesPresent.length}</td>
+      ${linesCell}
+      <td style="width:25%;min-width:40px;"><div style="height:5px;background:${barColor};border-radius:3px;opacity:${barOp};width:${pct}%;"></div></td>
+      ${epCell}
+    </tr>`;
   }).join('');
-  return `<table class="stat-table"><thead><tr><th>Personnage</th><th>Scènes</th><th>Répliques</th><th></th>${epHeader}</tr></thead><tbody>${rows}</tbody></table>`;
+  return `<table class="stat-table">
+    <thead><tr>${th('az','Personnage')}${th('scenes','Scènes','stat-num')}${th('lines','Répliques','stat-num')}<th></th>${epCol}</tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+function buildCharCard_rows(charIndex) {
+  return _buildCharTable(charIndex);
 }
 
 function renderRecap() {
