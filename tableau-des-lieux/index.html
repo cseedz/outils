@@ -334,7 +334,8 @@ input.form-input::placeholder { color: var(--text-dim); }
 .vlieu-scene-line.jn-matin { background: rgba(90,138,138,.06); }
 .vlieu-scene-line.jn-aube  { background: rgba(100,80,140,.06); }
 .vlieu-scene-line.jn-fin   { background: rgba(138,100,45,.06); }
-.vlieu-sc-num { font-size: 9px; color: var(--text-dim); background: var(--bg3); border-radius: 3px; padding: 1px 5px; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.vlieu-sc-num { font-size: 9px; color: var(--text-dim); background: var(--bg3); border-radius: 3px; padding: 1px 5px; flex-shrink: 0; font-variant-numeric: tabular-nums; cursor: default; }
+#sc-text-tooltip { position:fixed; z-index:9999; max-width:360px; max-height:280px; overflow-y:auto; background:var(--bg2); border:1px solid var(--border2); border-radius:8px; padding:10px 14px; font-size:11px; line-height:1.65; color:var(--text); box-shadow:0 6px 28px rgba(0,0,0,.35); white-space:pre-wrap; pointer-events:none; display:none; scrollbar-width:thin; scrollbar-color:var(--border2) transparent; }
 /* I/E badge */
 .vlieu-ie { font-size: 8px; font-weight: 700; padding: 1px 4px; border-radius: 2px; flex-shrink: 0; letter-spacing: 0.2px; }
 .vlieu-ie-int { background: rgba(45,106,138,.1); color: #1a5a7a; }
@@ -1438,6 +1439,33 @@ function setGroupLieuFromMenu(item) {
   save(); refreshAllLieuDropdowns(); renderVueLieux();
   document.getElementById('vlieu-loc-menu').style.display = 'none';
 }
+let _scTipTimer = null;
+function showScTooltip(sc, el) {
+  clearTimeout(_scTipTimer);
+  _scTipTimer = setTimeout(() => {
+    const raw = imported_scenes_raw && imported_scenes_raw.find(r => r.sc === sc);
+    if (!raw || !raw.text) return;
+    let tip = document.getElementById('sc-text-tooltip');
+    if (!tip) { tip = document.createElement('div'); tip.id = 'sc-text-tooltip'; document.body.appendChild(tip); }
+    tip.textContent = raw.text;
+    tip.style.display = 'block';
+    const rect = el.getBoundingClientRect();
+    const tipW = 360;
+    let left = Math.max(8, Math.min(rect.left, window.innerWidth - tipW - 12));
+    tip.style.left = left + 'px';
+    if (window.innerHeight - rect.bottom >= 160) {
+      tip.style.top = (rect.bottom + 6) + 'px'; tip.style.bottom = 'auto';
+    } else {
+      tip.style.bottom = (window.innerHeight - rect.top + 6) + 'px'; tip.style.top = 'auto';
+    }
+  }, 220);
+}
+function hideScTooltip() {
+  clearTimeout(_scTipTimer);
+  const tip = document.getElementById('sc-text-tooltip');
+  if (tip) tip.style.display = 'none';
+}
+
 function buildVSceneLine(s, showSousLieu, showDot = true) {
   const TECH = [['steadicam','S','act-s'],['rails','R','act-r'],['epaule','É','act-e'],['fixe','F','act-f']];
   const lt = lieusTournage.find(l => l.id === s.lieu_tournage_id);
@@ -1451,15 +1479,15 @@ function buildVSceneLine(s, showSousLieu, showDot = true) {
     ? `${esc(s.ep || '?')}&middot;${esc(String(s.sc))}${insertedBadge}`
     : `${esc(String(s.sc))}${insertedBadge}`;
   const ie = s.int_ext ? `<span class="vlieu-ie ${ieBadgeCls(s.int_ext)}">${ieLabel(s.int_ext)}</span>` : '';
+  const fullTitle = `${s.int_ext}. ${s.lieu}${s.sous_lieu?' — '+s.sous_lieu:''} — ${s.jn}`;
   const slText = showSousLieu
-    ? `<span class="vlieu-sl-text${s.sous_lieu?'':' empty'}">${esc(s.sous_lieu||'—')}</span>`
+    ? `<span class="vlieu-sl-text${s.sous_lieu?'':' empty'}" title="${esc(fullTitle)}">${esc(s.sous_lieu||'—')}</span>`
     : `<span style="flex:1;min-width:0;"></span>`;
   const dotHTML = showDot
     ? `<div class="vlieu-loc-dot${dotCls}" style="background:${lt?lt.couleur:'transparent'};" data-sc="${s.sc}" onclick="openLieuMenu(this,'${s.sc}')"></div>`
     : '';
-  const fullTitle = `${s.int_ext}. ${s.lieu}${s.sous_lieu?' — '+s.sous_lieu:''} — ${s.jn}`;
-  return `<div class="vlieu-scene-line${jnLineCls(s.jn)}" title="${esc(fullTitle)}">
-    <span class="vlieu-sc-num">${scChip}</span>${ie}${slText}
+  return `<div class="vlieu-scene-line${jnLineCls(s.jn)}">
+    <span class="vlieu-sc-num" onmouseover="showScTooltip('${s.sc}',this)" onmouseout="hideScTooltip()">${scChip}</span>${ie}${slText}
     <div class="vlieu-scene-actions">${dotHTML}${techBtns}</div>
   </div>`;
 }
@@ -3432,7 +3460,8 @@ function parseFDXToScenes(xmlString, opts = {}) {
   const paragraphs = Array.from(content.children);
   const errors = [], scenes = [];
   const seenNums = new Set();
-  for (const para of paragraphs) {
+  for (let i = 0; i < paragraphs.length; i++) {
+    const para = paragraphs[i];
     if (para.getAttribute('Type') !== 'Scene Heading') continue;
     let number = para.getAttribute('Number') || '';
     // Format compact série : 103 → 1.03
@@ -3451,7 +3480,19 @@ function parseFDXToScenes(xmlString, opts = {}) {
     if (!lieu || lieu === '—') errors.push(`Scène ${number} : lieu vide (${rawText.slice(0,60)})`);
     if (seenNums.has(number)) errors.push(`Doublon : scène ${number}`);
     seenNums.add(number);
-    scenes.push({ sc: number, int_ext, lieu, sous_lieu: sous_lieu || '', jn, page, duree });
+    // Capture du corps de scène (action + dialogues)
+    const bodyParts = [];
+    for (let j = i + 1; j < paragraphs.length; j++) {
+      const next = paragraphs[j];
+      if (next.getAttribute('Type') === 'Scene Heading') break;
+      const type = next.getAttribute('Type') || '';
+      const t = Array.from(next.querySelectorAll('Text')).map(n => n.textContent||'').join('').trim();
+      if (!t) continue;
+      if (type === 'Character') bodyParts.push((bodyParts.length ? '\n' : '') + t.toUpperCase() + ' :');
+      else if (type === 'Parenthetical') bodyParts.push('(' + t + ')');
+      else if (type === 'Dialogue' || type === 'Action' || type === 'General') bodyParts.push(t);
+    }
+    scenes.push({ sc: number, int_ext, lieu, sous_lieu: sous_lieu || '', jn, page, duree, text: bodyParts.join('\n') });
   }
   return { scenes, errors };
 }
