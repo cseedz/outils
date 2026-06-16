@@ -460,6 +460,8 @@ input.clr-inline-picker::-webkit-color-swatch { border:none;border-radius:2px; }
 /* ── COULEUR LIEU (carte + panneau flottant) ── */
 .vlieu-clr-dot { width:14px;height:14px;border-radius:3px;border:1.5px solid rgba(0,0,0,.18);cursor:pointer;flex-shrink:0;padding:0;transition:transform .1s; }
 .vlieu-clr-dot:hover { transform:scale(1.2); }
+.vlieu-sl-clr-dot { width:11px;height:11px;border-radius:3px;border:1.5px solid rgba(0,0,0,.18);cursor:pointer;flex-shrink:0;padding:0;transition:transform .1s; }
+.vlieu-sl-clr-dot:hover { transform:scale(1.2); }
 #vlieu-color-panel { position:fixed;z-index:9500;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:10px 11px;box-shadow:0 6px 24px rgba(0,0,0,.28);min-width:220px; }
 .vcp-palettes { display:flex;align-items:center;gap:4px;margin-bottom:7px; }
 .vcp-pal-btn { font-size:10px;padding:2px 7px;border-radius:10px;border:1px solid var(--border);background:var(--bg3);color:var(--text-muted);cursor:pointer;font-family:inherit;line-height:1.6;transition:all .1s; }
@@ -971,6 +973,7 @@ let COLORS = PALETTES[activePaletteKey];
 let selectedColor = COLORS[0];
 const LIEU_COLORS_RAW = {};
 let lieuColorOverrides = {};
+let sousLieuColorOverrides = {}; // { [lieu]: { [sousLieu]: '#hex' } }
 let _colorLieux = [];
 
 function buildColorSwatches() {
@@ -1019,10 +1022,20 @@ function copyLieuColors() {
 }
 // ─── COULEURS LIEUX (panneau flottant) ──────────────────────────────────────
 let _vcpLieu = null;
+let _vcpSousLieu = null; // null = on édite le lieu fictif ; string = override d'un sous-lieu précis
 let _vcpEditMode = false;
 
+function _vcpCurrentColor() {
+  return _vcpSousLieu ? sousLieuColor(_vcpLieu, _vcpSousLieu) : lieuFictifColor(_vcpLieu);
+}
+function _vcpIsOverridden() {
+  return _vcpSousLieu
+    ? !!(sousLieuColorOverrides[_vcpLieu] && sousLieuColorOverrides[_vcpLieu][_vcpSousLieu])
+    : !!(lieuColorOverrides[_vcpLieu] || LIEU_COLORS_RAW[_vcpLieu]);
+}
+
 function _refreshVcpSwatches() {
-  const color = _vcpLieu ? lieuFictifColor(_vcpLieu) : '';
+  const color = _vcpLieu ? _vcpCurrentColor() : '';
   let html;
   if (_vcpEditMode) {
     const isCustomized = JSON.stringify(PALETTES[activePaletteKey]) !== JSON.stringify(PALETTES_DEFAULT[activePaletteKey]);
@@ -1090,12 +1103,13 @@ function savePaletteSwatch(input, idx) {
 function openVlieuColorPanel(event, btn) {
   event.stopPropagation();
   _vcpLieu = btn.dataset.lieu;
+  _vcpSousLieu = btn.dataset.sl || null;
   _vcpEditMode = false;
   const editBtn = document.getElementById('vcp-edit-btn');
   if (editBtn) editBtn.classList.remove('active');
   _refreshVcpSwatches();
-  const color = lieuFictifColor(_vcpLieu);
-  const isOverridden = !!(lieuColorOverrides[_vcpLieu] || LIEU_COLORS_RAW[_vcpLieu]);
+  const color = _vcpCurrentColor();
+  const isOverridden = _vcpIsOverridden();
   document.getElementById('vcp-wheel').value = color;
   const resetBtn = document.getElementById('vcp-reset');
   resetBtn.style.display = isOverridden ? '' : 'none';
@@ -1115,11 +1129,17 @@ function openVlieuColorPanel(event, btn) {
 function closeVlieuColorPanel() {
   document.getElementById('vlieu-color-panel').style.display = 'none';
   _vcpLieu = null;
+  _vcpSousLieu = null;
   _vcpEditMode = false;
 }
 function _applyVcpColor(color) {
   if (!_vcpLieu) return;
-  lieuColorOverrides[_vcpLieu] = color;
+  if (_vcpSousLieu) {
+    if (!sousLieuColorOverrides[_vcpLieu]) sousLieuColorOverrides[_vcpLieu] = {};
+    sousLieuColorOverrides[_vcpLieu][_vcpSousLieu] = color;
+  } else {
+    lieuColorOverrides[_vcpLieu] = color;
+  }
   saveLieuColors();
   closeVlieuColorPanel();
   renderVueLieux();
@@ -1136,7 +1156,7 @@ function switchVcpPalette(key) {
   document.querySelectorAll('.vcp-pal-btn').forEach(b => b.classList.toggle('active', b.dataset.pk === key));
   if (_vcpLieu) {
     _refreshVcpSwatches();
-    document.getElementById('vcp-wheel').value = lieuFictifColor(_vcpLieu);
+    document.getElementById('vcp-wheel').value = _vcpCurrentColor();
   }
   buildColorSwatches();
   renderVueLieux();
@@ -1153,9 +1173,13 @@ function applyPaletteToAll() {
 }
 function previewVcpColor(input) {
   if (!_vcpLieu) return;
-  const dot = document.querySelector('.vlieu-clr-dot[data-lieu="' + _vcpLieu.replace(/"/g,'&quot;') + '"]');
+  const sel = _vcpSousLieu
+    ? '.vlieu-sl-clr-dot[data-lieu="' + _vcpLieu.replace(/"/g,'&quot;') + '"][data-sl="' + _vcpSousLieu.replace(/"/g,'&quot;') + '"]'
+    : '.vlieu-clr-dot[data-lieu="' + _vcpLieu.replace(/"/g,'&quot;') + '"]';
+  const dot = document.querySelector(sel);
   if (!dot) return;
   dot.style.background = input.value;
+  if (_vcpSousLieu) return;
   const card = dot.closest('.vlieu-card');
   if (!card) return;
   const ribbon = card.querySelector('.vlieu-ribbon');
@@ -1166,7 +1190,11 @@ function previewVcpColor(input) {
 function setVlieuColorFromWheel(input) { _applyVcpColor(input.value); }
 function resetVlieuColor() {
   if (!_vcpLieu) return;
-  delete lieuColorOverrides[_vcpLieu];
+  if (_vcpSousLieu) {
+    if (sousLieuColorOverrides[_vcpLieu]) delete sousLieuColorOverrides[_vcpLieu][_vcpSousLieu];
+  } else {
+    delete lieuColorOverrides[_vcpLieu];
+  }
   saveLieuColors();
   closeVlieuColorPanel();
   renderVueLieux();
@@ -1198,6 +1226,11 @@ function renameLieu(oldLieu, newLieu) {
     delete lieuColorOverrides[oldLieu];
     saveLieuColors();
   }
+  if (sousLieuColorOverrides[oldLieu]) {
+    sousLieuColorOverrides[newLieu] = sousLieuColorOverrides[oldLieu];
+    delete sousLieuColorOverrides[oldLieu];
+    saveLieuColors();
+  }
   save(); buildTable(); renderVueLieux(); renderBatchAssign(); populateLieuFilter();
   showToast(`Lieu renommé : "${newLieu}"`);
 }
@@ -1209,6 +1242,11 @@ function renameSousLieu(lieu, oldSl, newSl) {
   [lieuTournagePhotos, lieuTournageInspi, lieuTournageFloorplans].forEach(dict => {
     affected.forEach(id => { (dict[id] || []).forEach(p => { if (typeof p === 'object' && p.sl === oldSl) p.sl = newSl; }); });
   });
+  if (sousLieuColorOverrides[lieu] && sousLieuColorOverrides[lieu][oldSl]) {
+    sousLieuColorOverrides[lieu][newSl] = sousLieuColorOverrides[lieu][oldSl];
+    delete sousLieuColorOverrides[lieu][oldSl];
+    saveLieuColors();
+  }
   scenes.forEach(s => { if (s.lieu === lieu && (s.sous_lieu || '') === oldSl) s.sous_lieu = newSl; });
   imported_scenes_raw.forEach(s => { if (s.lieu === lieu && (s.sous_lieu || '') === oldSl) s.sous_lieu = newSl; });
   save(); buildTable(); renderVueLieux(); renderBatchAssign(); renderLieuList();
@@ -1298,7 +1336,7 @@ function save() {
   const _data = {
     scenes, lieusTournage, lieuNotes, sousLieuNotes,
     lieuTournagePhotos, lieuTournageInspi, lieuTournageFloorplans,
-    lieuColorOverrides, activePaletteKey,
+    lieuColorOverrides, sousLieuColorOverrides, activePaletteKey,
     lieuPalettesCustom: JSON.parse(JSON.stringify(PALETTES)),
     imported_scenes_raw, fdxVersions, fdxImportMeta, totalEpisodes
   };
@@ -1433,6 +1471,7 @@ async function loadFromSupabase() {
       applyData(row.data);
       const d = row.data;
       if (d.lieuColorOverrides) lieuColorOverrides = d.lieuColorOverrides;
+      if (d.sousLieuColorOverrides) sousLieuColorOverrides = d.sousLieuColorOverrides;
       if (d.activePaletteKey && PALETTES[d.activePaletteKey]) {
         activePaletteKey = d.activePaletteKey;
         COLORS = PALETTES[activePaletteKey];
@@ -1606,6 +1645,13 @@ function lieuFictifColor(lieu) {
   return COLORS[Math.abs(h) % COLORS.length];
 }
 
+function sousLieuColor(lieu, sousLieu) {
+  if (sousLieu && sousLieuColorOverrides[lieu] && sousLieuColorOverrides[lieu][sousLieu]) {
+    return sousLieuColorOverrides[lieu][sousLieu];
+  }
+  return lieuFictifColor(lieu);
+}
+
 function buildMiniRibbon(lieu, color) {
   if (IS_SERIES && totalEpisodes > 0) {
     let html = '';
@@ -1708,6 +1754,7 @@ function renderVueLieux() {
                 ? `<input type="text" class="vlieu-sl-name-edit" value="${esc(k)}" data-orig="${esc(k)}" data-lieu="${esc(lieu)}" title="Cliquer pour renommer" onblur="commitSousLieuRename(this)" onkeydown="if(event.key==='Enter')this.blur();else if(event.key==='Escape'){this.value=this.dataset.orig;this.blur();}">`
                 : '<span class="vlieu-sl-header-name"><em>sans sous-lieu</em></span>'}
               <span class="vlieu-sl-header-stats">${slScenes.length} sc · ${fmtPages(slPages)}</span>
+              ${hasSl ? `<button class="vlieu-sl-clr-dot" style="background:${sousLieuColor(lieu, k)};" data-lieu="${esc(lieu)}" data-sl="${esc(k)}" onclick="openVlieuColorPanel(event,this)" title="Couleur de ce sous-lieu"></button>` : ''}
               <button class="vlieu-sl-note-btn${hasNote?' has-note':''}" title="Note sur ce sous-lieu" onclick="toggleSLNote(this)">✎</button>
               <div class="vlieu-loc-dot${gDotCls}" style="${gDotStyle}" data-lieu="${esc(lieu)}" data-souslieu="${esc(hasSl ? k : '')}" title="Assigner une location" onclick="openLieuMenuGroup(this)"></div>
             </div>` : '';
@@ -1910,7 +1957,7 @@ function toggleTechVlieu(btn) {
 document.addEventListener('click', e => {
   if (!e.target.closest('#vlieu-loc-menu') && !e.target.closest('.vlieu-loc-dot'))
     document.getElementById('vlieu-loc-menu').style.display = 'none';
-  if (!e.target.closest('#vlieu-color-panel') && !e.target.closest('.vlieu-clr-dot'))
+  if (!e.target.closest('#vlieu-color-panel') && !e.target.closest('.vlieu-clr-dot') && !e.target.closest('.vlieu-sl-clr-dot'))
     closeVlieuColorPanel();
 });
 
@@ -3265,7 +3312,7 @@ function renderOutilsPreview() {
   }
   const inclJN = document.getElementById('opt-decoupage-jn')?.checked;
   const inclPg = document.getElementById('opt-decoupage-pg')?.checked;
-  const col = lieuFictifColor(previewSc.lieu || '');
+  const col = sousLieuColor(previewSc.lieu || '', previewSc.sous_lieu || '');
   const r = parseInt(col.slice(1,3),16), g = parseInt(col.slice(3,5),16), b = parseInt(col.slice(5,7),16);
   const bg = `rgba(${r},${g},${b},.20)`;
   const br = `rgba(${r},${g},${b},.90)`;
@@ -3622,7 +3669,7 @@ function _openDecoupageWindow(list, pf, inclJN, inclPg, epLabel) {
   function eh(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
   const pages = list.map(s => {
-    const col = lieuFictifColor(s.lieu || '');
+    const col = sousLieuColor(s.lieu || '', s.sous_lieu || '');
     const bg  = hexRgba(col, 0.18);
     const br  = hexRgba(col, 0.88);
     const jnStr = inclJN && s.jn && s.jn !== '—' ? eh(s.jn) : '';
@@ -3729,7 +3776,7 @@ async function generateCartonsImages() {
     canvas.width = W; canvas.height = H;
     const ctx = canvas.getContext('2d');
 
-    const col = lieuFictifColor(s.lieu || '');
+    const col = sousLieuColor(s.lieu || '', s.sous_lieu || '');
     const rv = parseInt(col.slice(1,3),16), gv = parseInt(col.slice(3,5),16), bv = parseInt(col.slice(5,7),16);
 
     // Background fill
