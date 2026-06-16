@@ -3628,9 +3628,8 @@ function _openDecoupageWindow(list, pf, inclJN, inclPg, epLabel) {
     const jnStr = inclJN && s.jn && s.jn !== '—' ? eh(s.jn) : '';
     const pgStr = inclPg && s.page ? `p.&nbsp;${eh(s.page)}` : '';
     const metaInline = [jnStr, pgStr].filter(Boolean).map(m => ` &mdash; ${m}`).join('');
-    const epTag = IS_SERIES && s.ep ? `<div class="ep-tag">${eh(s.ep)}</div>` : '';
     return `<div class="pg">
-  ${epTag}<div class="sc-n">${eh(String(s.sc))}</div>
+  <div class="sc-n">${eh(String(s.sc))}</div>
   <div class="carton" style="border-color:${br};background:${bg};">
     <span class="c-r1" style="color:${br};">${eh(s.int_ext||'')} ${eh(s.lieu||'—')}${metaInline}</span>
     ${s.sous_lieu?`<span class="c-sl" style="color:${br};">${eh(s.sous_lieu)}</span>`:''}
@@ -3657,10 +3656,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .pages{padding:24px;display:flex;flex-direction:column;gap:24px;align-items:center;}
 .pg{width:${pf.w};height:${pf.h};background:#fff;position:relative;overflow:hidden;box-shadow:0 3px 16px rgba(0,0,0,.22);page-break-after:always;break-after:page;}
 .sc-n{position:absolute;left:8px;top:10px;width:76px;text-align:center;font-family:'Courier New',monospace;font-size:14pt;font-weight:700;color:#111;line-height:1;}
-.ep-tag{position:absolute;left:8px;top:34px;width:76px;text-align:center;font-size:7pt;font-weight:700;color:#888;letter-spacing:.3px;}
-.carton{position:absolute;left:88px;top:9px;right:12px;padding:9px 16px;border:2.5px solid;border-radius:5px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:58px;}
+.carton{position:absolute;left:88px;top:9px;width:48%;padding:9px 16px;border:2.5px solid;border-radius:5px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:58px;}
 .c-r1{font-size:12pt;font-weight:800;letter-spacing:.2px;text-align:center;line-height:1.3;}
-.c-sl{font-size:10pt;font-style:italic;opacity:.85;text-align:center;line-height:1.2;}
+.c-sl{font-size:11.5pt;font-weight:700;opacity:1;text-align:center;line-height:1.2;}
 .bl{position:absolute;bottom:10%;left:5%;right:5%;height:1px;background:#e8e8e8;}
 @media print{
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
