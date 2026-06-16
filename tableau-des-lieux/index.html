@@ -234,6 +234,11 @@ input.form-input, select.form-input, input.color-picker-wrap {
 input.form-input:focus, select.form-input:focus { border-color: var(--accent); }
 input.form-input::placeholder { color: var(--text-dim); }
 .color-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.new-lieu-sl-list { display: flex; flex-wrap: wrap; gap: 10px; }
+.new-lieu-sl-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text); cursor: pointer; }
+.new-lieu-sl-item .chk { width: 16px; height: 16px; }
+.new-lieu-sl-item .chk:checked::after { left: 3px; top: 0; width: 5px; height: 8px; }
+.new-lieu-sl-item .chk:checked { background: var(--accent); border-color: var(--accent); }
 .color-swatch { width: 26px; height: 26px; border-radius: 5px; border: 2px solid transparent; cursor: pointer; transition: transform 0.1s, border-color 0.1s; flex-shrink: 0; }
 .color-swatch:hover { transform: scale(1.15); }
 .color-swatch.selected { border-color: #fff; transform: scale(1.1); }
@@ -848,9 +853,15 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
         <div class="form-row" style="margin-bottom:12px;">
           <div class="form-group" style="flex:2;">
             <label>Lieu fictif (optionnel)</label>
-            <select class="form-input" id="new-lieu-fictif">
+            <select class="form-input" id="new-lieu-fictif" onchange="onNewLieuFictifChange()">
               <option value="">— Aucun —</option>
             </select>
+          </div>
+        </div>
+        <div class="form-row" id="new-lieu-sl-wrap" style="display:none;margin-bottom:12px;">
+          <div class="form-group" style="flex:2;">
+            <label>Sous-lieux à assigner à cette location</label>
+            <div class="new-lieu-sl-list" id="new-lieu-sl-list"></div>
           </div>
         </div>
         <div class="form-row" style="align-items:center;">
@@ -1876,20 +1887,45 @@ document.addEventListener('click', e => {
 });
 
 // ─── LIEU TOURNAGE MANAGEMENT ───────────────────────────────────────────────
+function onNewLieuFictifChange() {
+  const lieu = document.getElementById('new-lieu-fictif').value;
+  const wrap = document.getElementById('new-lieu-sl-wrap');
+  const list = document.getElementById('new-lieu-sl-list');
+  if (!lieu) { wrap.style.display = 'none'; list.innerHTML = ''; return; }
+  const sls = [...new Set(scenes.filter(s => s.lieu === lieu).map(s => s.sous_lieu || ''))];
+  if (sls.length <= 1) { wrap.style.display = 'none'; list.innerHTML = ''; return; }
+  const sorted = sls.filter(sl => sl).sort().concat(sls.includes('') ? [''] : []);
+  list.innerHTML = sorted.map(sl => `
+    <label class="new-lieu-sl-item">
+      <input type="checkbox" class="chk new-lieu-sl-chk" value="${esc(sl)}" checked>
+      ${esc(sl || '(sans sous-lieu)')}
+    </label>`).join('');
+  wrap.style.display = '';
+}
+
 function addLieu() {
   const nom = document.getElementById('new-lieu-nom').value.trim();
   if (!nom) { showToast('Le nom est requis'); return; }
   const adresse = document.getElementById('new-lieu-adresse').value.trim();
   const lieuFictif = document.getElementById('new-lieu-fictif').value;
+  const slChks = Array.from(document.querySelectorAll('.new-lieu-sl-chk'));
+  const checkedSls = slChks.length ? new Set(slChks.filter(c => c.checked).map(c => c.value)) : null;
   const id = 'l_' + Date.now();
   lieusTournage.push({ id, nom, adresse, couleur: selectedColor });
   let assignedCount = 0;
   if (lieuFictif) {
-    scenes.forEach(s => { if (s.lieu === lieuFictif) { s.lieu_tournage_id = id; assignedCount++; } });
+    scenes.forEach(s => {
+      if (s.lieu !== lieuFictif) return;
+      if (checkedSls && !checkedSls.has(s.sous_lieu || '')) return;
+      s.lieu_tournage_id = id;
+      assignedCount++;
+    });
   }
   document.getElementById('new-lieu-nom').value = '';
   document.getElementById('new-lieu-adresse').value = '';
   document.getElementById('new-lieu-fictif').value = '';
+  document.getElementById('new-lieu-sl-wrap').style.display = 'none';
+  document.getElementById('new-lieu-sl-list').innerHTML = '';
   save();
   buildTable();
   renderLieuList();
