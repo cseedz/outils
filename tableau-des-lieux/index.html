@@ -239,6 +239,9 @@ input.form-input::placeholder { color: var(--text-dim); }
 .new-lieu-sl-item .chk { width: 16px; height: 16px; }
 .new-lieu-sl-item .chk:checked::after { left: 3px; top: 0; width: 5px; height: 8px; }
 .new-lieu-sl-item .chk:checked { background: var(--accent); border-color: var(--accent); }
+input[type="file"].form-input { padding: 6px 8px; font-size: 12px; color: var(--text-muted); }
+.lieu-map-wrap { margin: 10px 0 0; border-radius: 6px; overflow: hidden; border: 1px solid var(--border); }
+.lieu-map-frame { width: 100%; height: 90px; border: 0; display: block; }
 .color-swatch { width: 26px; height: 26px; border-radius: 5px; border: 2px solid transparent; cursor: pointer; transition: transform 0.1s, border-color 0.1s; flex-shrink: 0; }
 .color-swatch:hover { transform: scale(1.15); }
 .color-swatch.selected { border-color: #fff; transform: scale(1.1); }
@@ -846,8 +849,18 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
             <input class="form-input" type="text" id="new-lieu-nom" placeholder="ex. Maison Tremblay, Usine Bombardier...">
           </div>
           <div class="form-group" style="flex:2;">
-            <label>Adresse / notes</label>
+            <label>Adresse</label>
             <input class="form-input" type="text" id="new-lieu-adresse" placeholder="ex. 123 rue des Pins, Saint-Jean">
+          </div>
+        </div>
+        <div class="form-row" style="margin-bottom:12px;">
+          <div class="form-group" style="flex:2;">
+            <label>Notes (optionnel)</label>
+            <input class="form-input" type="text" id="new-lieu-notes" placeholder="ex. Disponible seulement les fins de semaine">
+          </div>
+          <div class="form-group" style="flex:2;">
+            <label>Photos de repérage (optionnel)</label>
+            <input class="form-input" type="file" id="new-lieu-photos" accept="image/*" multiple>
           </div>
         </div>
         <div class="form-row" style="margin-bottom:12px;">
@@ -1903,15 +1916,18 @@ function onNewLieuFictifChange() {
   wrap.style.display = '';
 }
 
-function addLieu() {
+async function addLieu() {
   const nom = document.getElementById('new-lieu-nom').value.trim();
   if (!nom) { showToast('Le nom est requis'); return; }
   const adresse = document.getElementById('new-lieu-adresse').value.trim();
+  const notes = document.getElementById('new-lieu-notes').value.trim();
   const lieuFictif = document.getElementById('new-lieu-fictif').value;
   const slChks = Array.from(document.querySelectorAll('.new-lieu-sl-chk'));
   const checkedSls = slChks.length ? new Set(slChks.filter(c => c.checked).map(c => c.value)) : null;
+  const photoInput = document.getElementById('new-lieu-photos');
+  const files = photoInput ? Array.from(photoInput.files) : [];
   const id = 'l_' + Date.now();
-  lieusTournage.push({ id, nom, adresse, couleur: selectedColor });
+  lieusTournage.push({ id, nom, adresse, notes, couleur: selectedColor });
   let assignedCount = 0;
   if (lieuFictif) {
     scenes.forEach(s => {
@@ -1923,6 +1939,8 @@ function addLieu() {
   }
   document.getElementById('new-lieu-nom').value = '';
   document.getElementById('new-lieu-adresse').value = '';
+  document.getElementById('new-lieu-notes').value = '';
+  if (photoInput) photoInput.value = '';
   document.getElementById('new-lieu-fictif').value = '';
   document.getElementById('new-lieu-sl-wrap').style.display = 'none';
   document.getElementById('new-lieu-sl-list').innerHTML = '';
@@ -1935,6 +1953,22 @@ function addLieu() {
   showToast(assignedCount
     ? `Lieu ajouté : ${nom} — ${assignedCount} scène${assignedCount>1?'s':''} assignée${assignedCount>1?'s':''}`
     : 'Lieu ajouté : ' + nom);
+  if (adresse) geocodeLieuAddress(id);
+  if (files.length) {
+    showToast(`Upload de ${files.length} photo${files.length>1?'s':''}…`);
+    for (const file of files) {
+      try {
+        const url = await uploadToCloudinary(file);
+        if (!lieuTournagePhotos[id]) lieuTournagePhotos[id] = [];
+        lieuTournagePhotos[id].push({ url, sl: '' });
+        save();
+        renderLieuList();
+        renderVueLieux();
+      } catch (e) {
+        showToast("Erreur upload d'une photo — réessaie depuis la fiche du lieu");
+      }
+    }
+  }
 }
 
 function deleteLieu(id) {
@@ -1968,6 +2002,40 @@ function setPhotoSousLieu(lieuId, type, url, sl) {
   const dict = type==='inspi' ? lieuTournageInspi : type==='floorplans' ? lieuTournageFloorplans : lieuTournagePhotos;
   const p = (dict[lieuId] || []).find(p => p.url === url);
   if (p) { p.sl = sl; save(); }
+}
+
+async function geocodeLieuAddress(id) {
+  const l = lieusTournage.find(x => x.id === id);
+  if (!l || !l.adresse) return;
+  const btn = document.getElementById('geo-btn-' + id);
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(l.adresse)}`);
+    const data = await res.json();
+    if (data && data[0]) {
+      l.lat = parseFloat(data[0].lat);
+      l.lon = parseFloat(data[0].lon);
+      l.geocodedAddress = l.adresse;
+      save();
+      renderLieuList();
+    } else {
+      showToast('Adresse introuvable sur la carte');
+      if (btn) { btn.disabled = false; btn.textContent = '📍 Voir sur la carte'; }
+    }
+  } catch (e) {
+    showToast('Erreur de géolocalisation');
+    if (btn) { btn.disabled = false; btn.textContent = '📍 Voir sur la carte'; }
+  }
+}
+
+function buildLieuMapBlock(l) {
+  if (!l.adresse) return '';
+  if (l.lat != null && l.lon != null && l.geocodedAddress === l.adresse) {
+    const d = 0.003;
+    const bbox = `${l.lon-d},${l.lat-d},${l.lon+d},${l.lat+d}`;
+    return `<div class="lieu-map-wrap"><iframe class="lieu-map-frame" loading="lazy" src="https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${l.lat},${l.lon}"></iframe></div>`;
+  }
+  return `<button class="btn btn-sm" id="geo-btn-${l.id}" onclick="geocodeLieuAddress('${l.id}')">📍 Voir sur la carte</button>`;
 }
 
 function buildLieuFictifsSection(lieuId) {
@@ -2044,6 +2112,7 @@ function renderLieuList() {
           <button class="btn btn-sm btn-danger" onclick="deleteLieu('${l.id}')">Supprimer</button>
         </div>
       </div>
+      ${buildLieuMapBlock(l)}
       ${buildLieuFictifsSection(l.id)}
       <div class="lieu-photos">
         ${buildPhotoRow('lieux', lieuTournagePhotos, 'Repérage')}
@@ -2182,7 +2251,7 @@ function editLieu(id) {
     <div class="lieu-dot" style="background:${l.couleur}"></div>
     <div class="lieu-info" style="flex:1;">
       <input class="form-input" style="width:100%;margin-bottom:6px;" id="edit-nom-${id}" value="${esc(l.nom)}" placeholder="Nom">
-      <input class="form-input" style="width:100%;font-size:11px;" id="edit-adr-${id}" value="${esc(l.adresse||'')}" placeholder="Adresse / notes">
+      <input class="form-input" style="width:100%;font-size:11px;" id="edit-adr-${id}" value="${esc(l.adresse||'')}" placeholder="Adresse">
     </div>
     <div class="lieu-card-actions">
       <button class="btn btn-sm btn-success" onclick="saveEditLieu('${id}')">Sauvegarder</button>
@@ -2196,11 +2265,14 @@ function saveEditLieu(id) {
   const nom = document.getElementById('edit-nom-' + id).value.trim();
   if (!nom) { showToast('Le nom est requis'); return; }
   l.nom = nom;
-  l.adresse = document.getElementById('edit-adr-' + id).value.trim();
+  const newAdresse = document.getElementById('edit-adr-' + id).value.trim();
+  const addressChanged = newAdresse !== l.adresse;
+  l.adresse = newAdresse;
   save();
   renderLieuList();
   refreshAllLieuDropdowns();
   showToast('Lieu mis à jour');
+  if (addressChanged && l.adresse) geocodeLieuAddress(id);
 }
 
 // ─── DROPDOWN HELPERS ───────────────────────────────────────────────────────
