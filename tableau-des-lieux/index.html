@@ -658,10 +658,16 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
 .fdx-diff-change { color: var(--text-muted); font-size: 11px; }
 .fdx-modal-actions { display: flex; justify-content: space-between; align-items: center; padding-top: 16px; border-top: 1px solid var(--border); gap: 8px; flex-wrap: wrap; }
 /* ── VER CARD ── */
-.ver-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin-bottom: 14px; }
+.ver-eps-wrap { display: flex; flex-direction: column; gap: 28px; }
+.ver-ep-block { display: flex; flex-direction: column; gap: 10px; }
+.ver-ep-title { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); margin: 0 0 4px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+.ver-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; }
+.ver-card-current { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, var(--bg2)); }
+.ver-current-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
 .ver-card-hd { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
 .ver-card-hd h3 { font-size: 14px; font-weight: 700; }
 .ver-badge { font-size: 11px; font-weight: 600; color: var(--text-muted); background: var(--bg3); border: 1px solid var(--border); padding: 2px 8px; border-radius: 10px; }
+.ver-badge-active { color: var(--accent); border-color: var(--accent); background: transparent; }
 .ver-delta { font-size: 11px; font-weight: 700; }
 .ver-delta.pos { color: #2a7045; } .ver-delta.neg { color: #cc3333; }
 .ver-preview-text { font-size: 11px; font-family: monospace; white-space: pre; overflow-y: auto; max-height: 340px; padding: 12px; background: var(--bg3); border-radius: 6px; line-height: 1.7; }
@@ -1216,7 +1222,8 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 let sb = null;
 let IS_SERIES = SCENES_RAW.some(r => r.ep);
 let imported_scenes_raw = null;  // set on FDX import; overrides SCENES_RAW as base
-let fdxVersions = [];  // archived FDX versions { id, date, label, scene_count, prev_scene_count, scenes_raw }
+let fdxVersions = [];  // archived FDX versions { id, date, label, ep, scene_count, prev_scene_count, scenes_raw }
+let fdxImportMeta = {}; // { [ep]: { label, date, scene_count } } — tracks current import info per episode
 let totalEpisodes = 0; // total ep count for the series (0 = unknown/long-métrage)
 function parseEp(sc) { const s=String(sc),dot=s.indexOf('.'); if(dot===-1)return{ep:0,scNum:parseFloat(s)||0}; return{ep:parseInt(s.slice(0,dot))||0,scNum:parseInt(s.slice(dot+1))||0}; }
 function fmtEp(sc) { const {ep}=parseEp(sc); return ep>0?'E'+String(ep).padStart(2,'0'):'—'; }
@@ -1238,7 +1245,7 @@ function save() {
     lieuTournagePhotos, lieuTournageInspi, lieuTournageFloorplans,
     lieuColorOverrides, activePaletteKey,
     lieuPalettesCustom: JSON.parse(JSON.stringify(PALETTES)),
-    imported_scenes_raw, fdxVersions, totalEpisodes
+    imported_scenes_raw, fdxVersions, fdxImportMeta, totalEpisodes
   };
   clearTimeout(_saveDebounce);
   _saveDebounce = setTimeout(() => syncToSupabase(_data), 600);
@@ -1287,7 +1294,17 @@ function applyData(d) {
     scenes = JSON.parse(JSON.stringify(baseScenes));
   }
   if (d.imported_scenes_raw) imported_scenes_raw = d.imported_scenes_raw;
-  if (d.fdxVersions) fdxVersions = d.fdxVersions;
+  if (d.fdxVersions) {
+    fdxVersions = d.fdxVersions;
+    // Migrate old global entries (no ep field) → derive ep from scenes_raw
+    fdxVersions.forEach(v => {
+      if (v.ep === undefined) {
+        const eps = [...new Set((v.scenes_raw || []).map(s => parseEp(s.sc).ep))];
+        v.ep = eps.length === 1 ? eps[0] : null; // null = legacy multi-ep blob
+      }
+    });
+  }
+  if (d.fdxImportMeta) fdxImportMeta = d.fdxImportMeta;
   if (d.totalEpisodes) totalEpisodes = d.totalEpisodes;
   if (d.lieusTournage) lieusTournage = d.lieusTournage;
   if (d.lieuNotes) lieuNotes = d.lieuNotes;
@@ -3922,16 +3939,37 @@ function applyImport(mode) {
   const { newScenes, filename, newEps } = _pendingImport;
   const currentBase = imported_scenes_raw && imported_scenes_raw.length ? imported_scenes_raw : SCENES_RAW;
 
-  // Archive avant modification
-  if (currentBase.length) {
-    fdxVersions = [{
-      id: Date.now(),
-      date: new Date().toISOString().split('T')[0],
-      label: _pendingFiles.length > 1 ? _pendingFiles.map(f => f.name.replace(/\.fdx$/i,'')).join(', ') : filename.replace(/\.fdx$/i,''),
-      scene_count: newScenes.length,
-      prev_scene_count: currentBase.length,
-      scenes_raw: JSON.parse(JSON.stringify(currentBase))
-    }, ...fdxVersions].slice(0, 20);
+  // Archive per-episode avant modification
+  const today = new Date().toISOString().split('T')[0];
+  const newEntries = [];
+  for (const ep of newEps) {
+    const epPrev = currentBase.filter(s => parseEp(s.sc).ep === ep);
+    const epNew  = newScenes.filter(s => parseEp(s.sc).ep === ep);
+    // Chercher le label du fichier correspondant à cet épisode (import batch)
+    let epLabel = filename.replace(/\.fdx$/i,'');
+    if (_pendingFiles.length > 1) {
+      const epFile = _pendingFiles.find(f => {
+        const base = f.name.replace(/\.fdx$/i,'').toLowerCase();
+        return base.includes(`ep${String(ep).padStart(2,'0')}`) || base.includes(`ep${ep}`) || base.endsWith(`0${ep}`) || base.endsWith(`_${ep}`);
+      });
+      epLabel = epFile ? epFile.name.replace(/\.fdx$/i,'') : _pendingFiles.map(f => f.name.replace(/\.fdx$/i,'')).join(', ');
+    }
+    if (epPrev.length) {
+      newEntries.push({
+        id: Date.now() + ep,
+        date: today,
+        label: epLabel,
+        ep,
+        scene_count: epNew.length,
+        prev_scene_count: epPrev.length,
+        scenes_raw: JSON.parse(JSON.stringify(epPrev))
+      });
+    }
+    // Mettre à jour la méta du dernier import pour cet épisode
+    fdxImportMeta[ep] = { label: epLabel, date: today, scene_count: epNew.length };
+  }
+  if (newEntries.length) {
+    fdxVersions = [...newEntries, ...fdxVersions].slice(0, 60);
   }
 
   // imported_scenes_raw : conserver les épisodes non-touchés + les nouvelles scènes
@@ -3981,47 +4019,16 @@ function applyImport(mode) {
 }
 
 // ─── VERSIONS TAB ────────────────────────────────────────────────────────────
-function renderVersions() {
-  const wrap = document.getElementById('versions-content');
-  if (!wrap) return;
-  if (!fdxVersions.length) {
-    wrap.innerHTML = `<div class="outils-tool-card" style="max-width:620px;">
-      <p class="outils-tool-desc" style="margin:0;">Aucune version archivée. Chaque import FDX crée une archive de la version précédente, consultable ici.</p>
-    </div>`;
-    return;
-  }
-  const currentCount = (imported_scenes_raw && imported_scenes_raw.length) ? imported_scenes_raw.length : SCENES_RAW.length;
-  wrap.innerHTML = `<p class="outils-tool-desc" style="margin-bottom:20px;">${fdxVersions.length} version${fdxVersions.length>1?'s archivées':' archivée'} — version active&nbsp;: ${currentCount} scènes.</p>
-  ${fdxVersions.map((v,idx) => {
-    const delta = v.scene_count - v.prev_scene_count;
-    const dStr = delta===0?'':(delta>0?`+${delta}`:`${delta}`);
-    const dCls = delta>0?'pos':delta<0?'neg':'';
-    return `<div class="ver-card">
-      <div class="ver-card-hd">
-        <h3>${v.label}</h3>
-        <span class="ver-badge">${v.scene_count} scènes</span>
-        ${dStr?`<span class="ver-delta ${dCls}">${dStr} vs précédent</span>`:''}
-        <span class="ver-badge">${v.date}</span>
-      </div>
-      <div style="display:flex;gap:8px;">
-        <button class="btn btn-sm" onclick="previewVersion(${idx})">Consulter</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteVersion(${idx})">Supprimer</button>
-      </div>
-    </div>`;
-  }).join('')}`;
-}
-
-function previewVersion(idx) {
-  const v = fdxVersions[idx]; if (!v) return;
-  const lines = v.scenes_raw.map(s =>
-    `${String(s.sc).padStart(4,' ')}. ${s.int_ext.padEnd(7,' ')} ${s.lieu}${s.sous_lieu?' / '+s.sous_lieu:''} — ${s.jn}  p.${s.page}  ${s.duree}`
+function _verPreviewScenes(scenesRaw, title, sub) {
+  const lines = scenesRaw.map(s =>
+    `${String(s.sc).padStart(5,' ')}  ${(s.int_ext||'').padEnd(7,' ')}  ${s.lieu}${s.sous_lieu?' / '+s.sous_lieu:''}  —  ${s.jn}  p.${s.page}  ${s.duree||''}`
   ).join('\n');
   const overlay = document.createElement('div');
   overlay.className = 'fdx-modal-overlay';
-  overlay.onclick = (e) => { if(e.target===overlay) overlay.remove(); };
+  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
   overlay.innerHTML = `<div class="fdx-modal" style="max-height:80vh;display:flex;flex-direction:column;">
     <div class="fdx-modal-hd">
-      <div><h2>${v.label}</h2><div class="fdx-modal-sub">${v.date} &middot; ${v.scene_count} scènes</div></div>
+      <div><h2>${esc(title)}</h2><div class="fdx-modal-sub">${esc(sub)}</div></div>
       <button class="fdx-modal-close" onclick="this.closest('.fdx-modal-overlay').remove()">✕</button>
     </div>
     <div class="ver-preview-text">${lines}</div>
@@ -4033,11 +4040,135 @@ function previewVersion(idx) {
   document.body.appendChild(overlay);
 }
 
+function previewVersion(idx) {
+  const v = fdxVersions[idx]; if (!v) return;
+  const epLabel = v.ep > 0 ? `Ép. ${v.ep} — ` : '';
+  _verPreviewScenes(v.scenes_raw, `${epLabel}${v.label}`, `${v.date} · ${v.prev_scene_count} scènes (avant import)`);
+}
+
+function previewCurrentEp(ep) {
+  const base = imported_scenes_raw && imported_scenes_raw.length ? imported_scenes_raw : SCENES_RAW;
+  const epScenes = ep > 0 ? base.filter(s => parseEp(s.sc).ep === ep) : base;
+  const meta = fdxImportMeta[ep];
+  const title = ep > 0 ? `Ép. ${ep} — ${meta ? meta.label : 'Version en cours'}` : (meta ? meta.label : 'Version en cours');
+  const sub = meta ? `${meta.date} · ${meta.scene_count} scènes` : `${epScenes.length} scènes`;
+  _verPreviewScenes(epScenes, title, sub);
+}
+
 function deleteVersion(idx) {
   if (!confirm('Supprimer cette version archivée ?')) return;
   fdxVersions.splice(idx, 1);
   save(); renderVersions();
   showToast('Version supprimée');
+}
+
+function renderVersions() {
+  const wrap = document.getElementById('versions-content');
+  if (!wrap) return;
+
+  const base = imported_scenes_raw && imported_scenes_raw.length ? imported_scenes_raw : SCENES_RAW;
+  const hasData = base.length > 0 || Object.keys(fdxImportMeta).length > 0;
+
+  if (!hasData) {
+    wrap.innerHTML = `<div class="outils-tool-card" style="max-width:620px;">
+      <p class="outils-tool-desc" style="margin:0;">Aucune version archivée. Chaque import FDX crée une archive de la version précédente, consultable ici.</p>
+    </div>`;
+    return;
+  }
+
+  // Collect all episode numbers that have data (current + archived)
+  const epSet = new Set();
+  base.forEach(s => epSet.add(parseEp(s.sc).ep));
+  Object.keys(fdxImportMeta).forEach(k => epSet.add(parseInt(k)));
+  fdxVersions.forEach(v => { if (v.ep !== null && v.ep !== undefined) epSet.add(v.ep); });
+  const eps = [...epSet].sort((a, b) => a - b);
+
+  // Legacy entries (null ep = old multi-ep global snapshots)
+  const legacyVersions = fdxVersions.filter(v => v.ep === null || v.ep === undefined);
+
+  const isSeries = IS_SERIES || eps.some(e => e > 0);
+
+  function renderEpBlock(ep) {
+    const epScenes = ep > 0 ? base.filter(s => parseEp(s.sc).ep === ep) : base;
+    const meta = fdxImportMeta[ep];
+    const archived = fdxVersions.filter(v => v.ep === ep);
+    const epTitle = ep > 0 ? `Épisode ${ep}` : 'Projet';
+
+    // Current active version row
+    const currentRow = (epScenes.length || meta) ? (() => {
+      const cnt = meta ? meta.scene_count : epScenes.length;
+      const lbl = meta ? meta.label : 'Version en cours';
+      const dt  = meta ? meta.date  : '';
+      return `<div class="ver-card ver-card-current">
+        <div class="ver-card-hd">
+          <span class="ver-current-dot"></span>
+          <h3>${esc(lbl)}</h3>
+          <span class="ver-badge">${cnt} scènes</span>
+          ${dt ? `<span class="ver-badge">${dt}</span>` : ''}
+          <span class="ver-badge ver-badge-active">En cours</span>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-sm" onclick="previewCurrentEp(${ep})">Consulter</button>
+        </div>
+      </div>`;
+    })() : '';
+
+    const archivedRows = archived.map((v, i) => {
+      const realIdx = fdxVersions.indexOf(v);
+      const delta = v.scene_count - v.prev_scene_count;
+      const dStr = delta === 0 ? '' : (delta > 0 ? `+${delta}` : `${delta}`);
+      const dCls = delta > 0 ? 'pos' : delta < 0 ? 'neg' : '';
+      return `<div class="ver-card">
+        <div class="ver-card-hd">
+          <h3>${esc(v.label)}</h3>
+          <span class="ver-badge">${v.prev_scene_count} scènes</span>
+          ${dStr ? `<span class="ver-delta ${dCls}">${dStr}</span>` : ''}
+          <span class="ver-badge">${v.date}</span>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-sm" onclick="previewVersion(${realIdx})">Consulter</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteVersion(${realIdx})">Supprimer</button>
+        </div>
+      </div>`;
+    }).join('');
+
+    return `<div class="ver-ep-block">
+      ${isSeries ? `<h2 class="ver-ep-title">${epTitle}</h2>` : ''}
+      ${currentRow}${archivedRows}
+    </div>`;
+  }
+
+  const legacyBlock = legacyVersions.length ? `
+    <div class="ver-ep-block">
+      <h2 class="ver-ep-title" style="opacity:.6;">Versions héritées</h2>
+      ${legacyVersions.map((v) => {
+        const realIdx = fdxVersions.indexOf(v);
+        const delta = v.scene_count - v.prev_scene_count;
+        const dStr = delta === 0 ? '' : (delta > 0 ? `+${delta}` : `${delta}`);
+        const dCls = delta > 0 ? 'pos' : delta < 0 ? 'neg' : '';
+        return `<div class="ver-card">
+          <div class="ver-card-hd">
+            <h3>${esc(v.label)}</h3>
+            <span class="ver-badge">${v.prev_scene_count} scènes</span>
+            ${dStr ? `<span class="ver-delta ${dCls}">${dStr}</span>` : ''}
+            <span class="ver-badge">${v.date}</span>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-sm" onclick="previewVersion(${realIdx})">Consulter</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteVersion(${realIdx})">Supprimer</button>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>` : '';
+
+  const totalArchived = fdxVersions.length;
+  wrap.innerHTML = `<p class="outils-tool-desc" style="margin-bottom:20px;">${
+    totalArchived ? `${totalArchived} version${totalArchived > 1 ? 's archivées' : ' archivée'} — ` : ''
+  }version active&nbsp;: ${base.length} scènes.</p>
+  <div class="ver-eps-wrap">
+    ${eps.map(ep => renderEpBlock(ep)).join('')}
+    ${legacyBlock}
+  </div>`;
 }
 
 // ─── INIT ────────────────────────────────────────────────────────────────────
