@@ -3740,6 +3740,7 @@ function parseFDXToScenes(xmlString, opts = {}) {
   const paragraphs = Array.from(content.children);
   const errors = [], scenes = [];
   const seenNums = new Set();
+  let noPropsCount = 0;
   for (let i = 0; i < paragraphs.length; i++) {
     const para = paragraphs[i];
     if (para.getAttribute('Type') !== 'Scene Heading') continue;
@@ -3752,6 +3753,7 @@ function parseFDXToScenes(xmlString, opts = {}) {
       number = ep_num + '.' + String(sc_num).padStart(2, '0');
     }
     const props = para.querySelector('SceneProperties');
+    if (!props) noPropsCount++;
     const page = props ? (props.getAttribute('Page') || '0') : '0';
     const duree = props ? (props.getAttribute('Length') || '0') : '0';
     const rawText = Array.from(para.querySelectorAll('Text')).map(t => t.textContent||'').join('').trim();
@@ -3794,6 +3796,11 @@ function parseFDXToScenes(xmlString, opts = {}) {
     Object.keys(charLines).forEach(n => charPresentSet.add(n));
     const charPresent = [...charPresentSet];
     scenes.push({ sc: number, int_ext, lieu, sous_lieu: sous_lieu || '', jn, page, duree, text: bodyParts.join('\n'), charLines, charPresent });
+  }
+  if (scenes.length && noPropsCount === scenes.length) {
+    errors.unshift(`⚠ Aucune pagination trouvée dans ce fichier (SceneProperties absent) — pages et durées seront à 0 pour ${noPropsCount} scène${noPropsCount>1?'s':''}. Dans Final Draft : Fichier → Aperçu avant impression (ou Imprimer), sauvegarde, puis réimporte.`);
+  } else if (noPropsCount > 0) {
+    errors.unshift(`⚠ ${noPropsCount} scène${noPropsCount>1?'s':''} sans pagination (page/durée à 0) — repagine le document dans Final Draft avant de réexporter.`);
   }
   return { scenes, errors };
 }
