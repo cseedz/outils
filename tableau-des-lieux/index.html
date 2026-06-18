@@ -740,7 +740,13 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
     <span id="sync-size" title="Taille des données sauvegardées dans Supabase"></span>
     <input type="file" id="fdx-file-input" accept=".fdx" multiple style="display:none" onchange="onFdxFileSelected(event)">
     <button class="fdx-import-btn" onclick="triggerFdxUpload()" title="Importer un fichier Final Draft (.fdx)">Importer FDX</button>
-    <a href="/" style="font-size:11px;color:var(--text-muted);text-decoration:none;letter-spacing:0.04em;padding:4px 0 4px 16px;border-left:1px solid var(--border);margin-left:12px;white-space:nowrap;flex-shrink:0;" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--text-muted)'">← Outils</a>
+    <a id="back-link" href="/" style="font-size:11px;color:var(--text-muted);text-decoration:none;letter-spacing:0.04em;padding:4px 0 4px 16px;border-left:1px solid var(--border);margin-left:12px;white-space:nowrap;flex-shrink:0;" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--text-muted)'">← Outils</a>
+    <script>
+      (function() {
+        var p = new URLSearchParams(location.search).get('p');
+        if (p) document.getElementById('back-link').href = '/projet/?p=' + encodeURIComponent(p);
+      })();
+    </script>
   </div>
 </div>
 
