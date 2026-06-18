@@ -1294,8 +1294,7 @@ const SCENES_RAW = [];
 const _urlP = new URLSearchParams(window.location.search);
 const _projectId   = _urlP.get('p') || 'unnamed';
 const _projectName = decodeURIComponent(_urlP.get('n') || _projectId);
-const _KEY_MAP = { 'les-chacals': 'chacals_v2' };
-const KEY = _KEY_MAP[_projectId] || (_projectId + '_tdl');
+const KEY = _projectId + '_tdl';
 const CLOUDINARY_CLOUD = 'dwr0aqtqr';
 const CLOUDINARY_PRESET = 'photos_locations';
 const SUPABASE_URL = 'https://dvivafrldxzhkactsvve.supabase.co';
@@ -1471,6 +1470,17 @@ async function loadFromSupabase() {
   if (!sb) { setSyncStatus('error'); return; }
   setSyncStatus('syncing');
   try {
+    // Migration one-time : chacals_v2 → les-chacals_tdl
+    if (_projectId === 'les-chacals') {
+      const { data: newRow } = await sb.from('project_data').select('data').eq('key', KEY).maybeSingle();
+      if (!newRow) {
+        const { data: oldRow } = await sb.from('project_data').select('data').eq('key', 'chacals_v2').maybeSingle();
+        if (oldRow) {
+          await sb.from('project_data').upsert({ key: KEY, data: oldRow.data, updated_at: new Date().toISOString() });
+          await sb.from('project_data').delete().eq('key', 'chacals_v2');
+        }
+      }
+    }
     const { data: row, error } = await sb.from('project_data').select('data').eq('key', KEY).maybeSingle();
     if (error) throw error;
     if (row && row.data) {

@@ -208,7 +208,7 @@
         id: 'tableau-lieux',
         label: 'Tableau des lieux',
         buildHref: p => '/tableau-des-lieux/?p=' + encodeURIComponent(p.id) + '&n=' + encodeURIComponent(p.name),
-        buildKey:  p => p.id === 'les-chacals' ? 'chacals_v2' : p.id + '_tdl'
+        buildKey:  p => p.id + '_tdl'
       },
       {
         id: 'decoupage',
@@ -221,7 +221,7 @@
     const DEFAULT_PROJECTS = [
       { id: 'derniere-saison', name: 'La dernière saison',      format: 'Série télévision', section: 'en-cours', tools: [] },
       { id: 'premier-trio',    name: 'Premier trio — Saison 4', format: 'Série télévision', section: 'en-cours', tools: [] },
-      { id: 'les-chacals',     name: 'Les Chacals',             format: 'Long-métrage',     section: 'en-dev',   tools: [{ id: 'tableau-lieux', label: 'Tableau des lieux', href: '/tableau-des-lieux/?p=les-chacals&n=Les+Chacals', supabaseKey: 'chacals_v2' }] },
+      { id: 'les-chacals',     name: 'Les Chacals',             format: 'Long-métrage',     section: 'en-dev',   tools: [{ id: 'tableau-lieux', label: 'Tableau des lieux', href: '/tableau-des-lieux/?p=les-chacals&n=Les+Chacals', supabaseKey: 'les-chacals_tdl' }] },
       { id: 'aimer-pour-deux', name: 'Aimer pour deux',         format: 'Long-métrage',     section: 'en-dev',   tools: [] },
       { id: 'au-dela-terril',  name: 'Au-delà du terril',       format: 'Long-métrage',     section: 'en-dev',   tools: [] },
       { id: 'contritions',     name: 'Contritions / Clippeurs', format: 'Long-métrage',     section: 'en-dev',   tools: [] },
