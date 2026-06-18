@@ -76,51 +76,20 @@
     .project-name { font-size: 13px; font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .project-format { font-size: 11px; color: var(--muted); margin-top: 1px; }
 
-    .project-tools { display: flex; gap: 16px; align-items: center; flex-shrink: 0; }
+    .project-right { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
 
-    .tool-link {
-      font-size: 11px; color: var(--text); text-decoration: none;
-      letter-spacing: 0.04em; border-bottom: 1px solid var(--line);
-      padding-bottom: 1px; white-space: nowrap; transition: border-color 180ms ease;
+    .tool-count {
+      font-size: 11px; color: var(--muted); letter-spacing: 0.04em; white-space: nowrap;
     }
-    .tool-link:hover { border-color: var(--text); }
 
-    .tool-item { display: inline-flex; align-items: center; gap: 4px; }
-    .tool-remove {
-      background: none; border: none; cursor: pointer; padding: 0 1px;
-      color: var(--muted); font-size: 12px; line-height: 1;
-      opacity: 0; transition: opacity 150ms; flex-shrink: 0;
+    .project-arrow {
+      font-size: 14px; color: var(--muted); line-height: 1; transition: color 150ms;
     }
-    .tool-item:hover .tool-remove { opacity: 1; }
-    .tool-remove:hover { color: var(--text); }
-
-    .add-tool-btn {
-      background: none; border: none; cursor: pointer;
-      font-size: 15px; font-weight: 300; color: var(--muted); line-height: 1;
-      padding: 0 3px; transition: color 150ms;
-    }
-    .add-tool-btn:hover { color: var(--text); }
-
-    .tool-dropdown-wrap { position: relative; }
-    .tool-dropdown {
-      position: absolute; right: 0; top: calc(100% + 6px);
-      background: #fff; border: 1px solid var(--line);
-      border-radius: 4px; box-shadow: 0 4px 18px rgba(0,0,0,.1);
-      z-index: 200; min-width: 170px; overflow: hidden;
-    }
-    .tool-dropdown button {
-      display: block; width: 100%; text-align: left;
-      background: none; border: none; cursor: pointer;
-      padding: 10px 14px; font-size: 12px; color: var(--text);
-      transition: background 100ms;
-    }
-    .tool-dropdown button:hover { background: var(--line); }
+    .project:hover .project-arrow { color: var(--text); }
+    .project { cursor: pointer; text-decoration: none; }
 
     footer { margin-top: 80px; padding-top: 20px; border-top: 1px solid var(--line); }
     .footer-text { font-size: 10px; color: var(--muted); letter-spacing: 0.06em; }
-    .tool-size { font-size: 9px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; opacity: .7; }
-    .tool-size.warn   { color: #e6930a; opacity: 1; }
-    .tool-size.danger { color: #cc3333; opacity: 1; font-weight: 600; }
     #storage-summary  { font-size: 10px; color: var(--muted); letter-spacing: 0.04em; margin-top: 6px; display: block; }
     #storage-summary.warn   { color: #e6930a; }
     #storage-summary.danger { color: #cc3333; font-weight: 600; }
@@ -160,15 +129,6 @@
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2aXZhZnJsZHh6aGthY3RzdnZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyMzQ5MDgsImV4cCI6MjA5NDgxMDkwOH0.EgyxWDERi443hefaM0LxDYDhLWQYx31feKzQ1bQU5Kc';
 
     let projects = [];
-
-    const AVAILABLE_TOOLS = [
-      {
-        id: 'tableau-lieux',
-        label: 'Tableau des lieux',
-        buildHref: p => '/tableau-des-lieux/?p=' + encodeURIComponent(p.id) + '&n=' + encodeURIComponent(p.name),
-        buildKey:  p => p.id === 'les-chacals' ? 'chacals_v2' : p.id + '_tdl'
-      }
-    ];
 
     const DEFAULT_PROJECTS = [
       { id: 'derniere-saison', name: 'La dernière saison',      format: 'Série télévision', section: 'en-cours', tools: [] },
@@ -261,49 +221,6 @@
       return h;
     }
 
-    function closeAllDropdowns() {
-      document.querySelectorAll('.tool-dropdown').forEach(d => d.remove());
-    }
-
-    function addTool(projectId, toolId) {
-      const p = projects.find(x => x.id === projectId);
-      if (!p) return;
-      const toolDef = AVAILABLE_TOOLS.find(t => t.id === toolId);
-      if (!toolDef) return;
-      if (!p.tools) p.tools = [];
-      if (p.tools.some(t => t.id === toolId)) return;
-      p.tools.push({ id: toolId, label: toolDef.label, href: toolDef.buildHref(p), supabaseKey: toolDef.buildKey ? toolDef.buildKey(p) : null });
-      rebuildRow(p);
-      const state = getState();
-      saveLocal(state);
-      saveToSupabase(state);
-    }
-
-    async function removeTool(projectId, toolId) {
-      const p = projects.find(x => x.id === projectId);
-      if (!p || !p.tools) return;
-      const tool = p.tools.find(t => t.id === toolId);
-      if (!tool) return;
-      p.tools = p.tools.filter(t => t.id !== toolId);
-      rebuildRow(p);
-      const state = getState();
-      saveLocal(state);
-      saveToSupabase(state);
-      // Supprimer les données de l'outil dans Supabase
-      const toolDef = AVAILABLE_TOOLS.find(t => t.id === toolId);
-      const sbKey = tool.supabaseKey || (toolDef && toolDef.buildKey ? toolDef.buildKey(p) : null);
-      if (sbKey && sb) {
-        try { await sb.from('project_data').delete().eq('key', sbKey); }
-        catch(e) { console.warn('Erreur suppression données outil:', e); }
-      }
-    }
-
-    function rebuildRow(project) {
-      const existing = document.querySelector(`.project[data-id="${project.id}"]`);
-      if (existing) existing.replaceWith(buildRow(project));
-      loadSizes();
-    }
-
     function buildRow(project) {
       const row = document.createElement('div');
       row.className = 'project';
@@ -316,58 +233,26 @@
       info.innerHTML = `<div class="project-name">${project.name}</div><div class="project-format">${project.format}</div>`;
       row.appendChild(info);
 
-      const toolsDiv = document.createElement('div');
-      toolsDiv.className = 'project-tools';
+      const right = document.createElement('div');
+      right.className = 'project-right';
+      const toolCount = (project.tools || []).length;
+      if (toolCount > 0) {
+        const count = document.createElement('span');
+        count.className = 'tool-count';
+        count.textContent = toolCount + ' outil' + (toolCount > 1 ? 's' : '');
+        right.appendChild(count);
+      }
+      const arrow = document.createElement('span');
+      arrow.className = 'project-arrow';
+      arrow.textContent = '›';
+      right.appendChild(arrow);
+      row.appendChild(right);
 
-      (project.tools || []).forEach(t => {
-        const item = document.createElement('span');
-        item.className = 'tool-item';
-        const a = document.createElement('a');
-        a.className = 'tool-link';
-        a.href = t.href;
-        a.textContent = t.label;
-        const rmBtn = document.createElement('button');
-        rmBtn.className = 'tool-remove';
-        rmBtn.title = 'Retirer';
-        rmBtn.textContent = '×';
-        rmBtn.addEventListener('click', e => { e.stopPropagation(); e.preventDefault(); if (confirm('Retirer « ' + t.label + ' » de ' + project.name + ' ?\n\nToutes les données (scènes, annotations, locations, photos) seront supprimées définitivement de Supabase.')) removeTool(project.id, t.id); });
-        const sizeEl = document.createElement('span');
-        sizeEl.className = 'tool-size';
-        if (t.supabaseKey) item.dataset.sbKey = t.supabaseKey;
-        item.appendChild(a);
-        item.appendChild(sizeEl);
-        item.appendChild(rmBtn);
-        toolsDiv.appendChild(item);
+      row.addEventListener('click', e => {
+        if (e.target.closest('.drag-handle')) return;
+        location.href = '/projet/?p=' + encodeURIComponent(project.id);
       });
 
-      const addedIds = new Set((project.tools || []).map(t => t.id));
-      const remaining = AVAILABLE_TOOLS.filter(t => !addedIds.has(t.id));
-      if (remaining.length) {
-        const wrap = document.createElement('span');
-        wrap.className = 'tool-dropdown-wrap';
-        const btn = document.createElement('button');
-        btn.className = 'add-tool-btn';
-        btn.title = 'Ajouter un outil';
-        btn.textContent = '+';
-        btn.addEventListener('click', e => {
-          e.stopPropagation();
-          if (wrap.querySelector('.tool-dropdown')) { closeAllDropdowns(); return; }
-          closeAllDropdowns();
-          const dd = document.createElement('div');
-          dd.className = 'tool-dropdown';
-          remaining.forEach(toolDef => {
-            const item = document.createElement('button');
-            item.textContent = toolDef.label;
-            item.addEventListener('click', e => { e.stopPropagation(); addTool(project.id, toolDef.id); });
-            dd.appendChild(item);
-          });
-          wrap.appendChild(dd);
-        });
-        wrap.appendChild(btn);
-        toolsDiv.appendChild(wrap);
-      }
-
-      row.appendChild(toolsDiv);
       return row;
     }
 
@@ -433,55 +318,14 @@
       saveToSupabase(state);
     });
 
-    document.addEventListener('click', closeAllDropdowns);
-
-    // ── Storage sizes ─────────────────────────────────────────────────────────
-    async function loadSizes() {
-      if (!sb) return;
-      try {
-        const { data: rows, error } = await sb.from('project_data').select('key, data');
-        if (error || !rows) return;
-        let totalBytes = 0;
-        const sizeByKey = {};
-        rows.forEach(row => {
-          const bytes = new Blob([JSON.stringify(row.data)]).size;
-          totalBytes += bytes;
-          sizeByKey[row.key] = bytes;
-        });
-        // Per-tool labels
-        document.querySelectorAll('.tool-item[data-sb-key]').forEach(item => {
-          const bytes = sizeByKey[item.dataset.sbKey];
-          if (bytes === undefined) return;
-          const sizeEl = item.querySelector('.tool-size');
-          if (!sizeEl) return;
-          const kb = bytes / 1024;
-          sizeEl.textContent = kb >= 1024 ? (kb / 1024).toFixed(2) + ' Mo' : Math.round(kb) + ' Ko';
-          sizeEl.title = 'Données Supabase : ' + sizeEl.textContent;
-          sizeEl.className = 'tool-size' + (bytes > 3e6 ? ' danger' : bytes > 1.5e6 ? ' warn' : '');
-        });
-        // Footer total
-        const el = document.getElementById('storage-summary');
-        if (!el) return;
-        const kb = totalBytes / 1024;
-        const label = kb >= 1024 ? (kb / 1024).toFixed(2) + ' Mo' : Math.round(kb) + ' Ko';
-        el.textContent = `Supabase — ${label} total · ${rows.length} entrée${rows.length > 1 ? 's' : ''}`;
-        el.className = totalBytes > 8e6 ? 'danger' : totalBytes > 4e6 ? 'warn' : '';
-        el.title = el.textContent;
-      } catch(e) { console.warn('Erreur chargement tailles:', e); }
-    }
-
     // ── Init ──────────────────────────────────────────────────────────────────
     async function init() {
-      // Afficher local immédiatement (pas de flash)
       render(mergeState(loadLocal()));
-
-      // Charger depuis Supabase et rafraîchir si nécessaire
       const remote = await loadFromSupabase();
       if (remote) {
         saveLocal(remote);
         render(mergeState(remote));
       }
-      loadSizes();
     }
 
     init();

@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Projet — Outils</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #ffffff;
+      --text: #111111;
+      --muted: #999999;
+      --line: #e7e7e7;
+    }
+
+    html { font-size: 13px; -webkit-font-smoothing: antialiased; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    .layout { max-width: 680px; margin: 0 auto; padding: 56px 32px 80px; }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 28px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 52px;
+    }
+
+    .header-left { display: flex; align-items: center; gap: 16px; }
+
+    .back-link {
+      font-size: 11px; color: var(--muted); text-decoration: none;
+      letter-spacing: 0.06em; transition: color 150ms;
+    }
+    .back-link:hover { color: var(--text); }
+
+    .site-title { font-size: 11px; font-weight: 400; letter-spacing: 0.1em; text-transform: uppercase; }
+    .site-author { font-size: 11px; color: var(--muted); letter-spacing: 0.04em; }
+
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+
+    /* Project header */
+    .project-header { margin-bottom: 52px; }
+    .project-title { font-size: 22px; font-weight: 400; letter-spacing: -0.01em; margin-bottom: 6px; }
+    .project-meta { display: flex; align-items: center; gap: 16px; }
+    .project-format { font-size: 12px; color: var(--muted); }
+
+    .section-toggle {
+      display: inline-flex; gap: 0;
+      border: 1px solid var(--line); border-radius: 3px; overflow: hidden;
+    }
+    .section-toggle button {
+      background: none; border: none; cursor: pointer;
+      font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--muted); padding: 4px 10px; transition: background 100ms, color 100ms;
+    }
+    .section-toggle button.active {
+      background: var(--text); color: var(--bg);
+    }
+
+    /* Sections */
+    .section { margin-bottom: 48px; }
+    .section-label {
+      font-size: 10px; font-weight: 400; letter-spacing: 0.14em;
+      text-transform: uppercase; color: var(--muted); margin-bottom: 16px;
+    }
+
+    /* Tools */
+    .tool-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 0; border-bottom: 1px solid var(--line);
+    }
+    .tool-row:first-of-type { border-top: 1px solid var(--line); }
+
+    .tool-info { min-width: 0; }
+    .tool-name { font-size: 13px; }
+    .tool-actions { display: flex; align-items: center; gap: 16px; flex-shrink: 0; }
+
+    .btn-open {
+      font-size: 11px; color: var(--text); text-decoration: none;
+      letter-spacing: 0.04em; border-bottom: 1px solid var(--line);
+      padding-bottom: 1px; transition: border-color 180ms;
+    }
+    .btn-open:hover { border-color: var(--text); }
+
+    .btn-remove {
+      background: none; border: none; cursor: pointer;
+      font-size: 14px; color: var(--muted); line-height: 1;
+      padding: 0 2px; opacity: 0; transition: opacity 150ms, color 150ms;
+    }
+    .tool-row:hover .btn-remove { opacity: 1; }
+    .btn-remove:hover { color: var(--text); }
+
+    .no-tools { font-size: 12px; color: var(--muted); padding: 14px 0; }
+
+    .add-tool-wrap { position: relative; margin-top: 16px; }
+    .btn-add-tool {
+      background: none; border: 1px solid var(--line); border-radius: 3px;
+      cursor: pointer; font-size: 11px; color: var(--muted);
+      letter-spacing: 0.06em; padding: 8px 14px;
+      transition: border-color 150ms, color 150ms;
+    }
+    .btn-add-tool:hover { border-color: var(--text); color: var(--text); }
+
+    .tool-dropdown {
+      position: absolute; left: 0; top: calc(100% + 6px);
+      background: #fff; border: 1px solid var(--line);
+      border-radius: 4px; box-shadow: 0 4px 18px rgba(0,0,0,.1);
+      z-index: 200; min-width: 200px; overflow: hidden;
+    }
+    .tool-dropdown button {
+      display: block; width: 100%; text-align: left;
+      background: none; border: none; cursor: pointer;
+      padding: 11px 14px; font-size: 12px; color: var(--text);
+      transition: background 100ms;
+    }
+    .tool-dropdown button:hover { background: var(--line); }
+
+    /* FDX */
+    .fdx-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 0; border-bottom: 1px solid var(--line); border-top: 1px solid var(--line);
+    }
+    .fdx-name { font-size: 12px; color: var(--muted); font-style: italic; }
+    .fdx-name.set { color: var(--text); font-style: normal; }
+    .btn-fdx {
+      background: none; border: none; cursor: pointer;
+      font-size: 11px; color: var(--muted); letter-spacing: 0.04em;
+      border-bottom: 1px solid transparent; padding-bottom: 1px;
+      transition: color 150ms, border-color 150ms;
+    }
+    .btn-fdx:hover { color: var(--text); border-color: var(--line); }
+
+    footer { margin-top: 80px; padding-top: 20px; border-top: 1px solid var(--line); }
+    .footer-text { font-size: 10px; color: var(--muted); letter-spacing: 0.06em; }
+  </style>
+</head>
+<body>
+  <div class="layout">
+
+    <header>
+      <div class="header-left">
+        <a href="/" class="back-link">← Projets</a>
+        <span class="site-title">Outils</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div id="sync-dot" style="width:7px;height:7px;border-radius:50%;background:#bbbbbb;flex-shrink:0;transition:background 300ms;"></div>
+        <span class="site-author">Charles Grenier</span>
+      </div>
+    </header>
+
+    <div class="project-header">
+      <h1 class="project-title" id="project-title">—</h1>
+      <div class="project-meta">
+        <span class="project-format" id="project-format"></span>
+        <div class="section-toggle" id="section-toggle">
+          <button data-section="en-cours">En cours</button>
+          <button data-section="en-dev">En développement</button>
+        </div>
+      </div>
+    </div>
+
+    <section class="section">
+      <p class="section-label">Outils</p>
+      <div id="tools-list"></div>
+      <div class="add-tool-wrap" id="add-tool-wrap"></div>
+    </section>
+
+    <section class="section">
+      <p class="section-label">Scénario</p>
+      <div class="fdx-row">
+        <span class="fdx-name" id="fdx-name">Aucun fichier FDX associé</span>
+        <button class="btn-fdx" id="btn-fdx">Associer</button>
+      </div>
+      <p style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.6;">
+        Pour l'instant, ce champ est informatif. L'import FDX sera disponible ici prochainement.
+      </p>
+    </section>
+
+    <footer>
+      <p class="footer-text">outils.charlesgrenier.com</p>
+    </footer>
+
+  </div>
+
+  <script>
+    const STORAGE_KEY  = 'outils_landing_v1';
+    const SUPABASE_URL = 'https://dvivafrldxzhkactsvve.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2aXZhZnJsZHh6aGthY3RzdnZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyMzQ5MDgsImV4cCI6MjA5NDgxMDkwOH0.EgyxWDERi443hefaM0LxDYDhLWQYx31feKzQ1bQU5Kc';
+
+    const params = new URLSearchParams(location.search);
+    const projectId = params.get('p');
+
+    if (!projectId) location.href = '/';
+
+    const AVAILABLE_TOOLS = [
+      {
+        id: 'tableau-lieux',
+        label: 'Tableau des lieux',
+        buildHref: p => '/tableau-des-lieux/?p=' + encodeURIComponent(p.id) + '&n=' + encodeURIComponent(p.name),
+        buildKey:  p => p.id === 'les-chacals' ? 'chacals_v2' : p.id + '_tdl'
+      },
+      {
+        id: 'decoupage',
+        label: 'Découpage technique',
+        buildHref: p => '/decoupage/?p=' + encodeURIComponent(p.id) + '&n=' + encodeURIComponent(p.name),
+        buildKey:  p => p.id + '_dec'
+      }
+    ];
+
+    const DEFAULT_PROJECTS = [
+      { id: 'derniere-saison', name: 'La dernière saison',      format: 'Série télévision', section: 'en-cours', tools: [] },
+      { id: 'premier-trio',    name: 'Premier trio — Saison 4', format: 'Série télévision', section: 'en-cours', tools: [] },
+      { id: 'les-chacals',     name: 'Les Chacals',             format: 'Long-métrage',     section: 'en-dev',   tools: [{ id: 'tableau-lieux', label: 'Tableau des lieux', href: '/tableau-des-lieux/?p=les-chacals&n=Les+Chacals', supabaseKey: 'chacals_v2' }] },
+      { id: 'aimer-pour-deux', name: 'Aimer pour deux',         format: 'Long-métrage',     section: 'en-dev',   tools: [] },
+      { id: 'au-dela-terril',  name: 'Au-delà du terril',       format: 'Long-métrage',     section: 'en-dev',   tools: [] },
+      { id: 'contritions',     name: 'Contritions / Clippeurs', format: 'Long-métrage',     section: 'en-dev',   tools: [] },
+      { id: 'helga-testorf',   name: 'Helga Testorf',           format: 'Long-métrage',     section: 'en-dev',   tools: [] },
+      { id: 'maison-lynch',    name: 'La maison du rang Lynch', format: 'Long-métrage',     section: 'en-dev',   tools: [] },
+      { id: 'les-enfants',     name: 'Les enfants',             format: 'Série télévision', section: 'en-dev',   tools: [] },
+    ];
+
+    let projects = [];
+    let currentProject = null;
+
+    // ── Supabase ──────────────────────────────────────────────────────────────
+    let sb = null;
+    try { sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e) {}
+
+    function setSyncStatus(s) {
+      const dot = document.getElementById('sync-dot');
+      if (!dot) return;
+      const colors = { idle: '#bbbbbb', syncing: '#f0a500', synced: '#5a9a6a', error: '#cc3333' };
+      dot.style.background = colors[s] || '#bbbbbb';
+      dot.style.animation = s === 'syncing' ? 'pulse .9s infinite' : '';
+    }
+
+    async function loadFromSupabase() {
+      if (!sb) return null;
+      try {
+        const { data, error } = await sb.from('project_data').select('data').eq('key', STORAGE_KEY).single();
+        if (error || !data) return null;
+        return data.data;
+      } catch(e) { return null; }
+    }
+
+    async function saveToSupabase(state) {
+      setSyncStatus('syncing');
+      if (!sb) { setTimeout(() => setSyncStatus('idle'), 1500); return; }
+      try {
+        const { error } = await sb.from('project_data').upsert({ key: STORAGE_KEY, data: state, updated_at: new Date().toISOString() });
+        if (error) throw error;
+        setSyncStatus('synced');
+        setTimeout(() => setSyncStatus('idle'), 2000);
+      } catch(e) { setSyncStatus('error'); }
+    }
+
+    function saveLocal(state) { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+    function loadLocal() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch(e) { return null; } }
+
+    function mergeState(saved) {
+      const defaultById = {};
+      DEFAULT_PROJECTS.forEach(p => defaultById[p.id] = p);
+      if (!saved || !Array.isArray(saved)) return DEFAULT_PROJECTS.map(p => ({ ...p }));
+      return saved.map(s => {
+        if (!defaultById[s.id]) return null;
+        const def = defaultById[s.id];
+        return { ...def, section: s.section, tools: (s.tools && s.tools.length) ? s.tools : (def.tools || []), fdx: s.fdx || '' };
+      }).filter(Boolean);
+    }
+
+    function persistState() {
+      const state = projects.map(p => ({ id: p.id, section: p.section, tools: p.tools || [], fdx: p.fdx || '' }));
+      saveLocal(state);
+      saveToSupabase(state);
+    }
+
+    // ── Render ────────────────────────────────────────────────────────────────
+    function renderTools() {
+      const p = currentProject;
+      const list = document.getElementById('tools-list');
+      list.innerHTML = '';
+
+      if (!p.tools || !p.tools.length) {
+        const empty = document.createElement('p');
+        empty.className = 'no-tools';
+        empty.textContent = 'Aucun outil ajouté.';
+        list.appendChild(empty);
+      } else {
+        p.tools.forEach(t => {
+          const row = document.createElement('div');
+          row.className = 'tool-row';
+
+          const info = document.createElement('div');
+          info.className = 'tool-info';
+          info.innerHTML = `<div class="tool-name">${t.label}</div>`;
+
+          const actions = document.createElement('div');
+          actions.className = 'tool-actions';
+
+          const a = document.createElement('a');
+          a.className = 'btn-open';
+          a.href = t.href;
+          a.textContent = 'Ouvrir';
+
+          const rmBtn = document.createElement('button');
+          rmBtn.className = 'btn-remove';
+          rmBtn.title = 'Retirer';
+          rmBtn.textContent = '×';
+          rmBtn.addEventListener('click', async () => {
+            if (!confirm('Retirer « ' + t.label + ' » ?\n\nToutes les données seront supprimées définitivement.')) return;
+            p.tools = p.tools.filter(x => x.id !== t.id);
+            if (t.supabaseKey && sb) {
+              try { await sb.from('project_data').delete().eq('key', t.supabaseKey); } catch(e) {}
+            }
+            persistState();
+            renderTools();
+            renderAddButton();
+          });
+
+          actions.appendChild(a);
+          actions.appendChild(rmBtn);
+          row.appendChild(info);
+          row.appendChild(actions);
+          list.appendChild(row);
+        });
+      }
+    }
+
+    function renderAddButton() {
+      const p = currentProject;
+      const wrap = document.getElementById('add-tool-wrap');
+      wrap.innerHTML = '';
+
+      const addedIds = new Set((p.tools || []).map(t => t.id));
+      const remaining = AVAILABLE_TOOLS.filter(t => !addedIds.has(t.id));
+      if (!remaining.length) return;
+
+      const btn = document.createElement('button');
+      btn.className = 'btn-add-tool';
+      btn.textContent = '+ Ajouter un outil';
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        if (wrap.querySelector('.tool-dropdown')) { wrap.querySelector('.tool-dropdown').remove(); return; }
+        const dd = document.createElement('div');
+        dd.className = 'tool-dropdown';
+        remaining.forEach(toolDef => {
+          const item = document.createElement('button');
+          item.textContent = toolDef.label;
+          item.addEventListener('click', e => {
+            e.stopPropagation();
+            if (!p.tools) p.tools = [];
+            p.tools.push({ id: toolDef.id, label: toolDef.label, href: toolDef.buildHref(p), supabaseKey: toolDef.buildKey ? toolDef.buildKey(p) : null });
+            persistState();
+            renderTools();
+            renderAddButton();
+            dd.remove();
+          });
+          dd.appendChild(item);
+        });
+        wrap.appendChild(dd);
+      });
+      wrap.appendChild(btn);
+    }
+
+    function renderFdx() {
+      const p = currentProject;
+      const nameEl = document.getElementById('fdx-name');
+      const btn = document.getElementById('btn-fdx');
+      if (p.fdx) {
+        nameEl.textContent = p.fdx;
+        nameEl.classList.add('set');
+        btn.textContent = 'Modifier';
+      } else {
+        nameEl.textContent = 'Aucun fichier FDX associé';
+        nameEl.classList.remove('set');
+        btn.textContent = 'Associer';
+      }
+      btn.onclick = () => {
+        const val = prompt('Nom du fichier FDX (ex: mon-film.fdx) :', p.fdx || '');
+        if (val === null) return;
+        p.fdx = val.trim();
+        persistState();
+        renderFdx();
+      };
+    }
+
+    function renderSectionToggle() {
+      const toggle = document.getElementById('section-toggle');
+      toggle.querySelectorAll('button').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.section === currentProject.section);
+        btn.addEventListener('click', () => {
+          currentProject.section = btn.dataset.section;
+          persistState();
+          renderSectionToggle();
+        });
+      });
+    }
+
+    function renderPage() {
+      document.title = currentProject.name + ' — Outils';
+      document.getElementById('project-title').textContent = currentProject.name;
+      document.getElementById('project-format').textContent = currentProject.format;
+      renderSectionToggle();
+      renderTools();
+      renderAddButton();
+      renderFdx();
+    }
+
+    document.addEventListener('click', e => {
+      if (!e.target.closest('.add-tool-wrap')) {
+        document.querySelectorAll('.tool-dropdown').forEach(d => d.remove());
+      }
+    });
+
+    // ── Init ──────────────────────────────────────────────────────────────────
+    async function init() {
+      let state = mergeState(loadLocal());
+      projects = state;
+      currentProject = projects.find(p => p.id === projectId);
+      if (!currentProject) { location.href = '/'; return; }
+      renderPage();
+
+      const remote = await loadFromSupabase();
+      if (remote) {
+        saveLocal(remote);
+        projects = mergeState(remote);
+        currentProject = projects.find(p => p.id === projectId);
+        if (currentProject) renderPage();
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>
