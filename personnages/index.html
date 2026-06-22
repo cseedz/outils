@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<title>Personnages</title>
+<style>
+:root {
+  --bg: #f8f8f8; --card: #fff; --text: #111; --muted: #888; --line: #e7e7e7;
+  --accent: #111; --accent2: #555; --badge: #f0f0f0; --r: 8px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 13px; -webkit-font-smoothing: antialiased; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; }
+
+/* TOPBAR */
+.topbar { position: sticky; top: 0; z-index: 50; background: rgba(248,248,248,.95); backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); padding: 0 24px; height: 48px; display: flex; align-items: center; gap: 16px; }
+.topbar-back { color: var(--accent2); text-decoration: none; font-size: 13px; white-space: nowrap; }
+.topbar-back:hover { color: var(--accent); }
+.topbar-title { font-size: 14px; font-weight: 600; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sync-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--line); transition: background 300ms; flex-shrink: 0; }
+.sync-dot.syncing { background: #f0a500; }
+.sync-dot.synced  { background: #5a9a6a; }
+.sync-dot.error   { background: #cc3333; }
+
+/* CONTROLS */
+.controls { display: flex; align-items: center; gap: 10px; padding: 14px 24px 10px; }
+.search-wrap { flex: 1; position: relative; max-width: 300px; }
+.search-input { width: 100%; border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px 6px 28px; font-size: 13px; font-family: inherit; outline: none; background: var(--card); }
+.search-input:focus { border-color: #aaa; }
+.search-icon { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 12px; pointer-events: none; }
+.sort-group { display: flex; gap: 4px; }
+.sort-btn { border: 1px solid var(--line); border-radius: 6px; background: var(--card); padding: 6px 10px; font-size: 12px; font-family: inherit; cursor: pointer; color: var(--muted); }
+.sort-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.count-label { font-size: 12px; color: var(--muted); margin-left: auto; white-space: nowrap; }
+
+/* TABLE */
+.table-wrap { padding: 0 24px 40px; }
+.char-table { width: 100%; border-collapse: collapse; }
+.char-table thead th { text-align: left; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; padding: 6px 10px; border-bottom: 1px solid var(--line); position: sticky; top: 48px; background: var(--bg); z-index: 10; }
+.char-table thead th.num { width: 36px; text-align: right; }
+.char-table thead th.sc-col { width: 72px; text-align: center; }
+.char-table thead th.rep-col { width: 72px; text-align: center; }
+.char-table thead th.act-col { width: 200px; }
+.char-table thead th.note-col { width: 160px; }
+
+/* CHAR ROW */
+.char-row td { padding: 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+.char-row:last-child td { border-bottom: none; }
+.char-row:hover .char-main-row { background: #f5f5f5; }
+
+.char-main-row { display: flex; align-items: center; gap: 10px; padding: 10px; cursor: pointer; }
+.char-num { font-size: 11px; color: var(--muted); width: 28px; text-align: right; flex-shrink: 0; }
+.char-name-wrap { flex: 1; min-width: 0; }
+.char-script-name { font-size: 13px; font-weight: 600; }
+.char-real-name { font-size: 12px; color: var(--muted); }
+.char-badges { display: flex; gap: 5px; align-items: center; flex-shrink: 0; }
+.badge { font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 9px; }
+.badge-sc { background: #e8f0ff; color: #2255cc; }
+.badge-rep { background: var(--badge); color: var(--muted); }
+.char-actor { font-size: 12px; color: var(--accent2); flex-shrink: 0; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.char-chevron { color: var(--muted); font-size: 11px; transition: transform 180ms; flex-shrink: 0; }
+.char-row.open .char-chevron { transform: rotate(90deg); }
+
+/* EXPAND PANEL */
+.char-expand { display: none; padding: 0 10px 14px 48px; }
+.char-row.open .char-expand { display: block; }
+.expand-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+.field-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 3px; }
+.field-input { width: 100%; border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; font-size: 13px; font-family: inherit; outline: none; background: var(--bg); }
+.field-input:focus { border-color: #aaa; background: var(--card); }
+.field-notes { grid-column: 1 / -1; }
+.field-notes .field-input { resize: vertical; min-height: 52px; }
+.scene-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.scene-chip { font-size: 11px; font-weight: 500; padding: 2px 7px; border-radius: 9px; background: var(--badge); color: var(--accent2); }
+.scene-chip.has-lines { background: #e8f0ff; color: #2255cc; }
+.scenes-lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 5px; }
+
+/* EMPTY */
+.empty { text-align: center; padding: 60px 24px; color: var(--muted); }
+.empty p { font-size: 14px; line-height: 1.6; }
+.empty a { color: var(--accent); }
+
+/* TOAST */
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(16px); background: rgba(0,0,0,.8); color: #fff; font-size: 13px; font-weight: 500; padding: 8px 18px; border-radius: 16px; opacity: 0; transition: opacity 180ms, transform 180ms; pointer-events: none; z-index: 200; white-space: nowrap; }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a class="topbar-back" id="back-link">← Projet</a>
+  <div class="topbar-title" id="page-title">Personnages</div>
+  <div class="sync-dot" id="sync-dot"></div>
+</div>
+
+<div class="controls">
+  <div class="search-wrap">
+    <span class="search-icon">⌕</span>
+    <input class="search-input" id="search-input" type="text" placeholder="Chercher un personnage…">
+  </div>
+  <div class="sort-group">
+    <button class="sort-btn active" data-sort="scenes">Scènes</button>
+    <button class="sort-btn" data-sort="lignes">Lignes</button>
+    <button class="sort-btn" data-sort="nom">Nom</button>
+  </div>
+  <div class="count-label" id="count-label"></div>
+</div>
+
+<div class="table-wrap">
+  <table class="char-table">
+    <thead>
+      <tr>
+        <th class="num">#</th>
+        <th>Personnage</th>
+        <th class="sc-col">Scènes</th>
+        <th class="rep-col">Répliques</th>
+        <th class="act-col">Acteur·ice</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="char-tbody"></tbody>
+  </table>
+  <div id="empty-state" style="display:none;">
+    <div class="empty">
+      <p>Aucun personnage trouvé.<br>
+      <a id="empty-link" href="#">Importer un FDX</a> depuis la page projet pour extraire les personnages automatiquement.</p>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── CONFIG ──────────────────────────────────────────────────────────────────
+const _urlP        = new URLSearchParams(location.search);
+const _projectId   = _urlP.get('p') || 'unnamed';
+const _projectName = decodeURIComponent(_urlP.get('n') || _projectId);
+const KEY          = _projectId + '_personnages';
+const SCENES_KEY   = _projectId + '_scenes';
+const SUPABASE_URL = 'https://dvivafrldxzhkactsvve.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2aXZhZnJsZHh6aGthY3RzdnZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyMzQ5MDgsImV4cCI6MjA5NDgxMDkwOH0.EgyxWDERi443hefaM0LxDYDhLWQYx31feKzQ1bQU5Kc';
+
+let sb = null;
+try { sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e) {}
+
+// ─── STATE ───────────────────────────────────────────────────────────────────
+let scenes   = [];   // imported_scenes_raw from {id}_scenes
+let persData = {};   // { [SCRIPT_NAME]: { nomReel, acteur, notes } }
+let derived  = [];   // computed: [{ name, sceneCount, lineCount, sceneList }]
+let sortKey  = 'scenes';
+let query    = '';
+let _saveDebounce = null;
+
+// ─── SYNC ────────────────────────────────────────────────────────────────────
+function setSyncStatus(s) {
+  const el = document.getElementById('sync-dot');
+  if (el) el.className = 'sync-dot ' + s;
+}
+
+let _toastTimer = null;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// ─── LOAD / SAVE ─────────────────────────────────────────────────────────────
+async function loadData() {
+  if (!sb) { setSyncStatus('error'); return; }
+  setSyncStatus('syncing');
+  try {
+    const [{ data: scenesRow }, { data: persRow }] = await Promise.all([
+      sb.from('project_data').select('data').eq('key', SCENES_KEY).maybeSingle(),
+      sb.from('project_data').select('data').eq('key', KEY).maybeSingle()
+    ]);
+    scenes   = scenesRow?.data?.imported_scenes_raw || [];
+    persData = persRow?.data || {};
+    setSyncStatus('synced');
+  } catch(e) { setSyncStatus('error'); console.warn('load error:', e); }
+}
+
+function saveData() {
+  if (!sb) return;
+  setSyncStatus('syncing');
+  clearTimeout(_saveDebounce);
+  _saveDebounce = setTimeout(async () => {
+    try {
+      const { error } = await sb.from('project_data').upsert({ key: KEY, data: persData, updated_at: new Date().toISOString() });
+      if (error) throw error;
+      setSyncStatus('synced');
+    } catch(e) { setSyncStatus('error'); }
+  }, 700);
+}
+
+// ─── DERIVE ──────────────────────────────────────────────────────────────────
+function derivePersonnages() {
+  const map = {}; // { name: { sceneSet, totalLines } }
+  scenes.forEach(s => {
+    const charLines   = s.charLines   || {};
+    const charPresent = s.charPresent || [];
+    charPresent.forEach(name => {
+      if (!map[name]) map[name] = { sceneSet: new Set(), totalLines: 0 };
+      map[name].sceneSet.add(s.sc);
+    });
+    Object.entries(charLines).forEach(([name, count]) => {
+      if (!map[name]) map[name] = { sceneSet: new Set(), totalLines: 0 };
+      map[name].sceneSet.add(s.sc);
+      map[name].totalLines += count;
+    });
+  });
+  derived = Object.entries(map).map(([name, d]) => ({
+    name,
+    sceneCount: d.sceneSet.size,
+    lineCount:  d.totalLines,
+    sceneList:  [...d.sceneSet]
+  }));
+}
+
+function sortedFiltered() {
+  let list = derived.slice();
+  if (query) {
+    const q = query.toLowerCase();
+    list = list.filter(p => {
+      const enrich = persData[p.name] || {};
+      return p.name.toLowerCase().includes(q)
+          || (enrich.nomReel  || '').toLowerCase().includes(q)
+          || (enrich.acteur   || '').toLowerCase().includes(q);
+    });
+  }
+  list.sort((a, b) => {
+    if (sortKey === 'scenes') return b.sceneCount - a.sceneCount || b.lineCount - a.lineCount;
+    if (sortKey === 'lignes') return b.lineCount  - a.lineCount  || b.sceneCount - a.sceneCount;
+    return a.name.localeCompare(b.name, 'fr');
+  });
+  return list;
+}
+
+// ─── RENDER ──────────────────────────────────────────────────────────────────
+function escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function renderTable() {
+  const list = sortedFiltered();
+  const tbody = document.getElementById('char-tbody');
+  const empty = document.getElementById('empty-state');
+
+  if (!derived.length) {
+    tbody.innerHTML = '';
+    empty.style.display = 'block';
+    document.getElementById('count-label').textContent = '';
+    return;
+  }
+  empty.style.display = 'none';
+  document.getElementById('count-label').textContent = list.length === derived.length
+    ? `${derived.length} personnage${derived.length > 1 ? 's' : ''}`
+    : `${list.length} / ${derived.length}`;
+
+  tbody.innerHTML = list.map((p, idx) => {
+    const enrich = persData[p.name] || {};
+    const realName = enrich.nomReel ? `<div class="char-real-name">${escHtml(enrich.nomReel)}</div>` : '';
+    const actorStr = enrich.acteur ? escHtml(enrich.acteur) : '';
+
+    // Scene chips — speaking scenes in blue
+    const speakingScenes = new Set();
+    scenes.forEach(s => {
+      if (s.charLines && s.charLines[p.name]) speakingScenes.add(String(s.sc));
+    });
+    const chips = p.sceneList
+      .sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }))
+      .map(sc => {
+        const cls = speakingScenes.has(String(sc)) ? 'scene-chip has-lines' : 'scene-chip';
+        return `<span class="${cls}">SC${escHtml(sc)}</span>`;
+      }).join('');
+
+    return `
+      <tr class="char-row" id="char-${escHtml(p.name)}">
+        <td>
+          <div class="char-main-row" onclick="toggleChar('${escHtml(p.name)}')">
+            <div class="char-num">${idx + 1}</div>
+            <div class="char-name-wrap">
+              <div class="char-script-name">${escHtml(p.name)}</div>
+              ${realName}
+            </div>
+            <div class="char-badges">
+              <span class="badge badge-sc">${p.sceneCount} sc.</span>
+              ${p.lineCount ? `<span class="badge badge-rep">${p.lineCount} rép.</span>` : ''}
+            </div>
+            ${actorStr ? `<div class="char-actor">${actorStr}</div>` : ''}
+            <span class="char-chevron">›</span>
+          </div>
+          <div class="char-expand">
+            <div class="expand-grid">
+              <div>
+                <div class="field-label">Nom réel du personnage</div>
+                <input class="field-input" type="text" placeholder="Ex: Xavier Beaulieu"
+                  value="${escHtml(enrich.nomReel || '')}"
+                  onchange="updateField('${escHtml(p.name)}', 'nomReel', this.value)"
+                  onblur="updateField('${escHtml(p.name)}', 'nomReel', this.value)">
+              </div>
+              <div>
+                <div class="field-label">Acteur · Actrice</div>
+                <input class="field-input" type="text" placeholder="Nom de l'interprète"
+                  value="${escHtml(enrich.acteur || '')}"
+                  onchange="updateField('${escHtml(p.name)}', 'acteur', this.value)"
+                  onblur="updateField('${escHtml(p.name)}', 'acteur', this.value)">
+              </div>
+              <div class="field-notes">
+                <div class="field-label">Notes</div>
+                <textarea class="field-input" placeholder="Disponibilités, contacts, contraintes…"
+                  onchange="updateField('${escHtml(p.name)}', 'notes', this.value)"
+                  onblur="updateField('${escHtml(p.name)}', 'notes', this.value)">${escHtml(enrich.notes || '')}</textarea>
+              </div>
+            </div>
+            <div class="scenes-lbl">Présent dans</div>
+            <div class="scene-chips">${chips}</div>
+          </div>
+        </td>
+      </tr>`;
+  }).join('');
+}
+
+// ─── INTERACTIONS ─────────────────────────────────────────────────────────────
+function toggleChar(name) {
+  const row = document.getElementById('char-' + name);
+  if (row) row.classList.toggle('open');
+}
+
+function updateField(name, field, value) {
+  if (!persData[name]) persData[name] = {};
+  if (persData[name][field] === value) return;
+  persData[name][field] = value;
+  // Update display without full re-render
+  const row = document.getElementById('char-' + name);
+  if (row) {
+    const nameWrap = row.querySelector('.char-name-wrap');
+    if (nameWrap && field === 'nomReel') {
+      let realEl = nameWrap.querySelector('.char-real-name');
+      if (!realEl && value) {
+        realEl = document.createElement('div');
+        realEl.className = 'char-real-name';
+        nameWrap.appendChild(realEl);
+      }
+      if (realEl) realEl.textContent = value;
+    }
+    if (field === 'acteur') {
+      let actorEl = row.querySelector('.char-actor');
+      if (!actorEl && value) {
+        actorEl = document.createElement('div');
+        actorEl.className = 'char-actor';
+        row.querySelector('.char-main-row').insertBefore(actorEl, row.querySelector('.char-chevron'));
+      }
+      if (actorEl) actorEl.textContent = value;
+    }
+  }
+  saveData();
+}
+
+// ─── SORT / SEARCH ────────────────────────────────────────────────────────────
+document.querySelectorAll('.sort-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    sortKey = btn.dataset.sort;
+    document.querySelectorAll('.sort-btn').forEach(b => b.classList.toggle('active', b === btn));
+    renderTable();
+  });
+});
+
+document.getElementById('search-input').addEventListener('input', e => {
+  query = e.target.value.trim();
+  renderTable();
+});
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+async function init() {
+  document.title = _projectName + ' — Personnages';
+  document.getElementById('page-title').textContent = _projectName + ' — Personnages';
+  const projectUrl = `/projet/?p=${encodeURIComponent(_projectId)}&n=${encodeURIComponent(_projectName)}`;
+  document.getElementById('back-link').href = projectUrl;
+  const emptyLink = document.getElementById('empty-link');
+  if (emptyLink) emptyLink.href = projectUrl;
+
+  await loadData();
+  derivePersonnages();
+  renderTable();
+}
+
+init();
+</script>
+</body>
+</html>

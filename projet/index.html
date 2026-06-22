@@ -215,6 +215,12 @@
         label: 'Découpage technique',
         buildHref: p => '/decoupage/?p=' + encodeURIComponent(p.id) + '&n=' + encodeURIComponent(p.name),
         buildKey:  p => p.id + '_dec'
+      },
+      {
+        id: 'personnages',
+        label: 'Personnages',
+        buildHref: p => '/personnages/?p=' + encodeURIComponent(p.id) + '&n=' + encodeURIComponent(p.name),
+        buildKey:  p => p.id + '_personnages'
       }
     ];
 
