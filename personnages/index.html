@@ -50,26 +50,32 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans
 .char-table thead th.act-col { width: 200px; }
 
 /* CHAR ROW */
-.char-row td { padding: 0; border-bottom: 1px solid var(--border); vertical-align: top; }
+.char-row { cursor: pointer; }
+.char-row td { padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
 .char-row:last-child td { border-bottom: none; }
-.char-row:hover .char-main-row { background: var(--bg2); }
-
-.char-main-row { display: flex; align-items: center; gap: 10px; padding: 7px 10px; cursor: pointer; }
-.char-num { font-size: 11px; color: var(--text-muted); width: 28px; text-align: right; flex-shrink: 0; }
-.char-name-wrap { flex: 1; min-width: 0; }
+.char-row:hover td { background: var(--bg2); }
+.char-row.open td { background: var(--bg2); }
+.char-table td.td-num  { width: 36px;  text-align: right; font-size: 11px; color: var(--text-muted); }
+.char-table td.td-sc   { width: 72px;  text-align: center; }
+.char-table td.td-rep  { width: 72px;  text-align: center; }
+.char-table td.td-act  { width: 200px; }
+.char-table td.td-chev { width: 28px;  text-align: center; }
+.char-name-wrap { min-width: 0; }
 .char-script-name { font-size: 13px; font-weight: 600; }
 .char-real-name { font-size: 12px; color: var(--text-muted); }
-.char-badges { display: flex; gap: 5px; align-items: center; flex-shrink: 0; }
 .badge { display: inline-block; padding: 2px 7px; border-radius: 3px; font-size: 10px; font-weight: 600; letter-spacing: 0.4px; white-space: nowrap; }
 .badge-sc { background: rgba(45,106,138,.1); color: #1a5a7a; border: 1px solid rgba(45,106,138,.3); }
 .badge-rep { background: var(--bg3); color: var(--text-muted); border: 1px solid var(--border); }
-.char-actor { font-size: 12px; color: var(--accent2); flex-shrink: 0; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.char-chevron { color: var(--text-muted); font-size: 11px; transition: transform 180ms; flex-shrink: 0; }
+.char-actor { font-size: 12px; color: var(--accent2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.char-chevron { color: var(--text-muted); font-size: 11px; transition: transform 180ms; display: block; text-align: center; }
 .char-row.open .char-chevron { transform: rotate(90deg); }
 
+/* EXPAND ROW */
+.char-expand-row { display: none; }
+.char-expand-row td { padding: 0; border-bottom: 1px solid var(--border); }
+
 /* EXPAND PANEL */
-.char-expand { display: none; padding: 10px 10px 14px 48px; background: var(--bg2); border-top: 1px solid var(--border); }
-.char-row.open .char-expand { display: block; }
+.char-expand { padding: 10px 10px 14px 20px; background: var(--bg2); }
 .expand-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
 .field-label { font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 3px; }
 .field-input { width: 100%; border: 1px solid var(--border); border-radius: 5px; padding: 6px 8px; font-size: 12px; font-family: inherit; outline: none; background: var(--bg3); color: var(--text); }
@@ -392,22 +398,22 @@ function renderTable() {
       }).join('');
 
     return `
-      <tr class="char-row" id="char-${escHtml(p.name)}">
+      <tr class="char-row" id="char-${escHtml(p.name)}" onclick="toggleChar('${escHtml(p.name)}')">
+        <td class="td-num">${idx + 1}</td>
         <td>
-          <div class="char-main-row" onclick="toggleChar('${escHtml(p.name)}')">
-            <div class="char-num">${idx + 1}</div>
-            <div class="char-name-wrap">
-              <div class="char-script-name">${escHtml(p.name)}</div>
-              ${realName}
-            </div>
-            <div class="char-badges">
-              <span class="badge badge-sc">${p.sceneCount} sc.</span>
-              ${p.lineCount ? `<span class="badge badge-rep">${p.lineCount} rép.</span>` : ''}
-            </div>
-            ${actorStr ? `<div class="char-actor">${actorStr}</div>` : ''}
-            <span class="char-chevron">›</span>
+          <div class="char-name-wrap">
+            <div class="char-script-name">${escHtml(p.name)}</div>
+            ${realName}
           </div>
-          <div class="char-expand">
+        </td>
+        <td class="td-sc"><span class="badge badge-sc">${p.sceneCount} sc.</span></td>
+        <td class="td-rep">${p.lineCount ? `<span class="badge badge-rep">${p.lineCount} rép.</span>` : ''}</td>
+        <td class="td-act">${actorStr ? `<div class="char-actor">${actorStr}</div>` : ''}</td>
+        <td class="td-chev"><span class="char-chevron">›</span></td>
+      </tr>
+      <tr class="char-expand-row" id="expand-${escHtml(p.name)}">
+        <td colspan="6">
+          <div class="char-expand" onclick="event.stopPropagation()">
             <div class="expand-grid">
               <div>
                 <div class="field-label">Nom réel du personnage</div>
@@ -444,7 +450,10 @@ function renderTable() {
 // ─── INTERACTIONS ─────────────────────────────────────────────────────────────
 function toggleChar(name) {
   const row = document.getElementById('char-' + name);
-  if (row) row.classList.toggle('open');
+  const expandRow = document.getElementById('expand-' + name);
+  if (!row) return;
+  const isOpen = row.classList.toggle('open');
+  if (expandRow) expandRow.style.display = isOpen ? 'table-row' : 'none';
 }
 
 function updateField(name, field, value) {
@@ -465,13 +474,8 @@ function updateField(name, field, value) {
       if (realEl) realEl.textContent = value;
     }
     if (field === 'acteur') {
-      let actorEl = row.querySelector('.char-actor');
-      if (!actorEl && value) {
-        actorEl = document.createElement('div');
-        actorEl.className = 'char-actor';
-        row.querySelector('.char-main-row').insertBefore(actorEl, row.querySelector('.char-chevron'));
-      }
-      if (actorEl) actorEl.textContent = value;
+      const td = row.querySelector('td.td-act');
+      if (td) td.innerHTML = value ? `<div class="char-actor">${escHtml(value)}</div>` : '';
     }
   }
   saveData();
@@ -512,7 +516,11 @@ function subscribeToScenes() {
       renderTable();
       openNames.forEach(name => {
         const row = document.getElementById('char-' + name);
-        if (row) row.classList.add('open');
+        const expandRow = document.getElementById('expand-' + name);
+        if (row) {
+          row.classList.add('open');
+          if (expandRow) expandRow.style.display = 'table-row';
+        }
       });
       showToast('Scènes mises à jour');
     })
