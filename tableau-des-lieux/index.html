@@ -1294,7 +1294,8 @@ const SCENES_RAW = [];
 const _urlP = new URLSearchParams(window.location.search);
 const _projectId   = _urlP.get('p') || 'unnamed';
 const _projectName = decodeURIComponent(_urlP.get('n') || _projectId);
-const KEY = _projectId + '_tdl';
+const KEY        = _projectId + '_tdl';
+const SCENES_KEY = _projectId + '_scenes';
 const CLOUDINARY_CLOUD = 'dwr0aqtqr';
 const CLOUDINARY_PRESET = 'photos_locations';
 const SUPABASE_URL = 'https://dvivafrldxzhkactsvve.supabase.co';
@@ -1455,10 +1456,17 @@ async function syncToSupabase(data) {
   if (!sb) return;
   setSyncStatus('syncing');
   try {
+    const { imported_scenes_raw, fdxVersions, fdxImportMeta, totalEpisodes, ...tdlPayload } = data;
+    const scenesPayload = { imported_scenes_raw, fdxVersions, fdxImportMeta, totalEpisodes };
     const payloadSize = new Blob([JSON.stringify(data)]).size;
     updateSyncSize(payloadSize);
-    const { error } = await sb.from('project_data').upsert({ key: KEY, data, updated_at: new Date().toISOString() });
-    if (error) throw error;
+    const ts = new Date().toISOString();
+    const [r1, r2] = await Promise.all([
+      sb.from('project_data').upsert({ key: SCENES_KEY, data: scenesPayload, updated_at: ts }),
+      sb.from('project_data').upsert({ key: KEY,        data: tdlPayload,    updated_at: ts })
+    ]);
+    if (r1.error) throw r1.error;
+    if (r2.error) throw r2.error;
     setSyncStatus('synced');
   } catch(e) {
     setSyncStatus('error');
@@ -1481,11 +1489,28 @@ async function loadFromSupabase() {
         }
       }
     }
-    const { data: row, error } = await sb.from('project_data').select('data').eq('key', KEY).maybeSingle();
-    if (error) throw error;
-    if (row && row.data) {
-      applyData(row.data);
-      const d = row.data;
+    // Charger _tdl et _scenes en parallèle
+    const [{ data: tdlRow, error: tdlErr }, { data: scenesRow }] = await Promise.all([
+      sb.from('project_data').select('data').eq('key', KEY).maybeSingle(),
+      sb.from('project_data').select('data').eq('key', SCENES_KEY).maybeSingle()
+    ]);
+    if (tdlErr) throw tdlErr;
+    // Migration one-time : si _scenes n'existe pas encore, le bootstrapper depuis _tdl
+    let scenesData = scenesRow?.data || null;
+    if (!scenesData && tdlRow?.data) {
+      scenesData = {
+        imported_scenes_raw: tdlRow.data.imported_scenes_raw,
+        fdxVersions:         tdlRow.data.fdxVersions,
+        fdxImportMeta:       tdlRow.data.fdxImportMeta,
+        totalEpisodes:       tdlRow.data.totalEpisodes
+      };
+      await sb.from('project_data').upsert({ key: SCENES_KEY, data: scenesData, updated_at: new Date().toISOString() });
+    }
+    // _scenes a priorité sur les champs FDX ; _tdl fournit les enrichissements
+    const merged = { ...tdlRow?.data, ...scenesData };
+    if (Object.keys(merged).length) {
+      applyData(merged);
+      const d = merged;
       if (d.lieuColorOverrides) lieuColorOverrides = d.lieuColorOverrides;
       if (d.sousLieuColorOverrides) sousLieuColorOverrides = d.sousLieuColorOverrides;
       if (d.activePaletteKey && PALETTES[d.activePaletteKey]) {
