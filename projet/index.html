@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Projet — Outils</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="/src/fdx-parser.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -179,8 +180,8 @@
     <section class="section">
       <p class="section-label">Scénario</p>
       <div class="fdx-row">
-        <span class="fdx-name" id="fdx-name">Aucun fichier FDX associé</span>
-        <button class="btn-fdx" id="btn-fdx">Associer</button>
+        <button class="btn-fdx" id="btn-import-fdx">Importer FDX</button>
+        <input type="file" id="fdx-file-input" accept=".fdx" style="display:none;" multiple>
       </div>
       <div id="scenes-meta" style="margin-top:10px;"></div>
     </section>
@@ -397,25 +398,106 @@
     }
 
     function renderFdx() {
-      const p = currentProject;
-      const nameEl = document.getElementById('fdx-name');
-      const btn = document.getElementById('btn-fdx');
-      if (p.fdx) {
-        nameEl.textContent = p.fdx;
-        nameEl.classList.add('set');
-        btn.textContent = 'Modifier';
-      } else {
-        nameEl.textContent = 'Aucun fichier FDX associé';
-        nameEl.classList.remove('set');
-        btn.textContent = 'Associer';
+      const btn = document.getElementById('btn-import-fdx');
+      if (!btn) return;
+      btn.onclick = () => document.getElementById('fdx-file-input').click();
+      document.getElementById('fdx-file-input').onchange = onFdxFileChange;
+    }
+
+    async function onFdxFileChange(evt) {
+      const files = Array.from(evt.target.files);
+      if (!files.length) return;
+      evt.target.value = '';
+
+      // Lire tous les fichiers
+      const loaded = await Promise.all(files.map(f => f.text().then(t => ({ name: f.name, content: t }))));
+
+      // Parser avec auto-détection sur le premier fichier
+      let allScenes = [], allErrors = [];
+      for (const { name, content } of loaded) {
+        try {
+          const opts = _detectFdxOptions(content);
+          const parseOpts = {
+            sep: opts.suggestDash ? 'dash' : 'slash',
+            serieFormat: opts.hasCompactNums ? 'compact' : 'dot'
+          };
+          const { scenes, errors } = parseFDXToScenes(content, parseOpts);
+          allScenes = [...allScenes, ...scenes];
+          allErrors = [...allErrors, ...errors.map(e => loaded.length > 1 ? `[${name}] ${e}` : e)];
+        } catch(e) {
+          alert('Erreur FDX dans « ' + name + ' » : ' + e.message);
+          return;
+        }
       }
-      btn.onclick = () => {
-        const val = prompt('Nom du fichier FDX (ex: mon-film.fdx) :', p.fdx || '');
-        if (val === null) return;
-        p.fdx = val.trim();
-        persistState();
-        renderFdx();
-      };
+
+      // Dédoublonner par sc (dernier fichier gagne)
+      const scMap = new Map();
+      allScenes.forEach(s => scMap.set(s.sc, s));
+      const newScenes = [...scMap.values()].sort(_scSort);
+
+      if (!newScenes.length) { alert('Aucune scène trouvée dans ces fichiers.'); return; }
+
+      // Charger les données existantes
+      let existingData = null;
+      if (sb) {
+        try {
+          const { data: row } = await sb.from('project_data').select('data').eq('key', SCENES_KEY).maybeSingle();
+          existingData = row?.data || null;
+        } catch(e) {}
+      }
+
+      const existingCount = existingData?.imported_scenes_raw?.length || 0;
+      const filename = files.length === 1 ? files[0].name : `${files.length} fichiers FDX`;
+      let msg = `${newScenes.length} scène${newScenes.length > 1 ? 's' : ''} trouvée${newScenes.length > 1 ? 's' : ''} dans « ${filename} ».`;
+      if (existingCount) msg += `\n\n${existingCount} scène${existingCount > 1 ? 's' : ''} déjà importée${existingCount > 1 ? 's' : ''} — elles seront remplacées.\nPour un import avec diff et merge, utiliser le Tableau des lieux.`;
+      if (allErrors.length) msg += `\n\n⚠ ${allErrors.length} avertissement${allErrors.length > 1 ? 's' : ''} :\n` + allErrors.slice(0, 5).join('\n');
+      if (!confirm(msg + '\n\nConfirmer l\'import ?')) return;
+
+      // Archiver la version précédente si elle existe
+      const prevVersions = existingData?.fdxVersions || [];
+      let fdxVersions = prevVersions;
+      if (existingData?.imported_scenes_raw?.length) {
+        const prevMeta = existingData.fdxImportMeta ? Object.values(existingData.fdxImportMeta)[0] : null;
+        const archived = {
+          id: Date.now().toString(),
+          date: existingData.fdxImportMeta ? Object.values(existingData.fdxImportMeta).map(m => m.date).sort().at(-1) : new Date().toISOString(),
+          label: prevMeta?.label || 'Version précédente',
+          ep: null,
+          scene_count: existingData.imported_scenes_raw.length,
+          prev_scene_count: 0,
+          scenes_raw: existingData.imported_scenes_raw
+        };
+        fdxVersions = [...prevVersions, archived].slice(-20);
+      }
+
+      // Déduire totalEpisodes
+      const eps = new Set(newScenes.map(s => parseEp(s.sc).ep).filter(e => e > 0));
+      const totalEpisodes = eps.size;
+
+      // fdxImportMeta : ep 0 = long-métrage
+      const label = filename.replace(/\.fdx$/i, '');
+      const now = new Date().toISOString();
+      const fdxImportMeta = {};
+      const epGroups = {};
+      newScenes.forEach(s => {
+        const ep = parseEp(s.sc).ep;
+        if (!epGroups[ep]) epGroups[ep] = [];
+        epGroups[ep].push(s);
+      });
+      Object.entries(epGroups).forEach(([ep, sc]) => {
+        fdxImportMeta[ep] = { label, date: now, scene_count: sc.length };
+      });
+
+      const scenesPayload = { imported_scenes_raw: newScenes, fdxVersions, fdxImportMeta, totalEpisodes };
+
+      if (sb) {
+        try {
+          const { error } = await sb.from('project_data').upsert({ key: SCENES_KEY, data: scenesPayload, updated_at: now });
+          if (error) throw error;
+        } catch(e) { alert('Erreur Supabase : ' + e.message); return; }
+      }
+
+      await loadScenesData();
     }
 
     function renderSectionToggle() {
@@ -437,7 +519,6 @@
       renderSectionToggle();
       renderTools();
       renderAddButton();
-      renderFdx();
     }
 
     document.addEventListener('click', e => {
@@ -452,6 +533,7 @@
       projects = state;
       currentProject = projects.find(p => p.id === projectId);
       if (!currentProject) { location.href = '/'; return; }
+      renderFdx(); // câbler le bouton import une seule fois
       renderPage();
 
       const [remote] = await Promise.all([
