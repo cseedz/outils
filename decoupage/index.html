@@ -576,6 +576,38 @@ function goNextPlan() {
   if (idx < plans.length - 1) openShot(sc, plans[idx + 1].num);
 }
 
+// ─── REALTIME ────────────────────────────────────────────────────────────────
+function subscribeToScenes() {
+  if (!sb) return;
+  sb.channel('dec-scenes-' + _projectId)
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'project_data',
+      filter: 'key=eq.' + SCENES_KEY
+    }, payload => {
+      const newScenes = payload.new?.data?.imported_scenes_raw;
+      if (!newScenes) return;
+      scenes = newScenes;
+      // Vue shot active : mise à jour silencieuse, la liste se rafraîchira au retour
+      if (document.getElementById('view-shot').classList.contains('active')) {
+        showToast('Scènes mises à jour');
+        return;
+      }
+      // Snapshot des cartes ouvertes avant de re-rendre
+      const openScenes = new Set(
+        [...document.querySelectorAll('.scene-card.open')].map(c => c.id.slice(3))
+      );
+      renderList();
+      openScenes.forEach(sc => {
+        const card = document.getElementById('sc-' + sc);
+        if (card) card.classList.add('open');
+      });
+      showToast('Scènes mises à jour');
+    })
+    .subscribe();
+}
+
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -588,6 +620,7 @@ async function init() {
 
   await loadData();
   renderList();
+  subscribeToScenes();
 }
 
 init();

@@ -378,6 +378,34 @@ document.getElementById('search-input').addEventListener('input', e => {
   renderTable();
 });
 
+// ─── REALTIME ────────────────────────────────────────────────────────────────
+function subscribeToScenes() {
+  if (!sb) return;
+  sb.channel('pers-scenes-' + _projectId)
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'project_data',
+      filter: 'key=eq.' + SCENES_KEY
+    }, payload => {
+      const newScenes = payload.new?.data?.imported_scenes_raw;
+      if (!newScenes) return;
+      // Snapshot des lignes ouvertes avant de re-rendre
+      const openNames = new Set(
+        [...document.querySelectorAll('.char-row.open')].map(r => r.id.slice(5))
+      );
+      scenes = newScenes;
+      derivePersonnages();
+      renderTable();
+      openNames.forEach(name => {
+        const row = document.getElementById('char-' + name);
+        if (row) row.classList.add('open');
+      });
+      showToast('Scènes mises à jour');
+    })
+    .subscribe();
+}
+
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 async function init() {
   document.title = _projectName + ' — Personnages';
@@ -390,6 +418,7 @@ async function init() {
   await loadData();
   derivePersonnages();
   renderTable();
+  subscribeToScenes();
 }
 
 init();
