@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<title>Découpage</title>
+<style>
+:root {
+  --bg: #f2f2f7; --card: #ffffff; --text: #000; --muted: #6c6c70;
+  --line: #c6c6c8; --accent: #007aff; --green: #34c759; --orange: #ff9500; --red: #ff3b30;
+  --r: 12px; --safe-b: env(safe-area-inset-bottom, 0px);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif; font-size: 16px; }
+body { overscroll-behavior: none; }
+
+/* TOPBAR */
+.topbar { position: fixed; top: 0; left: 0; right: 0; z-index: 100; height: 56px; background: rgba(242,242,247,.94); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid var(--line); display: flex; align-items: center; padding: 0 16px; gap: 8px; }
+.topbar-back { color: var(--accent); font-size: 17px; text-decoration: none; min-width: 44px; min-height: 44px; display: flex; align-items: center; }
+.topbar-title { flex: 1; font-size: 17px; font-weight: 600; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.topbar-right { min-width: 44px; display: flex; justify-content: flex-end; align-items: center; }
+.sync-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); transition: background 300ms; }
+.sync-dot.syncing { background: var(--orange); }
+.sync-dot.synced  { background: var(--green); }
+.sync-dot.error   { background: var(--red); }
+
+/* CONTENT */
+.content { padding-top: 64px; padding-bottom: calc(24px + var(--safe-b)); min-height: 100%; }
+.section-label { padding: 20px 16px 6px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+
+/* SCENE CARD */
+.scene-card { margin: 0 16px 1px; background: var(--card); border-radius: var(--r); overflow: hidden; }
+.scene-card + .scene-card { margin-top: 1px; }
+.scene-first { border-radius: var(--r) var(--r) 0 0; } .scene-last { border-radius: 0 0 var(--r) var(--r); }
+.scene-solo { border-radius: var(--r); }
+.scene-header { display: flex; align-items: center; gap: 12px; padding: 14px 16px; cursor: pointer; user-select: none; min-height: 58px; }
+.scene-num { font-size: 17px; font-weight: 700; min-width: 34px; }
+.scene-info { flex: 1; }
+.scene-lieu { font-size: 15px; font-weight: 500; line-height: 1.3; }
+.scene-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.scene-badge { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 10px; background: #e5e5ea; color: var(--muted); margin-right: 4px; }
+.scene-badge.has-plans { background: #ddeeff; color: var(--accent); }
+.scene-chevron { color: var(--muted); font-size: 12px; transition: transform 200ms; }
+.scene-card.open .scene-chevron { transform: rotate(90deg); }
+.scene-plans { display: none; border-top: 1px solid var(--line); }
+.scene-card.open .scene-plans { display: block; }
+
+/* PLAN ROW */
+.plan-row { display: flex; align-items: center; gap: 12px; padding: 13px 16px; cursor: pointer; min-height: 52px; border-bottom: 1px solid var(--line); transition: background 80ms; }
+.plan-row:active { background: var(--bg); }
+.plan-row:last-of-type { border-bottom: none; }
+.plan-num { font-size: 15px; font-weight: 700; color: var(--accent); min-width: 30px; }
+.plan-desc { flex: 1; font-size: 15px; color: var(--text); }
+.plan-desc.empty { color: var(--muted); font-style: italic; }
+.plan-right { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+.status-badge { font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 9px; white-space: nowrap; }
+.status-badge.a-tourner { background: #e5e5ea; color: var(--muted); }
+.status-badge.actif     { background: #ddeeff; color: var(--accent); }
+.status-badge.valide    { background: #fff3e0; color: var(--orange); }
+.status-badge.tourne    { background: #d4f4db; color: #1a7a33; }
+.plan-prises { font-size: 11px; color: var(--muted); }
+
+/* ADD PLAN */
+.add-plan-btn { display: flex; align-items: center; gap: 8px; padding: 13px 16px; color: var(--accent); font-size: 15px; cursor: pointer; min-height: 44px; border-top: 1px solid var(--line); }
+.add-plan-btn:active { background: var(--bg); }
+
+/* EMPTY */
+.empty { text-align: center; padding: 64px 32px; color: var(--muted); }
+.empty p { font-size: 15px; line-height: 1.6; }
+.empty a { color: var(--accent); text-decoration: none; }
+
+/* ─── SHOT VIEW ─── */
+#view-shot { display: none; position: fixed; inset: 0; z-index: 200; background: #1c1c1e; color: #fff; flex-direction: column; }
+#view-shot.active { display: flex; }
+
+.shot-topbar { height: 56px; background: #2c2c2e; display: flex; align-items: center; padding: 0 16px; gap: 8px; flex-shrink: 0; border-bottom: 1px solid #3a3a3c; }
+.shot-back { color: #0a84ff; font-size: 17px; cursor: pointer; min-width: 44px; min-height: 44px; display: flex; align-items: center; }
+.shot-title { flex: 1; text-align: center; font-size: 17px; font-weight: 600; }
+.shot-sync { min-width: 44px; display: flex; justify-content: flex-end; align-items: center; }
+
+.shot-body { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+
+.shot-label-wrap { text-align: center; padding: 12px 0 4px; }
+.shot-label { font-size: 48px; font-weight: 800; letter-spacing: .04em; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.shot-prise-big { font-size: 22px; font-weight: 600; color: #8e8e93; margin-top: 6px; letter-spacing: .06em; }
+
+.shot-card { background: #2c2c2e; border-radius: 12px; overflow: hidden; }
+.shot-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; min-height: 44px; }
+.shot-row + .shot-row { border-top: 1px solid #3a3a3c; }
+.shot-row-label { font-size: 13px; color: #8e8e93; }
+.shot-row-value { font-size: 15px; font-weight: 500; text-align: right; max-width: 60%; }
+
+.shot-desc-wrap { background: #2c2c2e; border-radius: 12px; padding: 14px 16px; }
+.shot-desc-lbl { font-size: 11px; color: #8e8e93; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; }
+.shot-desc-input { width: 100%; background: none; border: none; color: #fff; font-size: 15px; font-family: inherit; resize: none; outline: none; line-height: 1.5; min-height: 40px; }
+.shot-desc-input::placeholder { color: #48484a; }
+
+.shot-status-wrap { text-align: center; }
+.shot-status-badge { display: inline-block; font-size: 14px; font-weight: 600; padding: 6px 18px; border-radius: 14px; }
+.shot-status-badge.inactif { background: #3a3a3c; color: #8e8e93; }
+.shot-status-badge.actif   { background: #0a3060; color: #0a84ff; }
+.shot-status-badge.valide  { background: #3d2a00; color: #ff9f0a; }
+.shot-status-badge.tourne  { background: #0d3320; color: #30d158; }
+
+/* SHOT ACTIONS */
+.shot-actions { padding: 16px 20px; padding-bottom: calc(20px + var(--safe-b)); display: flex; flex-direction: column; gap: 10px; flex-shrink: 0; }
+.btn-shot { min-height: 56px; border-radius: 14px; border: none; font-size: 17px; font-weight: 600; cursor: pointer; transition: opacity 100ms, transform 60ms; width: 100%; }
+.btn-shot:active { opacity: .75; transform: scale(.98); }
+.btn-shot:disabled { opacity: .3; cursor: default; transform: none; }
+.btn-activer  { background: #0a84ff; color: #fff; }
+.btn-valider  { background: #30d158; color: #000; }
+.btn-suivant  { background: #3a3a3c; color: #fff; }
+.btn-tourne   { background: #1c4a2c; color: #30d158; border: 1px solid #30d158; }
+.btn-row { display: flex; gap: 10px; }
+.btn-row .btn-shot { flex: 1; }
+
+/* MODAL */
+.modal-overlay { display: none; position: fixed; inset: 0; z-index: 400; background: rgba(0,0,0,.5); align-items: center; justify-content: center; padding: 20px; }
+.modal-overlay.active { display: flex; }
+.modal { background: var(--card); border-radius: 14px; width: 100%; max-width: 360px; overflow: hidden; }
+.modal-title { font-size: 17px; font-weight: 600; text-align: center; padding: 20px 16px 8px; }
+.modal-sub { font-size: 13px; color: var(--muted); text-align: center; padding: 0 16px 12px; }
+.modal-body { padding: 0 16px 16px; }
+.modal-input { width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px; font-size: 16px; font-family: inherit; outline: none; background: var(--bg); }
+.modal-input:focus { border-color: var(--accent); }
+.modal-actions { display: flex; border-top: 1px solid var(--line); }
+.modal-btn { flex: 1; min-height: 44px; border: none; background: none; font-size: 17px; cursor: pointer; font-family: inherit; }
+.modal-btn + .modal-btn { border-left: 1px solid var(--line); }
+.modal-btn.ok { color: var(--accent); font-weight: 600; }
+.modal-btn.cancel { color: var(--muted); }
+
+/* TOAST */
+.toast { position: fixed; bottom: calc(24px + var(--safe-b)); left: 50%; transform: translateX(-50%) translateY(20px); background: rgba(0,0,0,.82); color: #fff; font-size: 14px; font-weight: 500; padding: 10px 20px; border-radius: 20px; opacity: 0; transition: opacity 200ms, transform 200ms; pointer-events: none; z-index: 500; white-space: nowrap; }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<!-- LIST VIEW -->
+<div class="topbar">
+  <a class="topbar-back" id="back-link">‹ Projet</a>
+  <div class="topbar-title" id="page-title">Découpage</div>
+  <div class="topbar-right"><div class="sync-dot" id="sync-dot"></div></div>
+</div>
+
+<div class="content" id="view-list">
+  <div id="scenes-container"></div>
+</div>
+
+<!-- SHOT VIEW -->
+<div id="view-shot">
+  <div class="shot-topbar">
+    <div class="shot-back" id="shot-back">‹</div>
+    <div class="shot-title" id="shot-topbar-title"></div>
+    <div class="shot-sync"><div class="sync-dot" id="shot-sync-dot"></div></div>
+  </div>
+  <div class="shot-body">
+    <div class="shot-label-wrap">
+      <div class="shot-label" id="shot-label">—</div>
+      <div class="shot-prise-big" id="shot-prise-big"></div>
+    </div>
+    <div class="shot-card">
+      <div class="shot-row">
+        <span class="shot-row-label">Scène</span>
+        <span class="shot-row-value" id="shot-scene-info"></span>
+      </div>
+      <div class="shot-row">
+        <span class="shot-row-label">Lieu</span>
+        <span class="shot-row-value" id="shot-lieu"></span>
+      </div>
+      <div class="shot-row">
+        <span class="shot-row-label">Int/Ext · J/N</span>
+        <span class="shot-row-value" id="shot-ie-jn"></span>
+      </div>
+    </div>
+    <div class="shot-desc-wrap">
+      <div class="shot-desc-lbl">Description du plan</div>
+      <textarea class="shot-desc-input" id="shot-desc" rows="2" placeholder="Cadrage, mouvement, notes…"></textarea>
+    </div>
+    <div class="shot-status-wrap">
+      <span class="shot-status-badge inactif" id="shot-status-badge">Inactif</span>
+    </div>
+  </div>
+  <div class="shot-actions" id="shot-actions"></div>
+</div>
+
+<!-- MODAL ajout plan -->
+<div class="modal-overlay" id="modal-add-plan">
+  <div class="modal">
+    <div class="modal-title">Nouveau plan</div>
+    <div class="modal-sub" id="modal-add-sub"></div>
+    <div class="modal-body">
+      <input class="modal-input" id="modal-add-input" type="text" placeholder="Description (optionnel)" maxlength="120">
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn cancel" id="modal-add-cancel">Annuler</button>
+      <button class="modal-btn ok" id="modal-add-ok">Ajouter</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── CONFIG ──────────────────────────────────────────────────────────────────
+const _urlP        = new URLSearchParams(location.search);
+const _projectId   = _urlP.get('p') || 'unnamed';
+const _projectName = decodeURIComponent(_urlP.get('n') || _projectId);
+const KEY          = _projectId + '_dec';
+const SCENES_KEY   = _projectId + '_scenes';
+const SUPABASE_URL = 'https://dvivafrldxzhkactsvve.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2aXZhZnJsZHh6aGthY3RzdnZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyMzQ5MDgsImV4cCI6MjA5NDgxMDkwOH0.EgyxWDERi443hefaM0LxDYDhLWQYx31feKzQ1bQU5Kc';
+
+let sb = null;
+try { sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e) {}
+
+// ─── STATE ───────────────────────────────────────────────────────────────────
+let scenes    = [];   // imported_scenes_raw from {id}_scenes
+let decData   = {};   // { [sc]: { plans: [{id,num,desc,statut,prises}] } }
+let currentShot = null; // { sc, planNum } — shot view state
+let _saveDebounce = null;
+
+// ─── SYNC STATUS ─────────────────────────────────────────────────────────────
+function setSyncStatus(s) {
+  ['sync-dot','shot-sync-dot'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.className = 'sync-dot ' + s;
+  });
+}
+
+// ─── TOAST ───────────────────────────────────────────────────────────────────
+let _toastTimer = null;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+function pad(n, len = 2) { return String(n).padStart(len, '0'); }
+
+function scLabel(sc) {
+  // "4" → "04", "1.03" → "1-03", "13A" → "13A"
+  return String(sc).replace('.', '-').replace(/^(\d+)$/, s => pad(parseInt(s)));
+}
+
+function makeLabel(sc, planNum, priseNum) {
+  return `SC${scLabel(sc)}_PL${pad(planNum)}_PR${pad(priseNum)}`;
+}
+
+function getSceneData(sc) {
+  if (!decData[sc]) decData[sc] = { plans: [] };
+  return decData[sc];
+}
+
+function getPlans(sc) { return getSceneData(sc).plans; }
+
+function nextPlanNum(sc) {
+  const plans = getPlans(sc);
+  return plans.length ? Math.max(...plans.map(p => p.num)) + 1 : 1;
+}
+
+function getPlan(sc, planNum) {
+  return getPlans(sc).find(p => p.num === planNum);
+}
+
+function getCurrentPrise(sc, planNum) {
+  const plan = getPlan(sc, planNum);
+  return plan ? (plan.prises || 1) : 1;
+}
+
+function sceneMeta(sc) {
+  return scenes.find(s => String(s.sc) === String(sc));
+}
+
+function statusLabel(s) {
+  return { 'a-tourner': 'À tourner', actif: 'Actif', valide: 'Validé', tourne: 'Tourné' }[s] || s;
+}
+
+// ─── PERSISTENCE ─────────────────────────────────────────────────────────────
+async function saveDecData() {
+  if (!sb) return;
+  setSyncStatus('syncing');
+  clearTimeout(_saveDebounce);
+  _saveDebounce = setTimeout(async () => {
+    try {
+      const { error } = await sb.from('project_data').upsert({ key: KEY, data: decData, updated_at: new Date().toISOString() });
+      if (error) throw error;
+      setSyncStatus('synced');
+    } catch(e) { setSyncStatus('error'); console.warn('save dec error:', e); }
+  }, 600);
+}
+
+async function loadData() {
+  if (!sb) { setSyncStatus('error'); return; }
+  setSyncStatus('syncing');
+  try {
+    const [{ data: scenesRow }, { data: decRow }] = await Promise.all([
+      sb.from('project_data').select('data').eq('key', SCENES_KEY).maybeSingle(),
+      sb.from('project_data').select('data').eq('key', KEY).maybeSingle()
+    ]);
+    scenes  = scenesRow?.data?.imported_scenes_raw || [];
+    decData = decRow?.data || {};
+    setSyncStatus('synced');
+  } catch(e) { setSyncStatus('error'); console.warn('load error:', e); }
+}
+
+// ─── CURRENT SHOT (table Supabase) ───────────────────────────────────────────
+async function writeCurrentShot(sc, planNum, priseNum, status) {
+  if (!sb) return;
+  const label = makeLabel(sc, planNum, priseNum);
+  try {
+    const { error } = await sb.from('current_shot').upsert({
+      id: 1,
+      project:    _projectName,
+      scene:      scLabel(sc),
+      plan:       pad(planNum),
+      prise:      pad(priseNum),
+      label,
+      status,
+      updated_at: new Date().toISOString()
+    });
+    if (error) throw error;
+  } catch(e) { showToast('Erreur Supabase : ' + e.message); }
+}
+
+// ─── LIST VIEW ───────────────────────────────────────────────────────────────
+function renderList() {
+  const container = document.getElementById('scenes-container');
+
+  if (!scenes.length) {
+    container.innerHTML = `
+      <div class="empty">
+        <p>Aucune scène importée.<br>
+        <a href="/projet/?p=${encodeURIComponent(_projectId)}&n=${encodeURIComponent(_projectName)}">Importer un FDX</a> depuis la page projet.</p>
+      </div>`;
+    return;
+  }
+
+  let html = '<div class="section-label">Scènes</div>';
+  scenes.forEach((s, idx) => {
+    const plans = getPlans(s.sc);
+    const isFirst = idx === 0, isLast = idx === scenes.length - 1;
+    const rClass = isFirst && isLast ? 'scene-solo' : isFirst ? 'scene-first' : isLast ? 'scene-last' : '';
+    const badgeCls = plans.length ? 'has-plans' : '';
+    const badgeTxt = plans.length ? `${plans.length} plan${plans.length > 1 ? 's' : ''}` : '—';
+    const lieu = [s.int_ext !== '—' ? s.int_ext : '', s.lieu, s.sous_lieu].filter(Boolean).join(' · ');
+    const jn = s.jn && s.jn !== '—' ? s.jn : '';
+    html += `
+      <div class="scene-card ${rClass}" id="sc-${s.sc}">
+        <div class="scene-header" onclick="toggleScene('${s.sc}')">
+          <div class="scene-num">SC${scLabel(s.sc)}</div>
+          <div class="scene-info">
+            <div class="scene-lieu">${s.lieu || '—'}${s.sous_lieu ? ' / ' + s.sous_lieu : ''}</div>
+            <div class="scene-meta">${[s.int_ext !== '—' ? s.int_ext : '', jn, s.page && s.page !== '0' ? s.page + ' p.' : ''].filter(Boolean).join(' · ')}</div>
+          </div>
+          <span class="scene-badge ${badgeCls}">${badgeTxt}</span>
+          <span class="scene-chevron">›</span>
+        </div>
+        <div class="scene-plans">
+          ${renderPlansHTML(s.sc)}
+        </div>
+      </div>`;
+  });
+  container.innerHTML = html;
+}
+
+function renderPlansHTML(sc) {
+  const plans = getPlans(sc);
+  let html = '';
+  plans.forEach(p => {
+    const descCls = p.desc ? '' : ' empty';
+    const descTxt = p.desc || 'Aucune description';
+    const prises = p.prises || 1;
+    html += `
+      <div class="plan-row" onclick="openShot('${sc}', ${p.num})">
+        <div class="plan-num">PL${pad(p.num)}</div>
+        <div class="plan-desc${descCls}">${escHtml(descTxt)}</div>
+        <div class="plan-right">
+          <span class="status-badge ${p.statut || 'a-tourner'}">${statusLabel(p.statut || 'a-tourner')}</span>
+          <span class="plan-prises">PR${pad(prises)}</span>
+        </div>
+      </div>`;
+  });
+  html += `<div class="add-plan-btn" onclick="promptAddPlan('${sc}')">＋ Ajouter un plan</div>`;
+  return html;
+}
+
+function refreshSceneCard(sc) {
+  const card = document.getElementById(`sc-${sc}`);
+  if (!card) return;
+  const plans = getPlans(sc);
+  const badge = card.querySelector('.scene-badge');
+  if (badge) {
+    badge.className = 'scene-badge' + (plans.length ? ' has-plans' : '');
+    badge.textContent = plans.length ? `${plans.length} plan${plans.length > 1 ? 's' : ''}` : '—';
+  }
+  const plansEl = card.querySelector('.scene-plans');
+  if (plansEl) plansEl.innerHTML = renderPlansHTML(sc);
+}
+
+function toggleScene(sc) {
+  const card = document.getElementById(`sc-${sc}`);
+  if (card) card.classList.toggle('open');
+}
+
+// ─── ADD PLAN ─────────────────────────────────────────────────────────────────
+let _addPlanSc = null;
+function promptAddPlan(sc) {
+  _addPlanSc = sc;
+  const meta = sceneMeta(sc);
+  document.getElementById('modal-add-sub').textContent = meta ? `SC${scLabel(sc)} — ${meta.lieu}` : `Scène ${sc}`;
+  const inp = document.getElementById('modal-add-input');
+  inp.value = '';
+  document.getElementById('modal-add-plan').classList.add('active');
+  setTimeout(() => inp.focus(), 100);
+}
+
+document.getElementById('modal-add-cancel').onclick = () => {
+  document.getElementById('modal-add-plan').classList.remove('active');
+};
+document.getElementById('modal-add-ok').onclick = confirmAddPlan;
+document.getElementById('modal-add-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') confirmAddPlan();
+});
+
+function confirmAddPlan() {
+  document.getElementById('modal-add-plan').classList.remove('active');
+  const sc = _addPlanSc;
+  if (!sc) return;
+  const desc = document.getElementById('modal-add-input').value.trim();
+  const num = nextPlanNum(sc);
+  const plan = { id: Date.now().toString(), num, desc, statut: 'a-tourner', prises: 1 };
+  getSceneData(sc).plans.push(plan);
+  refreshSceneCard(sc);
+  saveDecData();
+}
+
+// ─── SHOT VIEW ───────────────────────────────────────────────────────────────
+function openShot(sc, planNum) {
+  currentShot = { sc, planNum };
+  renderShot();
+  document.getElementById('view-shot').classList.add('active');
+  document.getElementById('shot-desc').addEventListener('input', onDescInput);
+}
+
+function closeShot() {
+  document.getElementById('view-shot').classList.remove('active');
+  currentShot = null;
+  document.getElementById('shot-desc').removeEventListener('input', onDescInput);
+}
+
+document.getElementById('shot-back').onclick = closeShot;
+
+let _descDebounce = null;
+function onDescInput() {
+  const { sc, planNum } = currentShot;
+  const plan = getPlan(sc, planNum);
+  if (!plan) return;
+  plan.desc = document.getElementById('shot-desc').value;
+  clearTimeout(_descDebounce);
+  _descDebounce = setTimeout(() => {
+    refreshSceneCard(sc);
+    saveDecData();
+  }, 800);
+}
+
+function renderShot() {
+  if (!currentShot) return;
+  const { sc, planNum } = currentShot;
+  const plan = getPlan(sc, planNum);
+  const meta = sceneMeta(sc);
+  const priseNum = getCurrentPrise(sc, planNum);
+  const statut = plan?.statut || 'a-tourner';
+  const label = makeLabel(sc, planNum, priseNum);
+
+  document.getElementById('shot-topbar-title').textContent = label;
+  document.getElementById('shot-label').textContent = `SC${scLabel(sc)} PL${pad(planNum)}`;
+  document.getElementById('shot-prise-big').textContent = `Prise ${pad(priseNum)}`;
+
+  document.getElementById('shot-scene-info').textContent = `Scène ${sc}`;
+  document.getElementById('shot-lieu').textContent = meta ? [meta.lieu, meta.sous_lieu].filter(Boolean).join(' / ') : '—';
+  document.getElementById('shot-ie-jn').textContent = meta ? [meta.int_ext !== '—' ? meta.int_ext : '', meta.jn !== '—' ? meta.jn : ''].filter(Boolean).join(' · ') || '—' : '—';
+
+  const descEl = document.getElementById('shot-desc');
+  descEl.value = plan?.desc || '';
+
+  const badge = document.getElementById('shot-status-badge');
+  const badgeMap = { 'a-tourner': 'inactif', actif: 'actif', valide: 'valide', tourne: 'tourne' };
+  badge.className = 'shot-status-badge ' + (badgeMap[statut] || 'inactif');
+  badge.textContent = statusLabel(statut);
+
+  renderShotActions(sc, planNum, statut, priseNum);
+}
+
+function renderShotActions(sc, planNum, statut, priseNum) {
+  const el = document.getElementById('shot-actions');
+  const plans = getPlans(sc);
+  const planIdx = plans.findIndex(p => p.num === planNum);
+  const hasNext = planIdx < plans.length - 1;
+
+  if (statut === 'tourne') {
+    el.innerHTML = `
+      <button class="btn-shot btn-activer" onclick="activerPlan()">Retourner ce plan</button>
+      ${hasNext ? '<button class="btn-shot btn-suivant" onclick="goNextPlan()">Plan suivant →</button>' : ''}`;
+    return;
+  }
+
+  if (statut === 'actif' || statut === 'valide') {
+    el.innerHTML = `
+      <button class="btn-shot btn-valider" onclick="dansBolte()">Dans la boîte ✓</button>
+      <div class="btn-row">
+        <button class="btn-shot btn-tourne" onclick="marquerTourne()">Tourné</button>
+        ${hasNext ? '<button class="btn-shot btn-suivant" onclick="goNextPlan()">Plan suivant →</button>' : ''}
+      </div>`;
+    return;
+  }
+
+  // a-tourner / inactif
+  el.innerHTML = `
+    <button class="btn-shot btn-activer" onclick="activerPlan()">Activer ce plan</button>
+    ${hasNext ? '<button class="btn-shot btn-suivant" onclick="goNextPlan()">Plan suivant →</button>' : ''}`;
+}
+
+async function activerPlan() {
+  const { sc, planNum } = currentShot;
+  const plan = getPlan(sc, planNum);
+  if (!plan) return;
+  const priseNum = getCurrentPrise(sc, planNum);
+  plan.statut = 'actif';
+  await writeCurrentShot(sc, planNum, priseNum, 'actif');
+  saveDecData();
+  renderShot();
+  refreshSceneCard(sc);
+  showToast(`${makeLabel(sc, planNum, priseNum)} — Actif`);
+}
+
+async function dansBolte() {
+  const { sc, planNum } = currentShot;
+  const plan = getPlan(sc, planNum);
+  if (!plan) return;
+  const priseNum = getCurrentPrise(sc, planNum);
+  // Valider la prise courante
+  await writeCurrentShot(sc, planNum, priseNum, 'validé');
+  showToast(`${makeLabel(sc, planNum, priseNum)} — Validé ✓`);
+  // Incrémenter localement pour la prochaine prise
+  plan.prises = priseNum + 1;
+  plan.statut = 'actif';
+  saveDecData();
+  renderShot();
+  refreshSceneCard(sc);
+}
+
+async function marquerTourne() {
+  const { sc, planNum } = currentShot;
+  const plan = getPlan(sc, planNum);
+  if (!plan) return;
+  plan.statut = 'tourne';
+  await writeCurrentShot(sc, planNum, getCurrentPrise(sc, planNum), 'inactif');
+  saveDecData();
+  renderShot();
+  refreshSceneCard(sc);
+  showToast(`PL${pad(planNum)} — Tourné`);
+}
+
+function goNextPlan() {
+  const { sc, planNum } = currentShot;
+  const plans = getPlans(sc);
+  const idx = plans.findIndex(p => p.num === planNum);
+  if (idx < plans.length - 1) openShot(sc, plans[idx + 1].num);
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+async function init() {
+  document.title = _projectName + ' — Découpage';
+  document.getElementById('page-title').textContent = _projectName;
+  document.getElementById('back-link').href = `/projet/?p=${encodeURIComponent(_projectId)}&n=${encodeURIComponent(_projectName)}`;
+
+  await loadData();
+  renderList();
+}
+
+init();
+</script>
+</body>
+</html>
