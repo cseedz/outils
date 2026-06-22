@@ -55,6 +55,8 @@
     .scenario-info { flex: 1; min-width: 0; }
     .scenario-count { font-size: 14px; font-weight: 700; }
     .scenario-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    .scenario-label { font-style: italic; }
+    .scenario-eps { color: var(--text-dim); }
     .scenario-link { font-size: 12px; color: var(--text); text-decoration: none; white-space: nowrap; border-bottom: 1px solid var(--border); padding-bottom: 1px; flex-shrink: 0; }
     .scenario-link:hover { border-color: var(--text); }
     .scenario-empty { padding: 14px 16px; font-size: 12px; color: var(--text-muted); line-height: 1.6; }
@@ -251,12 +253,25 @@ function renderScenarioSection() {
     el.innerHTML = '<div class="scenario-empty">Aucune scène importée. Importez un fichier FDX pour commencer.</div>';
     return;
   }
-  const eps = totalEpisodes > 0 ? ` · ${totalEpisodes} épisode${totalEpisodes > 1 ? 's' : ''}` : '';
-  const lastDate = (() => {
-    const dates = Object.values(fdxImportMeta || {}).map(m => m?.date).filter(Boolean).sort();
-    if (!dates.length) return '';
-    return ' · ' + new Date(dates[dates.length - 1]).toLocaleDateString('fr-CA', { year: 'numeric', month: 'long', day: 'numeric' });
-  })();
+
+  // Dernière meta par date
+  const metas = Object.values(fdxImportMeta || {}).filter(m => m?.date);
+  const lastMeta = metas.sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+  const lastDate = lastMeta?.date
+    ? new Date(lastMeta.date).toLocaleDateString('fr-CA', { year: 'numeric', month: 'long', day: 'numeric' })
+    : '';
+  const lastLabel = lastMeta?.label || '';
+
+  // Épisodes importés (clés numériques > 0 dans fdxImportMeta)
+  const epKeys = Object.keys(fdxImportMeta || {})
+    .map(Number).filter(e => e > 0).sort((a, b) => a - b);
+  const epsLine = epKeys.length
+    ? 'Épisodes ' + epKeys.map(e => String(e).padStart(2, '0')).join(', ')
+    : '';
+
+  const countEps = totalEpisodes > 0
+    ? ` · ${totalEpisodes} épisode${totalEpisodes > 1 ? 's' : ''}`
+    : '';
 
   let versionsHtml = '';
   if (fdxVersions.length) {
@@ -283,8 +298,10 @@ function renderScenarioSection() {
   el.innerHTML = `
     <div class="scenario-main">
       <div class="scenario-info">
-        <div class="scenario-count">${scenesRaw.length} scène${scenesRaw.length > 1 ? 's' : ''}${eps}</div>
-        <div class="scenario-sub">${lastDate ? lastDate.slice(3) : 'Import FDX'}</div>
+        <div class="scenario-count">${scenesRaw.length} scène${scenesRaw.length > 1 ? 's' : ''}${countEps}</div>
+        ${lastDate ? `<div class="scenario-sub">${lastDate}</div>` : ''}
+        ${lastLabel ? `<div class="scenario-sub scenario-label">${lastLabel}</div>` : ''}
+        ${epsLine ? `<div class="scenario-sub scenario-eps">${epsLine}</div>` : ''}
       </div>
       <a class="scenario-link" href="${tableHref}">Ouvrir la table →</a>
     </div>
