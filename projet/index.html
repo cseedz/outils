@@ -182,9 +182,7 @@
         <span class="fdx-name" id="fdx-name">Aucun fichier FDX associé</span>
         <button class="btn-fdx" id="btn-fdx">Associer</button>
       </div>
-      <p style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.6;">
-        Pour l'instant, ce champ est informatif. L'import FDX sera disponible ici prochainement.
-      </p>
+      <div id="scenes-meta" style="margin-top:10px;"></div>
     </section>
 
     <footer>
@@ -197,6 +195,7 @@
     const STORAGE_KEY  = 'outils_landing_v1';
     const SUPABASE_URL = 'https://dvivafrldxzhkactsvve.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2aXZhZnJsZHh6aGthY3RzdnZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyMzQ5MDgsImV4cCI6MjA5NDgxMDkwOH0.EgyxWDERi443hefaM0LxDYDhLWQYx31feKzQ1bQU5Kc';
+    const SCENES_KEY   = projectId + '_scenes'; // lecture seule — écrit par le tableau des lieux
 
     const params = new URLSearchParams(location.search);
     const projectId = params.get('p');
@@ -283,6 +282,30 @@
       const state = projects.map(p => ({ id: p.id, section: p.section, tools: p.tools || [], fdx: p.fdx || '' }));
       saveLocal(state);
       saveToSupabase(state);
+    }
+
+    // ── Scènes (lecture {id}_scenes) ─────────────────────────────────────────
+    async function loadScenesData() {
+      const el = document.getElementById('scenes-meta');
+      if (!el || !sb) return;
+      try {
+        const { data: row } = await sb.from('project_data').select('data').eq('key', SCENES_KEY).maybeSingle();
+        const d = row?.data;
+        if (!d?.imported_scenes_raw?.length) {
+          el.innerHTML = '<p style="font-size:11px;color:var(--muted);line-height:1.6;">Aucune scène importée. Ouvrir le Tableau des lieux pour importer un FDX.</p>';
+          return;
+        }
+        const sceneCount = d.imported_scenes_raw.length;
+        const versions   = d.fdxVersions || [];
+        const metas      = Object.values(d.fdxImportMeta || {});
+        const lastDate   = metas.length
+          ? new Date(metas.map(m => m.date).sort().at(-1)).toLocaleDateString('fr-CA', { year: 'numeric', month: 'long', day: 'numeric' })
+          : null;
+        const parts = [`<strong>${sceneCount}</strong> scène${sceneCount > 1 ? 's' : ''}`];
+        if (lastDate) parts.push(`importées le <strong>${lastDate}</strong>`);
+        if (versions.length) parts.push(`${versions.length} version${versions.length > 1 ? 's' : ''} archivée${versions.length > 1 ? 's' : ''}`);
+        el.innerHTML = `<p style="font-size:12px;color:var(--muted);line-height:1.8;">${parts.join(' &middot; ')}</p>`;
+      } catch(e) { console.warn('scenes load error:', e); }
     }
 
     // ── Render ────────────────────────────────────────────────────────────────
@@ -431,7 +454,10 @@
       if (!currentProject) { location.href = '/'; return; }
       renderPage();
 
-      const remote = await loadFromSupabase();
+      const [remote] = await Promise.all([
+        loadFromSupabase(),
+        loadScenesData()
+      ]);
       if (remote) {
         saveLocal(remote);
         projects = mergeState(remote);
