@@ -196,10 +196,10 @@
     const STORAGE_KEY  = 'outils_landing_v1';
     const SUPABASE_URL = 'https://dvivafrldxzhkactsvve.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2aXZhZnJsZHh6aGthY3RzdnZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyMzQ5MDgsImV4cCI6MjA5NDgxMDkwOH0.EgyxWDERi443hefaM0LxDYDhLWQYx31feKzQ1bQU5Kc';
-    const SCENES_KEY   = projectId + '_scenes'; // lecture seule — écrit par le tableau des lieux
 
     const params = new URLSearchParams(location.search);
     const projectId = params.get('p');
+    const SCENES_KEY  = projectId + '_scenes'; // lecture seule — écrit par le tableau des lieux
 
     if (!projectId) location.href = '/';
 
