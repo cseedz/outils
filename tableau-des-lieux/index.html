@@ -731,11 +731,9 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
     </div>
     <div class="tabs">
       <button class="tab-btn active" onclick="switchTab('vue-lieux')">Lieux</button>
-      <button class="tab-btn" onclick="switchTab('tableau')">Tableau des scènes</button>
       <button class="tab-btn" onclick="switchTab('lieux')">Locations</button>
       <button class="tab-btn" onclick="switchTab('recap')">Récapitulatif</button>
       <button class="tab-btn" onclick="switchTab('outils')">Outils</button>
-      <button class="tab-btn" onclick="switchTab('versions')">Versions</button>
     </div>
     <div id="sync-dot" class="sync-dot idle" title="Non connecté"></div>
     <span id="sync-size" title="Taille des données sauvegardées dans Supabase"></span>
@@ -1444,8 +1442,11 @@ function updateSyncSize(bytes) {
   }
 }
 
+let _tdlWriting = false;
 async function syncToSupabase(data) {
   if (!sb) return;
+  _tdlWriting = true;
+  setTimeout(() => { _tdlWriting = false; }, 4000);
   setSyncStatus('syncing');
   try {
     const { imported_scenes_raw, fdxVersions, fdxImportMeta, totalEpisodes, ...tdlPayload } = data;
@@ -1464,6 +1465,23 @@ async function syncToSupabase(data) {
     setSyncStatus('error');
     console.warn('Supabase write error:', e);
   }
+}
+
+function subscribeToScenes() {
+  if (!sb) return;
+  sb.channel('tdl-scenes-' + _projectId)
+    .on('postgres_changes', {
+      event: '*', schema: 'public', table: 'project_data',
+      filter: 'key=eq.' + SCENES_KEY
+    }, async payload => {
+      if (_tdlWriting) return;
+      const d = payload.new?.data;
+      if (!d?.imported_scenes_raw) return;
+      await loadFromSupabase();
+      buildTable();
+      renderVueLieux();
+    })
+    .subscribe();
 }
 
 async function loadFromSupabase() {
@@ -4374,6 +4392,7 @@ function renderVersions() {
   document.getElementById('panel-tableau').classList.remove('active');
   document.getElementById('controls-bar').classList.add('hidden');
   renderVueLieux();
+  subscribeToScenes();
   updateStickyTop();
   window.addEventListener('resize', updateStickyTop);
   const ov = document.getElementById('loading-overlay');

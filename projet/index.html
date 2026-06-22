@@ -8,553 +8,878 @@
   <script src="/src/fdx-parser.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
-      --bg: #ffffff;
-      --text: #111111;
-      --muted: #999999;
-      --line: #e7e7e7;
+      --bg: #ffffff; --bg2: #f8f8f8; --bg3: #f0f0f0;
+      --border: #e7e7e7; --border2: #cccccc;
+      --text: #111111; --text-muted: #777777; --text-dim: #aaaaaa;
+      --accent: #111111; --danger: #cc3333;
+      --topbar-h: 76px;
     }
-
     html { font-size: 13px; -webkit-font-smoothing: antialiased; }
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.4; }
 
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      line-height: 1.5;
-      min-height: 100vh;
-    }
-
-    .layout { max-width: 680px; margin: 0 auto; padding: 56px 32px 80px; }
-
-    header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding-bottom: 28px;
-      border-bottom: 1px solid var(--line);
-      margin-bottom: 52px;
-    }
-
-    .header-left { display: flex; align-items: center; gap: 16px; }
-
-    .back-link {
-      font-size: 11px; color: var(--muted); text-decoration: none;
-      letter-spacing: 0.06em; transition: color 150ms;
-    }
+    /* ── TOPBAR ── */
+    .topbar { position: sticky; top: 0; z-index: 100; background: var(--bg2); border-bottom: 1px solid var(--border); padding: 14px 24px 0; }
+    .topbar-inner { display: flex; align-items: flex-end; gap: 0; }
+    .title-block { padding-bottom: 12px; margin-right: 32px; flex-shrink: 0; }
+    .back-link { font-size: 11px; color: var(--text-muted); text-decoration: none; letter-spacing: .06em; display: block; margin-bottom: 4px; }
     .back-link:hover { color: var(--text); }
-
-    .site-title { font-size: 11px; font-weight: 400; letter-spacing: 0.1em; text-transform: uppercase; }
-    .site-author { font-size: 11px; color: var(--muted); letter-spacing: 0.04em; }
-
-    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
-
-    /* Project header */
-    .project-header { margin-bottom: 52px; }
-    .project-title { font-size: 22px; font-weight: 400; letter-spacing: -0.01em; margin-bottom: 6px; }
-    .project-meta { display: flex; align-items: center; gap: 16px; }
-    .project-format { font-size: 12px; color: var(--muted); }
-
-    .section-toggle {
-      display: inline-flex; gap: 0;
-      border: 1px solid var(--line); border-radius: 3px; overflow: hidden;
-    }
+    .project-name { font-size: 16px; font-weight: 700; letter-spacing: -0.3px; }
+    .project-format { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+    .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 12px; padding-bottom: 12px; }
+    .section-toggle { display: inline-flex; border: 1px solid var(--border); border-radius: 3px; overflow: hidden; }
     .section-toggle button {
-      background: none; border: none; cursor: pointer;
-      font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
-      color: var(--muted); padding: 4px 10px; transition: background 100ms, color 100ms;
+      background: none; border: none; cursor: pointer; font-family: inherit;
+      font-size: 10px; letter-spacing: .1em; text-transform: uppercase;
+      color: var(--text-muted); padding: 4px 10px; transition: background 100ms, color 100ms;
     }
-    .section-toggle button.active {
-      background: var(--text); color: var(--bg);
+    .section-toggle button.active { background: var(--text); color: var(--bg); }
+    .sync-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border2); transition: background 300ms; flex-shrink: 0; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+    .sync-dot.syncing { background: #f0a500; animation: pulse .9s infinite; }
+    .sync-dot.synced  { background: #5a9a6a; }
+    .sync-dot.error   { background: var(--danger); }
+    /* Main tabs */
+    .tabs { display: flex; gap: 0; }
+    .tab-btn {
+      background: none; border: none; cursor: pointer; font-family: inherit;
+      font-size: 13px; color: var(--text-muted); padding: 8px 18px 12px;
+      border-bottom: 2px solid transparent; transition: color .15s, border-color .15s;
     }
+    .tab-btn:hover { color: var(--text); }
+    .tab-btn.active { color: var(--text); border-bottom-color: var(--text); font-weight: 600; }
 
-    /* Sections */
-    .section { margin-bottom: 48px; }
-    .section-label {
-      font-size: 10px; font-weight: 400; letter-spacing: 0.14em;
-      text-transform: uppercase; color: var(--muted); margin-bottom: 16px;
-    }
+    /* ── PANELS ── */
+    .panel { display: none; }
+    .panel.active { display: block; }
 
-    /* Tools */
-    .tool-row {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 14px 0; border-bottom: 1px solid var(--line);
-    }
-    .tool-row:first-of-type { border-top: 1px solid var(--line); }
-
-    .tool-info { min-width: 0; }
+    /* ── OUTILS PANEL ── */
+    #panel-outils { max-width: 680px; margin: 0 auto; padding: 40px 24px 80px; }
+    .section-label { font-size: 10px; font-weight: 400; letter-spacing: .14em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 16px; }
+    .tool-row { display: flex; align-items: center; justify-content: space-between; padding: 14px 0; border-bottom: 1px solid var(--border); }
+    .tool-row:first-of-type { border-top: 1px solid var(--border); }
     .tool-name { font-size: 13px; }
     .tool-actions { display: flex; align-items: center; gap: 16px; flex-shrink: 0; }
-
-    .btn-open {
-      font-size: 11px; color: var(--text); text-decoration: none;
-      letter-spacing: 0.04em; border-bottom: 1px solid var(--line);
-      padding-bottom: 1px; transition: border-color 180ms;
-    }
+    .btn-open { font-size: 11px; color: var(--text); text-decoration: none; letter-spacing: .04em; border-bottom: 1px solid var(--border); padding-bottom: 1px; }
     .btn-open:hover { border-color: var(--text); }
-
-    .btn-remove {
-      background: none; border: none; cursor: pointer;
-      font-size: 14px; color: var(--muted); line-height: 1;
-      padding: 0 2px; opacity: 0; transition: opacity 150ms, color 150ms;
-    }
+    .btn-remove { background: none; border: none; cursor: pointer; font-size: 14px; color: var(--text-muted); line-height: 1; padding: 0 2px; opacity: 0; transition: opacity 150ms; }
     .tool-row:hover .btn-remove { opacity: 1; }
     .btn-remove:hover { color: var(--text); }
-
-    .no-tools { font-size: 12px; color: var(--muted); padding: 14px 0; }
-
+    .no-tools { font-size: 12px; color: var(--text-muted); padding: 14px 0; }
     .add-tool-wrap { position: relative; margin-top: 16px; }
-    .btn-add-tool {
-      background: none; border: 1px solid var(--line); border-radius: 3px;
-      cursor: pointer; font-size: 11px; color: var(--muted);
-      letter-spacing: 0.06em; padding: 8px 14px;
-      transition: border-color 150ms, color 150ms;
-    }
+    .btn-add-tool { background: none; border: 1px solid var(--border); border-radius: 3px; cursor: pointer; font-size: 11px; color: var(--text-muted); letter-spacing: .06em; padding: 8px 14px; font-family: inherit; }
     .btn-add-tool:hover { border-color: var(--text); color: var(--text); }
+    .tool-dropdown { position: absolute; left: 0; top: calc(100% + 6px); background: #fff; border: 1px solid var(--border); border-radius: 4px; box-shadow: 0 4px 18px rgba(0,0,0,.1); z-index: 200; min-width: 200px; overflow: hidden; }
+    .tool-dropdown button { display: block; width: 100%; text-align: left; background: none; border: none; cursor: pointer; font-family: inherit; padding: 11px 14px; font-size: 12px; color: var(--text); }
+    .tool-dropdown button:hover { background: var(--border); }
 
-    .tool-dropdown {
-      position: absolute; left: 0; top: calc(100% + 6px);
-      background: #fff; border: 1px solid var(--line);
-      border-radius: 4px; box-shadow: 0 4px 18px rgba(0,0,0,.1);
-      z-index: 200; min-width: 200px; overflow: hidden;
-    }
-    .tool-dropdown button {
-      display: block; width: 100%; text-align: left;
-      background: none; border: none; cursor: pointer;
-      padding: 11px 14px; font-size: 12px; color: var(--text);
-      transition: background 100ms;
-    }
-    .tool-dropdown button:hover { background: var(--line); }
+    /* ── SCÉNARIO PANEL ── */
+    #panel-scenario { display: none; }
+    #panel-scenario.active { display: block; }
 
-    /* FDX */
-    .fdx-row {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 14px 0; border-bottom: 1px solid var(--line); border-top: 1px solid var(--line);
+    /* Controls bar */
+    .controls-bar {
+      background: var(--bg2); border-bottom: 1px solid var(--border);
+      padding: 9px 24px; display: flex; gap: 8px; align-items: center;
+      position: sticky; top: var(--topbar-h); z-index: 99;
     }
-    .fdx-name { font-size: 12px; color: var(--muted); font-style: italic; }
-    .fdx-name.set { color: var(--text); font-style: normal; }
-    .btn-fdx {
-      background: none; border: none; cursor: pointer;
-      font-size: 11px; color: var(--muted); letter-spacing: 0.04em;
-      border-bottom: 1px solid transparent; padding-bottom: 1px;
-      transition: color 150ms, border-color 150ms;
-    }
-    .btn-fdx:hover { color: var(--text); border-color: var(--line); }
+    .btn { background: var(--bg3); border: 1px solid var(--border); border-radius: 5px; cursor: pointer; font-size: 12px; font-family: inherit; color: var(--text); padding: 5px 12px; white-space: nowrap; transition: border-color .1s; }
+    .btn:hover { border-color: var(--border2); }
+    .btn-primary { background: var(--text); border-color: var(--text); color: #fff; }
+    .btn-primary:hover { opacity: .85; }
+    .sub-tabs { display: flex; gap: 4px; }
+    .sub-tab { background: var(--bg3); border: 1px solid var(--border); border-radius: 5px; cursor: pointer; font-size: 12px; font-family: inherit; color: var(--text-muted); padding: 5px 12px; }
+    .sub-tab.active { background: var(--text); border-color: var(--text); color: #fff; }
+    .search-wrap { position: relative; }
+    .scene-search { background: var(--bg3); border: 1px solid var(--border); border-radius: 5px; font-size: 12px; font-family: inherit; padding: 5px 8px 5px 26px; outline: none; color: var(--text); width: 180px; }
+    .scene-search:focus { border-color: var(--border2); }
+    .scene-search::placeholder { color: var(--text-dim); }
+    .search-icon { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 11px; pointer-events: none; }
+    .count-lbl { font-size: 11px; color: var(--text-muted); margin-left: auto; white-space: nowrap; }
 
-    footer { margin-top: 80px; padding-top: 20px; border-top: 1px solid var(--line); }
-    .footer-text { font-size: 10px; color: var(--muted); letter-spacing: 0.06em; }
+    /* Sub-panels */
+    .subpanel { display: none; }
+    .subpanel.active { display: block; }
+
+    /* ── SCENE TABLE ── */
+    .scene-table-wrap { overflow-x: auto; }
+    .scene-table { width: 100%; border-collapse: collapse; min-width: 640px; }
+    .scene-table thead th {
+      background: var(--bg2); font-size: 10px; font-weight: 600; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: .8px; padding: 8px 10px;
+      border-right: 1px solid var(--border); border-bottom: 1px solid var(--border);
+      white-space: nowrap; text-align: left; user-select: none;
+      position: sticky; top: calc(var(--topbar-h) + 39px); z-index: 8; box-shadow: inset 0 -1px 0 var(--border);
+    }
+    .scene-table thead th:last-child { border-right: none; }
+    .scene-table tbody tr { border-bottom: 1px solid var(--border); transition: background .08s; }
+    .scene-table tbody tr:last-child { border-bottom: none; }
+    .scene-table tbody tr:hover { background: var(--bg2); }
+    .scene-table tbody tr.hidden { display: none; }
+    .scene-table td { padding: 0; border-right: 1px solid var(--border); vertical-align: middle; }
+    .scene-table td:last-child { border-right: none; }
+
+    /* Cell types */
+    .sc-num { padding: 6px 10px; font-size: 11px; font-weight: 700; color: var(--text-muted); white-space: nowrap; text-align: center; min-width: 52px; }
+    .ep-lbl { padding: 6px 10px; font-size: 11px; color: var(--text-muted); text-align: center; white-space: nowrap; }
+
+    .lieu-btn {
+      display: block; width: 100%; text-align: left; background: none; border: none;
+      font-size: 12px; font-weight: 600; font-family: inherit; color: var(--text);
+      padding: 6px 10px; cursor: pointer; white-space: nowrap;
+    }
+    .lieu-btn:hover { background: var(--bg3); }
+
+    .td-select {
+      appearance: none; background: transparent; border: none;
+      font-size: 12px; font-family: inherit; color: var(--text);
+      padding: 6px 10px; width: 100%; cursor: pointer; outline: none;
+    }
+    .td-select:focus { background: var(--bg3); }
+    .td-input {
+      background: transparent; border: none; font-size: 12px; font-family: inherit;
+      color: var(--text-muted); padding: 6px 10px; width: 100%; outline: none; min-width: 90px;
+    }
+    .td-input:focus { background: var(--bg3); color: var(--text); }
+    .td-input::placeholder { color: var(--text-dim); }
+    .td-page { padding: 6px 10px; font-size: 11px; color: var(--text-muted); text-align: center; white-space: nowrap; display: block; }
+
+    /* Tags INT/EXT et J/N */
+    .tag { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: 600; letter-spacing: .4px; white-space: nowrap; border: 1px solid; }
+    .tINT  { background:rgba(45,106,138,.1); color:#1a5a7a; border-color:rgba(45,106,138,.3); }
+    .tEXT  { background:rgba(45,138,90,.1);  color:#1a6a40; border-color:rgba(45,138,90,.3); }
+    .tMIX  { background:rgba(120,90,170,.1); color:#5a2a90; border-color:rgba(120,90,170,.3); }
+    .tJOUR { background:rgba(138,122,45,.1); color:#6a5a00; border-color:rgba(138,122,45,.3); }
+    .tNUIT { background:rgba(106,74,170,.1); color:#502a90; border-color:rgba(106,74,170,.3); }
+    .tSOIR { background:rgba(138,90,106,.1); color:#6a2a45; border-color:rgba(138,90,106,.3); }
+    .tMATIN{ background:rgba(90,138,138,.1); color:#2a6060; border-color:rgba(90,138,138,.3); }
+    .tAUBE { background:rgba(100,80,140,.1); color:#4a2a70; border-color:rgba(100,80,140,.3); }
+    .tFIN  { background:rgba(138,100,45,.1); color:#6a4000; border-color:rgba(138,100,45,.3); }
+    .td-tag { padding: 6px 8px; }
+
+    /* ── VERSIONS ── */
+    #sub-versions { padding: 24px; }
+    .ver-empty { font-size: 13px; color: var(--text-muted); padding: 40px 0; text-align: center; }
+    .ver-section-title { font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .8px; margin: 0 0 10px; }
+    .ver-block { margin-bottom: 28px; }
+    .ver-card { border: 1px solid var(--border); border-radius: 5px; padding: 12px 16px; margin-bottom: 6px; display: flex; align-items: center; gap: 14px; }
+    .ver-label { font-size: 13px; font-weight: 600; flex: 1; min-width: 0; }
+    .ver-info { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+    .ver-delta { font-size: 11px; font-weight: 600; white-space: nowrap; }
+    .ver-delta.same { color: var(--text-muted); }
+    .ver-delta.pos { color: #2a7a40; }
+    .ver-delta.neg { color: var(--danger); }
+    .btn-ver-del { background: none; border: none; cursor: pointer; font-size: 13px; color: var(--text-muted); padding: 2px 4px; opacity: 0; transition: opacity 120ms; }
+    .ver-card:hover .btn-ver-del { opacity: 1; }
+    .btn-ver-del:hover { color: var(--danger); }
+
+    /* ── RENAME MODAL ── */
+    .modal-overlay { display: none; position: fixed; inset: 0; z-index: 500; background: rgba(0,0,0,.35); align-items: center; justify-content: center; padding: 20px; }
+    .modal-overlay.active { display: flex; }
+    .modal { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; width: 100%; max-width: 400px; box-shadow: 0 6px 28px rgba(0,0,0,.14); overflow: hidden; }
+    .modal-title { font-size: 14px; font-weight: 700; padding: 18px 20px 4px; }
+    .modal-sub { font-size: 12px; color: var(--text-muted); padding: 0 20px 14px; line-height: 1.6; }
+    .modal-body { padding: 0 20px 16px; }
+    .modal-input { width: 100%; border: 1px solid var(--border); border-radius: 5px; padding: 8px 10px; font-size: 13px; font-family: inherit; outline: none; background: var(--bg3); }
+    .modal-input:focus { border-color: var(--border2); background: var(--bg); }
+    .modal-warn { font-size: 11px; color: #996600; margin-top: 8px; padding: 6px 9px; background: rgba(153,102,0,.06); border-radius: 4px; display: none; }
+    .modal-warn.visible { display: block; }
+    .modal-actions { display: flex; gap: 8px; padding: 0 20px 18px; justify-content: flex-end; }
+    .modal-btn { border: 1px solid var(--border); border-radius: 5px; padding: 7px 16px; font-size: 12px; font-family: inherit; cursor: pointer; background: var(--bg3); color: var(--text); }
+    .modal-btn:hover { border-color: var(--border2); }
+    .modal-btn.primary { background: var(--text); border-color: var(--text); color: #fff; }
+    .modal-btn.primary:hover { opacity: .85; }
+
+    /* ── EMPTY ── */
+    .empty { padding: 60px 24px; text-align: center; color: var(--text-muted); font-size: 13px; line-height: 1.7; }
+    .empty a { color: var(--text); }
   </style>
 </head>
 <body>
-  <div class="layout">
 
-    <header>
-      <div class="header-left">
-        <a href="/" class="back-link">← Projets</a>
-        <span class="site-title">Outils</span>
-      </div>
-      <div style="display:flex;align-items:center;gap:10px;">
-        <div id="sync-dot" style="width:7px;height:7px;border-radius:50%;background:#bbbbbb;flex-shrink:0;transition:background 300ms;"></div>
-        <span class="site-author">Charles Grenier</span>
-      </div>
-    </header>
-
-    <div class="project-header">
-      <h1 class="project-title" id="project-title">—</h1>
-      <div class="project-meta">
-        <span class="project-format" id="project-format"></span>
-        <div class="section-toggle" id="section-toggle">
-          <button data-section="en-cours">En cours</button>
-          <button data-section="en-dev">En développement</button>
-        </div>
-      </div>
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="title-block">
+      <a href="/" class="back-link">← Projets</a>
+      <div class="project-name" id="project-name">—</div>
+      <div class="project-format" id="project-format"></div>
     </div>
-
-    <section class="section">
-      <p class="section-label">Outils</p>
-      <div id="tools-list"></div>
-      <div class="add-tool-wrap" id="add-tool-wrap"></div>
-    </section>
-
-    <section class="section">
-      <p class="section-label">Scénario</p>
-      <div class="fdx-row">
-        <button class="btn-fdx" id="btn-import-fdx">Importer FDX</button>
-        <input type="file" id="fdx-file-input" accept=".fdx" style="display:none;" multiple>
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('scenario')">Scénario</button>
+      <button class="tab-btn" onclick="switchTab('outils')">Outils</button>
+    </div>
+    <div class="topbar-right">
+      <div class="section-toggle" id="section-toggle">
+        <button data-section="en-cours">En cours</button>
+        <button data-section="en-dev">En développement</button>
       </div>
-      <div id="scenes-meta" style="margin-top:10px;"></div>
-    </section>
+      <div class="sync-dot" id="sync-dot"></div>
+    </div>
+  </div>
+</div>
 
-    <footer>
-      <p class="footer-text">outils.charlesgrenier.com</p>
-    </footer>
-
+<!-- PANEL SCÉNARIO -->
+<div id="panel-scenario" class="panel active">
+  <div class="controls-bar">
+    <button class="btn" id="btn-import-fdx">Importer FDX</button>
+    <input type="file" id="fdx-file-input" accept=".fdx" style="display:none;" multiple>
+    <div class="sub-tabs">
+      <button class="sub-tab active" onclick="switchSubTab('table')">Table</button>
+      <button class="sub-tab" onclick="switchSubTab('versions')">Versions</button>
+    </div>
+    <div class="search-wrap" id="search-wrap" style="display:none">
+      <span class="search-icon">⌕</span>
+      <input class="scene-search" id="scene-search" type="text" placeholder="Filtrer…">
+    </div>
+    <span class="count-lbl" id="count-lbl"></span>
   </div>
 
-  <script>
-    const STORAGE_KEY  = 'outils_landing_v1';
-    const SUPABASE_URL = 'https://dvivafrldxzhkactsvve.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2aXZhZnJsZHh6aGthY3RzdnZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyMzQ5MDgsImV4cCI6MjA5NDgxMDkwOH0.EgyxWDERi443hefaM0LxDYDhLWQYx31feKzQ1bQU5Kc';
+  <div id="sub-table" class="subpanel active">
+    <div class="scene-table-wrap">
+      <table class="scene-table" id="scene-table">
+        <thead id="scene-thead"></thead>
+        <tbody id="scene-tbody"></tbody>
+      </table>
+      <div id="scene-empty" class="empty" style="display:none"></div>
+    </div>
+  </div>
 
-    const params = new URLSearchParams(location.search);
-    const projectId = params.get('p');
-    const SCENES_KEY  = projectId + '_scenes'; // lecture seule — écrit par le tableau des lieux
+  <div id="sub-versions" class="subpanel">
+    <div id="versions-content"></div>
+  </div>
+</div>
 
-    if (!projectId) location.href = '/';
+<!-- PANEL OUTILS -->
+<div id="panel-outils" class="panel">
+  <div id="panel-outils-inner" style="max-width:680px;margin:0 auto;padding:40px 24px 80px;">
+    <p class="section-label">Outils</p>
+    <div id="tools-list"></div>
+    <div class="add-tool-wrap" id="add-tool-wrap"></div>
+  </div>
+</div>
 
-    const AVAILABLE_TOOLS = [
-      {
-        id: 'tableau-lieux',
-        label: 'Tableau des lieux',
-        buildHref: p => '/tableau-des-lieux/?p=' + encodeURIComponent(p.id) + '&n=' + encodeURIComponent(p.name),
-        buildKey:  p => p.id + '_tdl'
-      },
-      {
-        id: 'decoupage',
-        label: 'Découpage technique',
-        buildHref: p => '/decoupage/?p=' + encodeURIComponent(p.id) + '&n=' + encodeURIComponent(p.name),
-        buildKey:  p => p.id + '_dec'
-      },
-      {
-        id: 'personnages',
-        label: 'Personnages',
-        buildHref: p => '/personnages/?p=' + encodeURIComponent(p.id) + '&n=' + encodeURIComponent(p.name),
-        buildKey:  p => p.id + '_personnages'
-      }
-    ];
+<!-- RENAME MODAL -->
+<div class="modal-overlay" id="rename-modal">
+  <div class="modal">
+    <div class="modal-title" id="rename-modal-title">Renommer le lieu fictif</div>
+    <div class="modal-sub" id="rename-modal-sub"></div>
+    <div class="modal-body">
+      <input class="modal-input" id="rename-input" type="text" autocomplete="off">
+      <div class="modal-warn" id="rename-warn"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn" id="rename-cancel">Annuler</button>
+      <button class="modal-btn primary" id="rename-confirm">Renommer</button>
+    </div>
+  </div>
+</div>
 
-    const DEFAULT_PROJECTS = [
-      { id: 'derniere-saison', name: 'La dernière saison',      format: 'Série télévision', section: 'en-cours', tools: [] },
-      { id: 'premier-trio',    name: 'Premier trio — Saison 4', format: 'Série télévision', section: 'en-cours', tools: [] },
-      { id: 'les-chacals',     name: 'Les Chacals',             format: 'Long-métrage',     section: 'en-dev',   tools: [{ id: 'tableau-lieux', label: 'Tableau des lieux', href: '/tableau-des-lieux/?p=les-chacals&n=Les+Chacals', supabaseKey: 'les-chacals_tdl' }] },
-      { id: 'aimer-pour-deux', name: 'Aimer pour deux',         format: 'Long-métrage',     section: 'en-dev',   tools: [] },
-      { id: 'au-dela-terril',  name: 'Au-delà du terril',       format: 'Long-métrage',     section: 'en-dev',   tools: [] },
-      { id: 'contritions',     name: 'Contritions / Clippeurs', format: 'Long-métrage',     section: 'en-dev',   tools: [] },
-      { id: 'helga-testorf',   name: 'Helga Testorf',           format: 'Long-métrage',     section: 'en-dev',   tools: [] },
-      { id: 'maison-lynch',    name: 'La maison du rang Lynch', format: 'Long-métrage',     section: 'en-dev',   tools: [] },
-      { id: 'les-enfants',     name: 'Les enfants',             format: 'Série télévision', section: 'en-dev',   tools: [] },
-    ];
+<script>
+// ─── CONFIG ──────────────────────────────────────────────────────────────────
+const STORAGE_KEY  = 'outils_landing_v1';
+const SUPABASE_URL = 'https://dvivafrldxzhkactsvve.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2aXZhZnJsZHh6aGthY3RzdnZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyMzQ5MDgsImV4cCI6MjA5NDgxMDkwOH0.EgyxWDERi443hefaM0LxDYDhLWQYx31feKzQ1bQU5Kc';
 
-    let projects = [];
-    let currentProject = null;
+const params      = new URLSearchParams(location.search);
+const projectId   = params.get('p');
+const projectName = decodeURIComponent(params.get('n') || projectId || '');
+const SCENES_KEY  = projectId + '_scenes';
+const TDL_KEY     = projectId + '_tdl';
 
-    // ── Supabase ──────────────────────────────────────────────────────────────
-    let sb = null;
-    try { sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e) {}
+if (!projectId) location.href = '/';
 
-    function setSyncStatus(s) {
-      const dot = document.getElementById('sync-dot');
-      if (!dot) return;
-      const colors = { idle: '#bbbbbb', syncing: '#f0a500', synced: '#5a9a6a', error: '#cc3333' };
-      dot.style.background = colors[s] || '#bbbbbb';
-      dot.style.animation = s === 'syncing' ? 'pulse .9s infinite' : '';
-    }
+let sb = null;
+try { sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e) {}
 
-    async function loadFromSupabase() {
-      if (!sb) return null;
-      try {
-        const { data, error } = await sb.from('project_data').select('data').eq('key', STORAGE_KEY).single();
-        if (error || !data) return null;
-        return data.data;
-      } catch(e) { return null; }
-    }
+// ─── PROJET STATE ─────────────────────────────────────────────────────────────
+const AVAILABLE_TOOLS = [
+  { id: 'tableau-lieux',  label: 'Tableau des lieux',      buildHref: p => '/tableau-des-lieux/?p=' + enc(p.id) + '&n=' + enc(p.name), buildKey: p => p.id + '_tdl' },
+  { id: 'decoupage',      label: 'Découpage technique',    buildHref: p => '/decoupage/?p='          + enc(p.id) + '&n=' + enc(p.name), buildKey: p => p.id + '_dec' },
+  { id: 'personnages',    label: 'Personnages',             buildHref: p => '/personnages/?p='        + enc(p.id) + '&n=' + enc(p.name), buildKey: p => p.id + '_personnages' }
+];
+const DEFAULT_PROJECTS = [
+  { id: 'derniere-saison', name: 'La dernière saison',      format: 'Série télévision', section: 'en-cours', tools: [] },
+  { id: 'premier-trio',    name: 'Premier trio — Saison 4', format: 'Série télévision', section: 'en-cours', tools: [] },
+  { id: 'les-chacals',     name: 'Les Chacals',             format: 'Long-métrage',     section: 'en-dev',   tools: [{ id: 'tableau-lieux', label: 'Tableau des lieux', href: '/tableau-des-lieux/?p=les-chacals&n=Les+Chacals', supabaseKey: 'les-chacals_tdl' }] },
+  { id: 'aimer-pour-deux', name: 'Aimer pour deux',         format: 'Long-métrage',     section: 'en-dev',   tools: [] },
+  { id: 'au-dela-terril',  name: 'Au-delà du terril',       format: 'Long-métrage',     section: 'en-dev',   tools: [] },
+  { id: 'contritions',     name: 'Contritions / Clippeurs', format: 'Long-métrage',     section: 'en-dev',   tools: [] },
+  { id: 'helga-testorf',   name: 'Helga Testorf',           format: 'Long-métrage',     section: 'en-dev',   tools: [] },
+  { id: 'maison-lynch',    name: 'La maison du rang Lynch', format: 'Long-métrage',     section: 'en-dev',   tools: [] },
+  { id: 'les-enfants',     name: 'Les enfants',             format: 'Série télévision', section: 'en-dev',   tools: [] },
+];
 
-    async function saveToSupabase(state) {
-      setSyncStatus('syncing');
-      if (!sb) { setTimeout(() => setSyncStatus('idle'), 1500); return; }
-      try {
-        const { error } = await sb.from('project_data').upsert({ key: STORAGE_KEY, data: state, updated_at: new Date().toISOString() });
-        if (error) throw error;
-        setSyncStatus('synced');
-        setTimeout(() => setSyncStatus('idle'), 2000);
-      } catch(e) { setSyncStatus('error'); }
-    }
+let projects = [], currentProject = null;
 
-    function saveLocal(state) { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
-    function loadLocal() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch(e) { return null; } }
+// ─── SCÈNES STATE ─────────────────────────────────────────────────────────────
+let scenesRaw     = [];   // imported_scenes_raw from {id}_scenes
+let fdxVersions   = [];
+let fdxImportMeta = {};
+let totalEpisodes = 0;
+let sceneSearch   = '';
+let _saveScenesTimer = null;
 
-    function mergeState(saved) {
-      const defaultById = {};
-      DEFAULT_PROJECTS.forEach(p => defaultById[p.id] = p);
-      if (!saved || !Array.isArray(saved)) return DEFAULT_PROJECTS.map(p => ({ ...p }));
-      return saved.map(s => {
-        if (!defaultById[s.id]) return null;
-        const def = defaultById[s.id];
-        return { ...def, section: s.section, tools: (s.tools && s.tools.length) ? s.tools : (def.tools || []), fdx: s.fdx || '' };
-      }).filter(Boolean);
-    }
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+function enc(s) { return encodeURIComponent(s || ''); }
+function escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-    function persistState() {
-      const state = projects.map(p => ({ id: p.id, section: p.section, tools: p.tools || [], fdx: p.fdx || '' }));
-      saveLocal(state);
-      saveToSupabase(state);
-    }
+// ─── SYNC DOT ─────────────────────────────────────────────────────────────────
+function setSyncStatus(s) {
+  const dot = document.getElementById('sync-dot');
+  if (!dot) return;
+  dot.className = 'sync-dot' + (s !== 'idle' ? ' ' + s : '');
+}
 
-    // ── Scènes (lecture {id}_scenes) ─────────────────────────────────────────
-    async function loadScenesData() {
-      const el = document.getElementById('scenes-meta');
-      if (!el || !sb) return;
-      try {
-        const { data: row } = await sb.from('project_data').select('data').eq('key', SCENES_KEY).maybeSingle();
-        const d = row?.data;
-        if (!d?.imported_scenes_raw?.length) {
-          el.innerHTML = '<p style="font-size:11px;color:var(--muted);line-height:1.6;">Aucune scène importée. Ouvrir le Tableau des lieux pour importer un FDX.</p>';
-          return;
+// ─── PROJET SUPABASE ─────────────────────────────────────────────────────────
+async function loadProjectState() {
+  if (!sb) return null;
+  try {
+    const { data, error } = await sb.from('project_data').select('data').eq('key', STORAGE_KEY).single();
+    if (error || !data) return null;
+    return data.data;
+  } catch(e) { return null; }
+}
+
+async function saveProjectState(state) {
+  setSyncStatus('syncing');
+  if (!sb) { setTimeout(() => setSyncStatus('idle'), 1500); return; }
+  try {
+    await sb.from('project_data').upsert({ key: STORAGE_KEY, data: state, updated_at: new Date().toISOString() });
+    setSyncStatus('synced');
+    setTimeout(() => setSyncStatus('idle'), 2000);
+  } catch(e) { setSyncStatus('error'); }
+}
+
+function saveLocal(state) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(e) {} }
+function loadLocal()      { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch(e) { return null; } }
+
+function mergeState(saved) {
+  const byId = {};
+  DEFAULT_PROJECTS.forEach(p => byId[p.id] = p);
+  if (!saved || !Array.isArray(saved)) return DEFAULT_PROJECTS.map(p => ({ ...p }));
+  return saved.map(s => {
+    if (!byId[s.id]) return null;
+    return { ...byId[s.id], section: s.section, tools: (s.tools && s.tools.length) ? s.tools : (byId[s.id].tools || []), fdx: s.fdx || '' };
+  }).filter(Boolean);
+}
+
+function persistProjectState() {
+  const state = projects.map(p => ({ id: p.id, section: p.section, tools: p.tools || [], fdx: p.fdx || '' }));
+  saveLocal(state);
+  saveProjectState(state);
+}
+
+// ─── SCÈNES SUPABASE ─────────────────────────────────────────────────────────
+async function loadScenesData() {
+  if (!sb) return;
+  try {
+    const { data: row } = await sb.from('project_data').select('data').eq('key', SCENES_KEY).maybeSingle();
+    const d = row?.data || {};
+    scenesRaw     = d.imported_scenes_raw || [];
+    fdxVersions   = d.fdxVersions || [];
+    fdxImportMeta = d.fdxImportMeta || {};
+    totalEpisodes = d.totalEpisodes || 0;
+  } catch(e) { console.warn('scenes load error:', e); }
+}
+
+async function saveScenesData() {
+  if (!sb) return;
+  setSyncStatus('syncing');
+  try {
+    const { error } = await sb.from('project_data').upsert({
+      key: SCENES_KEY,
+      data: { imported_scenes_raw: scenesRaw, fdxVersions, fdxImportMeta, totalEpisodes },
+      updated_at: new Date().toISOString()
+    });
+    if (error) throw error;
+    setSyncStatus('synced');
+    setTimeout(() => setSyncStatus('idle'), 2000);
+  } catch(e) { setSyncStatus('error'); }
+}
+
+function scheduleSave() {
+  clearTimeout(_saveScenesTimer);
+  _saveScenesTimer = setTimeout(saveScenesData, 800);
+}
+
+// ─── TABS ─────────────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.getAttribute('onclick').includes(`'${tab}'`)));
+  document.getElementById('panel-scenario').classList.toggle('active', tab === 'scenario');
+  document.getElementById('panel-outils').classList.toggle('active', tab === 'outils');
+}
+
+function switchSubTab(st) {
+  document.querySelectorAll('.sub-tab').forEach(b => b.classList.toggle('active', b.getAttribute('onclick').includes(`'${st}'`)));
+  document.getElementById('sub-table').classList.toggle('active', st === 'table');
+  document.getElementById('sub-versions').classList.toggle('active', st === 'versions');
+  document.getElementById('search-wrap').style.display = st === 'table' ? '' : 'none';
+  if (st === 'versions') renderVersions();
+}
+
+// ─── RENDER OUTILS ────────────────────────────────────────────────────────────
+function renderTools() {
+  const p = currentProject;
+  const list = document.getElementById('tools-list');
+  list.innerHTML = '';
+  if (!p.tools || !p.tools.length) {
+    const el = document.createElement('p');
+    el.className = 'no-tools';
+    el.textContent = 'Aucun outil ajouté.';
+    list.appendChild(el);
+  } else {
+    p.tools.forEach(t => {
+      const row = document.createElement('div');
+      row.className = 'tool-row';
+      row.innerHTML = `
+        <div class="tool-name">${escHtml(t.label)}</div>
+        <div class="tool-actions">
+          <a class="btn-open" href="${escHtml(t.href)}">Ouvrir</a>
+          <button class="btn-remove" title="Retirer">×</button>
+        </div>`;
+      row.querySelector('.btn-remove').addEventListener('click', async () => {
+        if (!confirm('Retirer « ' + t.label + ' » ?\n\nToutes les données seront supprimées définitivement.')) return;
+        p.tools = p.tools.filter(x => x.id !== t.id);
+        if (t.supabaseKey && sb) {
+          try { await sb.from('project_data').delete().eq('key', t.supabaseKey); } catch(e) {}
         }
-        const sceneCount = d.imported_scenes_raw.length;
-        const versions   = d.fdxVersions || [];
-        const metas      = Object.values(d.fdxImportMeta || {});
-        const lastDate   = metas.length
-          ? new Date(metas.map(m => m.date).sort().at(-1)).toLocaleDateString('fr-CA', { year: 'numeric', month: 'long', day: 'numeric' })
-          : null;
-        const parts = [`<strong>${sceneCount}</strong> scène${sceneCount > 1 ? 's' : ''}`];
-        if (lastDate) parts.push(`importées le <strong>${lastDate}</strong>`);
-        if (versions.length) parts.push(`${versions.length} version${versions.length > 1 ? 's' : ''} archivée${versions.length > 1 ? 's' : ''}`);
-        el.innerHTML = `<p style="font-size:12px;color:var(--muted);line-height:1.8;">${parts.join(' &middot; ')}</p>`;
-      } catch(e) { console.warn('scenes load error:', e); }
-    }
+        persistProjectState();
+        renderTools();
+        renderAddButton();
+      });
+      list.appendChild(row);
+    });
+  }
+}
 
-    // ── Render ────────────────────────────────────────────────────────────────
-    function renderTools() {
-      const p = currentProject;
-      const list = document.getElementById('tools-list');
-      list.innerHTML = '';
-
-      if (!p.tools || !p.tools.length) {
-        const empty = document.createElement('p');
-        empty.className = 'no-tools';
-        empty.textContent = 'Aucun outil ajouté.';
-        list.appendChild(empty);
-      } else {
-        p.tools.forEach(t => {
-          const row = document.createElement('div');
-          row.className = 'tool-row';
-
-          const info = document.createElement('div');
-          info.className = 'tool-info';
-          info.innerHTML = `<div class="tool-name">${t.label}</div>`;
-
-          const actions = document.createElement('div');
-          actions.className = 'tool-actions';
-
-          const a = document.createElement('a');
-          a.className = 'btn-open';
-          a.href = t.href;
-          a.textContent = 'Ouvrir';
-
-          const rmBtn = document.createElement('button');
-          rmBtn.className = 'btn-remove';
-          rmBtn.title = 'Retirer';
-          rmBtn.textContent = '×';
-          rmBtn.addEventListener('click', async () => {
-            if (!confirm('Retirer « ' + t.label + ' » ?\n\nToutes les données seront supprimées définitivement.')) return;
-            p.tools = p.tools.filter(x => x.id !== t.id);
-            if (t.supabaseKey && sb) {
-              try { await sb.from('project_data').delete().eq('key', t.supabaseKey); } catch(e) {}
-            }
-            persistState();
-            renderTools();
-            renderAddButton();
-          });
-
-          actions.appendChild(a);
-          actions.appendChild(rmBtn);
-          row.appendChild(info);
-          row.appendChild(actions);
-          list.appendChild(row);
-        });
-      }
-    }
-
-    function renderAddButton() {
-      const p = currentProject;
-      const wrap = document.getElementById('add-tool-wrap');
-      wrap.innerHTML = '';
-
-      const addedIds = new Set((p.tools || []).map(t => t.id));
-      const remaining = AVAILABLE_TOOLS.filter(t => !addedIds.has(t.id));
-      if (!remaining.length) return;
-
-      const btn = document.createElement('button');
-      btn.className = 'btn-add-tool';
-      btn.textContent = '+ Ajouter un outil';
-      btn.addEventListener('click', e => {
+function renderAddButton() {
+  const p = currentProject;
+  const wrap = document.getElementById('add-tool-wrap');
+  wrap.innerHTML = '';
+  const addedIds = new Set((p.tools || []).map(t => t.id));
+  const remaining = AVAILABLE_TOOLS.filter(t => !addedIds.has(t.id));
+  if (!remaining.length) return;
+  const btn = document.createElement('button');
+  btn.className = 'btn-add-tool';
+  btn.textContent = '+ Ajouter un outil';
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    if (wrap.querySelector('.tool-dropdown')) { wrap.querySelector('.tool-dropdown').remove(); return; }
+    const dd = document.createElement('div');
+    dd.className = 'tool-dropdown';
+    remaining.forEach(toolDef => {
+      const item = document.createElement('button');
+      item.textContent = toolDef.label;
+      item.addEventListener('click', e => {
         e.stopPropagation();
-        if (wrap.querySelector('.tool-dropdown')) { wrap.querySelector('.tool-dropdown').remove(); return; }
-        const dd = document.createElement('div');
-        dd.className = 'tool-dropdown';
-        remaining.forEach(toolDef => {
-          const item = document.createElement('button');
-          item.textContent = toolDef.label;
-          item.addEventListener('click', e => {
-            e.stopPropagation();
-            if (!p.tools) p.tools = [];
-            p.tools.push({ id: toolDef.id, label: toolDef.label, href: toolDef.buildHref(p), supabaseKey: toolDef.buildKey ? toolDef.buildKey(p) : null });
-            persistState();
-            renderTools();
-            renderAddButton();
-            dd.remove();
-          });
-          dd.appendChild(item);
-        });
-        wrap.appendChild(dd);
+        if (!p.tools) p.tools = [];
+        p.tools.push({ id: toolDef.id, label: toolDef.label, href: toolDef.buildHref(p), supabaseKey: toolDef.buildKey(p) });
+        persistProjectState();
+        renderTools();
+        renderAddButton();
+        dd.remove();
       });
-      wrap.appendChild(btn);
-    }
+      dd.appendChild(item);
+    });
+    wrap.appendChild(dd);
+  });
+  wrap.appendChild(btn);
+}
 
-    function renderFdx() {
-      const btn = document.getElementById('btn-import-fdx');
-      if (!btn) return;
-      btn.onclick = () => document.getElementById('fdx-file-input').click();
-      document.getElementById('fdx-file-input').onchange = onFdxFileChange;
-    }
+function renderSectionToggle() {
+  document.getElementById('section-toggle').querySelectorAll('button').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.section === currentProject.section);
+    btn.onclick = () => {
+      currentProject.section = btn.dataset.section;
+      persistProjectState();
+      renderSectionToggle();
+    };
+  });
+}
 
-    async function onFdxFileChange(evt) {
-      const files = Array.from(evt.target.files);
-      if (!files.length) return;
-      evt.target.value = '';
+// ─── RENDER SCENE TABLE ───────────────────────────────────────────────────────
+const IE_OPTS = ['—','INT','EXT','INT/EXT','EXT/INT'];
+const JN_OPTS = ['—','JOUR','NUIT','SOIR','MATIN','AUBE','CRÉPUSCULE','CONTINU'];
 
-      // Lire tous les fichiers
-      const loaded = await Promise.all(files.map(f => f.text().then(t => ({ name: f.name, content: t }))));
+function ieTag(v) {
+  if (!v || v === '—') return '';
+  const k = v.replace('/','').replace('EXTINT','MIX').replace('INTEXT','MIX');
+  const cls = v.includes('/') ? 'tMIX' : (v === 'INT' ? 'tINT' : 'tEXT');
+  return `<span class="tag ${cls}">${escHtml(v)}</span>`;
+}
+function jnTag(v) {
+  if (!v || v === '—') return '';
+  const map = { JOUR:'tJOUR', NUIT:'tNUIT', SOIR:'tSOIR', MATIN:'tMATIN', AUBE:'tAUBE', CRÉPUSCULE:'tFIN', CONTINU:'tFIN' };
+  return `<span class="tag ${map[v] || ''}">${escHtml(v)}</span>`;
+}
 
-      // Parser avec auto-détection sur le premier fichier
-      let allScenes = [], allErrors = [];
-      for (const { name, content } of loaded) {
-        try {
-          const opts = _detectFdxOptions(content);
-          const parseOpts = {
-            sep: opts.suggestDash ? 'dash' : 'slash',
-            serieFormat: opts.hasCompactNums ? 'compact' : 'dot'
-          };
-          const { scenes, errors } = parseFDXToScenes(content, parseOpts);
-          allScenes = [...allScenes, ...scenes];
-          allErrors = [...allErrors, ...errors.map(e => loaded.length > 1 ? `[${name}] ${e}` : e)];
-        } catch(e) {
-          alert('Erreur FDX dans « ' + name + ' » : ' + e.message);
-          return;
+function filteredScenes() {
+  if (!sceneSearch) return scenesRaw;
+  const q = sceneSearch.toLowerCase();
+  return scenesRaw.filter(s =>
+    String(s.sc).toLowerCase().includes(q) ||
+    (s.lieu || '').toLowerCase().includes(q) ||
+    (s.sous_lieu || '').toLowerCase().includes(q) ||
+    (s.jn || '').toLowerCase().includes(q)
+  );
+}
+
+function renderScenesTable() {
+  const isSeries = totalEpisodes > 0;
+  const thead = document.getElementById('scene-thead');
+  const tbody = document.getElementById('scene-tbody');
+  const emptyEl = document.getElementById('scene-empty');
+  const countLbl = document.getElementById('count-lbl');
+  const tableEl = document.getElementById('scene-table');
+
+  if (!scenesRaw.length) {
+    tableEl.style.display = 'none';
+    emptyEl.style.display = '';
+    emptyEl.innerHTML = 'Aucune scène importée.<br><span style="font-size:12px;">Utilisez <strong>Importer FDX</strong> pour charger un scénario.</span>';
+    countLbl.textContent = '';
+    document.getElementById('search-wrap').style.display = 'none';
+    return;
+  }
+
+  tableEl.style.display = '';
+  emptyEl.style.display = 'none';
+  document.getElementById('search-wrap').style.display = '';
+
+  const list = filteredScenes();
+  countLbl.textContent = list.length === scenesRaw.length
+    ? `${scenesRaw.length} scène${scenesRaw.length > 1 ? 's' : ''}`
+    : `${list.length} / ${scenesRaw.length}`;
+
+  thead.innerHTML = `<tr>
+    <th style="width:54px;text-align:center;">SC</th>
+    ${isSeries ? '<th style="width:44px;text-align:center;">ÉP</th>' : ''}
+    <th style="width:74px;">INT/EXT</th>
+    <th>Lieu fictif</th>
+    <th style="min-width:100px;">Sous-lieu</th>
+    <th style="width:70px;">J/N</th>
+    <th style="width:52px;text-align:center;">Page</th>
+  </tr>`;
+
+  const sceneSet = new Set(list.map(s => s.sc));
+  tbody.innerHTML = scenesRaw.map(s => {
+    const hidden = !sceneSet.has(s.sc) ? ' hidden' : '';
+    const ep = isSeries ? parseEp(s.sc).ep : null;
+    return `<tr data-sc="${escHtml(String(s.sc))}"${hidden}>
+      <td><span class="sc-num">SC${escHtml(String(s.sc))}</span></td>
+      ${isSeries ? `<td><span class="ep-lbl">${ep > 0 ? 'E' + String(ep).padStart(2,'0') : '—'}</span></td>` : ''}
+      <td class="td-tag">
+        <select class="td-select" data-sc="${escHtml(String(s.sc))}" data-field="int_ext" onchange="onSceneFieldChange(this)">
+          ${IE_OPTS.map(o => `<option${o === (s.int_ext||'—') ? ' selected' : ''}>${escHtml(o)}</option>`).join('')}
+        </select>
+      </td>
+      <td><button class="lieu-btn" onclick="openRenameModal('${escHtml(s.lieu || '')}')">${escHtml(s.lieu || '—')}</button></td>
+      <td><input class="td-input" data-sc="${escHtml(String(s.sc))}" data-field="sous_lieu"
+            value="${escHtml(s.sous_lieu || '')}" placeholder="—"
+            onchange="onSceneFieldChange(this)" onblur="onSceneFieldChange(this)"></td>
+      <td class="td-tag">
+        <select class="td-select" data-sc="${escHtml(String(s.sc))}" data-field="jn" onchange="onSceneFieldChange(this)">
+          ${JN_OPTS.map(o => `<option${o === (s.jn||'—') ? ' selected' : ''}>${escHtml(o)}</option>`).join('')}
+        </select>
+      </td>
+      <td><span class="td-page">${s.page && s.page !== '0' ? escHtml(String(s.page)) : '—'}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ─── INLINE EDIT ─────────────────────────────────────────────────────────────
+function onSceneFieldChange(el) {
+  const sc = el.dataset.sc;
+  const field = el.dataset.field;
+  const val = el.value === '—' ? '' : el.value;
+  const scene = scenesRaw.find(s => String(s.sc) === sc);
+  if (!scene || scene[field] === val) return;
+  scene[field] = val;
+  scheduleSave();
+}
+
+// ─── LIEU RENAME ─────────────────────────────────────────────────────────────
+let _renamingLieu = null;
+
+function openRenameModal(lieu) {
+  _renamingLieu = lieu;
+  const count = scenesRaw.filter(s => s.lieu === lieu).length;
+  document.getElementById('rename-modal-title').textContent = 'Renommer le lieu fictif';
+  document.getElementById('rename-modal-sub').textContent = `"${lieu}" — présent dans ${count} scène${count > 1 ? 's' : ''}. Le renommage se propagera au Tableau des lieux et aux autres outils.`;
+  const inp = document.getElementById('rename-input');
+  inp.value = lieu;
+  document.getElementById('rename-warn').className = 'modal-warn';
+  document.getElementById('rename-modal').classList.add('active');
+  setTimeout(() => { inp.focus(); inp.select(); }, 80);
+}
+
+document.getElementById('rename-input').addEventListener('input', () => {
+  const newVal = document.getElementById('rename-input').value.trim().toUpperCase();
+  const warn = document.getElementById('rename-warn');
+  const existingLieus = [...new Set(scenesRaw.map(s => s.lieu).filter(Boolean))];
+  if (newVal && newVal !== _renamingLieu && existingLieus.includes(newVal)) {
+    warn.textContent = `⚠ Ce lieu existe déjà — les scènes de "${_renamingLieu}" seront fusionnées avec "${newVal}".`;
+    warn.className = 'modal-warn visible';
+  } else {
+    warn.className = 'modal-warn';
+  }
+});
+
+document.getElementById('rename-cancel').onclick = () => {
+  document.getElementById('rename-modal').classList.remove('active');
+  _renamingLieu = null;
+};
+
+document.getElementById('rename-confirm').onclick = async () => {
+  const newLieu = document.getElementById('rename-input').value.trim().toUpperCase();
+  if (!newLieu || !_renamingLieu) return;
+  document.getElementById('rename-modal').classList.remove('active');
+  const oldLieu = _renamingLieu;
+  _renamingLieu = null;
+  await renameLieu(oldLieu, newLieu);
+};
+
+document.getElementById('rename-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('rename-confirm').click();
+  if (e.key === 'Escape') document.getElementById('rename-cancel').click();
+});
+
+async function renameLieu(oldLieu, newLieu) {
+  if (oldLieu === newLieu) return;
+  setSyncStatus('syncing');
+
+  // 1. Mettre à jour toutes les scènes
+  scenesRaw.forEach(s => { if (s.lieu === oldLieu) s.lieu = newLieu; });
+
+  // 2. Remapper les clés dans {id}_tdl
+  if (sb) {
+    try {
+      const { data: tdlRow } = await sb.from('project_data').select('data').eq('key', TDL_KEY).maybeSingle();
+      if (tdlRow?.data) {
+        const tdl = tdlRow.data;
+        const TDL_MAPS = ['lieusTournage','lieuColorOverrides','sousLieuColorOverrides','lieuNotes','sousLieuNotes','lieuTournagePhotos','lieuTournageInspi','lieuTournageFloorplans'];
+        TDL_MAPS.forEach(field => {
+          if (!tdl[field] || tdl[field][oldLieu] === undefined) return;
+          if (!tdl[field][newLieu]) tdl[field][newLieu] = tdl[field][oldLieu];
+          delete tdl[field][oldLieu];
+        });
+        // Aussi remapper dans le tableau de scènes interne du TDL (clé `scenes`)
+        if (Array.isArray(tdl.scenes)) {
+          tdl.scenes.forEach(s => { if (s.lieu === oldLieu) s.lieu = newLieu; });
         }
+        await sb.from('project_data').upsert({ key: TDL_KEY, data: tdl, updated_at: new Date().toISOString() });
       }
+    } catch(e) { console.warn('TDL remap error:', e); }
+  }
 
-      // Dédoublonner par sc (dernier fichier gagne)
-      const scMap = new Map();
-      allScenes.forEach(s => scMap.set(s.sc, s));
-      const newScenes = [...scMap.values()].sort(_scSort);
+  // 3. Sauvegarder {id}_scenes (déclenche Realtime → tous les outils se mettent à jour)
+  await saveScenesData();
+  renderScenesTable();
+}
 
-      if (!newScenes.length) { alert('Aucune scène trouvée dans ces fichiers.'); return; }
+// ─── RENDER VERSIONS ─────────────────────────────────────────────────────────
+function renderVersions() {
+  const el = document.getElementById('versions-content');
+  if (!fdxVersions.length) {
+    el.innerHTML = '<p class="ver-empty">Aucune version archivée.</p>';
+    return;
+  }
 
-      // Charger les données existantes
-      let existingData = null;
-      if (sb) {
-        try {
-          const { data: row } = await sb.from('project_data').select('data').eq('key', SCENES_KEY).maybeSingle();
-          existingData = row?.data || null;
-        } catch(e) {}
-      }
+  // Grouper par épisode
+  const byEp = {};
+  fdxVersions.forEach(v => {
+    const key = v.ep !== null && v.ep !== undefined ? String(v.ep) : 'legacy';
+    if (!byEp[key]) byEp[key] = [];
+    byEp[key].push(v);
+  });
 
-      const existingCount = existingData?.imported_scenes_raw?.length || 0;
-      const filename = files.length === 1 ? files[0].name : `${files.length} fichiers FDX`;
-      let msg = `${newScenes.length} scène${newScenes.length > 1 ? 's' : ''} trouvée${newScenes.length > 1 ? 's' : ''} dans « ${filename} ».`;
-      if (existingCount) msg += `\n\n${existingCount} scène${existingCount > 1 ? 's' : ''} déjà importée${existingCount > 1 ? 's' : ''} — elles seront remplacées.\nPour un import avec diff et merge, utiliser le Tableau des lieux.`;
-      if (allErrors.length) msg += `\n\n⚠ ${allErrors.length} avertissement${allErrors.length > 1 ? 's' : ''} :\n` + allErrors.slice(0, 5).join('\n');
-      if (!confirm(msg + '\n\nConfirmer l\'import ?')) return;
+  let html = '';
+  Object.entries(byEp).sort(([a],[b]) => {
+    if (a === 'legacy') return 1;
+    if (b === 'legacy') return -1;
+    return parseInt(a) - parseInt(b);
+  }).forEach(([ep, versions]) => {
+    const title = ep === 'legacy' ? 'Versions héritées' : (ep === '0' ? 'Long-métrage' : `Épisode ${ep.padStart(2,'0')}`);
+    html += `<div class="ver-block"><p class="ver-section-title">${escHtml(title)}</p>`;
+    versions.forEach((v, i) => {
+      const realIdx = fdxVersions.indexOf(v);
+      const date = v.date ? new Date(v.date).toLocaleDateString('fr-CA', { year:'numeric', month:'long', day:'numeric' }) : '—';
+      const delta = v.prev_scene_count != null ? v.scene_count - v.prev_scene_count : null;
+      const deltaTxt = delta === null ? '' : (delta === 0 ? 'Aucun changement' : (delta > 0 ? `+${delta} scène${Math.abs(delta)>1?'s':''}` : `${delta} scène${Math.abs(delta)>1?'s':''}`));
+      const deltaCls = delta === null || delta === 0 ? 'same' : (delta > 0 ? 'pos' : 'neg');
+      html += `<div class="ver-card">
+        <div class="ver-label">${escHtml(v.label || 'Version ' + (i+1))}</div>
+        <span class="ver-info">${escHtml(date)} · ${v.scene_count} sc.</span>
+        ${deltaTxt ? `<span class="ver-delta ${deltaCls}">${escHtml(deltaTxt)}</span>` : ''}
+        <button class="btn-ver-del" onclick="deleteVersion(${realIdx})" title="Supprimer">×</button>
+      </div>`;
+    });
+    html += '</div>';
+  });
+  el.innerHTML = html;
+}
 
-      // Archiver la version précédente si elle existe
-      const prevVersions = existingData?.fdxVersions || [];
-      let fdxVersions = prevVersions;
-      if (existingData?.imported_scenes_raw?.length) {
-        const prevMeta = existingData.fdxImportMeta ? Object.values(existingData.fdxImportMeta)[0] : null;
-        const archived = {
-          id: Date.now().toString(),
-          date: existingData.fdxImportMeta ? Object.values(existingData.fdxImportMeta).map(m => m.date).sort().at(-1) : new Date().toISOString(),
-          label: prevMeta?.label || 'Version précédente',
-          ep: null,
-          scene_count: existingData.imported_scenes_raw.length,
-          prev_scene_count: 0,
-          scenes_raw: existingData.imported_scenes_raw
-        };
-        fdxVersions = [...prevVersions, archived].slice(-20);
-      }
+function deleteVersion(idx) {
+  if (!fdxVersions[idx]) return;
+  if (!confirm('Supprimer cette version archivée ?')) return;
+  fdxVersions.splice(idx, 1);
+  saveScenesData();
+  renderVersions();
+}
 
-      // Déduire totalEpisodes
-      const eps = new Set(newScenes.map(s => parseEp(s.sc).ep).filter(e => e > 0));
-      const totalEpisodes = eps.size;
+// ─── FDX IMPORT ───────────────────────────────────────────────────────────────
+function wireFdxButton() {
+  document.getElementById('btn-import-fdx').onclick = () => document.getElementById('fdx-file-input').click();
+  document.getElementById('fdx-file-input').onchange = onFdxFileChange;
+}
 
-      // fdxImportMeta : ep 0 = long-métrage
-      const label = filename.replace(/\.fdx$/i, '');
-      const now = new Date().toISOString();
-      const fdxImportMeta = {};
-      const epGroups = {};
-      newScenes.forEach(s => {
-        const ep = parseEp(s.sc).ep;
-        if (!epGroups[ep]) epGroups[ep] = [];
-        epGroups[ep].push(s);
-      });
-      Object.entries(epGroups).forEach(([ep, sc]) => {
-        fdxImportMeta[ep] = { label, date: now, scene_count: sc.length };
-      });
+async function onFdxFileChange(evt) {
+  const files = Array.from(evt.target.files);
+  if (!files.length) return;
+  evt.target.value = '';
 
-      const scenesPayload = { imported_scenes_raw: newScenes, fdxVersions, fdxImportMeta, totalEpisodes };
+  const loaded = await Promise.all(files.map(f => f.text().then(t => ({ name: f.name, content: t }))));
+  let allScenes = [], allErrors = [];
+  for (const { name, content } of loaded) {
+    try {
+      const opts = _detectFdxOptions(content);
+      const parseOpts = { sep: opts.suggestDash ? 'dash' : 'slash', serieFormat: opts.hasCompactNums ? 'compact' : 'dot' };
+      const { scenes, errors } = parseFDXToScenes(content, parseOpts);
+      allScenes = [...allScenes, ...scenes];
+      allErrors = [...allErrors, ...errors.map(e => loaded.length > 1 ? `[${name}] ${e}` : e)];
+    } catch(e) { alert('Erreur FDX dans « ' + name + ' » : ' + e.message); return; }
+  }
 
-      if (sb) {
-        try {
-          const { error } = await sb.from('project_data').upsert({ key: SCENES_KEY, data: scenesPayload, updated_at: now });
-          if (error) throw error;
-        } catch(e) { alert('Erreur Supabase : ' + e.message); return; }
-      }
+  const scMap = new Map();
+  allScenes.forEach(s => scMap.set(s.sc, s));
+  const newScenes = [...scMap.values()].sort(_scSort);
+  if (!newScenes.length) { alert('Aucune scène trouvée dans ces fichiers.'); return; }
 
-      await loadScenesData();
+  const existingCount = scenesRaw.length;
+  const filename = files.length === 1 ? files[0].name : `${files.length} fichiers FDX`;
+  let msg = `${newScenes.length} scène${newScenes.length > 1 ? 's' : ''} trouvée${newScenes.length > 1 ? 's' : ''} dans « ${filename} ».`;
+  if (existingCount) msg += `\n\n${existingCount} scène${existingCount > 1 ? 's' : ''} déjà importée${existingCount > 1 ? 's' : ''} — elles seront remplacées.\nPour un import avec diff et merge, utiliser le Tableau des lieux.`;
+  if (allErrors.length) msg += `\n\n⚠ ${allErrors.length} avertissement${allErrors.length > 1 ? 's' : ''} :\n` + allErrors.slice(0, 5).join('\n');
+  if (!confirm(msg + '\n\nConfirmer l\'import ?')) return;
+
+  // Archiver la version précédente
+  if (scenesRaw.length) {
+    const prevMeta = fdxImportMeta ? Object.values(fdxImportMeta)[0] : null;
+    const archived = {
+      id: Date.now().toString(),
+      date: prevMeta?.date || new Date().toISOString(),
+      label: prevMeta?.label || 'Version précédente',
+      ep: null,
+      scene_count: scenesRaw.length,
+      prev_scene_count: 0,
+      scenes_raw: scenesRaw
+    };
+    fdxVersions = [...fdxVersions, archived].slice(-20);
+  }
+
+  scenesRaw = newScenes;
+  const eps = new Set(newScenes.map(s => parseEp(s.sc).ep).filter(e => e > 0));
+  totalEpisodes = eps.size;
+  const label = filename.replace(/\.fdx$/i, '');
+  const now = new Date().toISOString();
+  fdxImportMeta = {};
+  const epGroups = {};
+  newScenes.forEach(s => {
+    const ep = parseEp(s.sc).ep;
+    if (!epGroups[ep]) epGroups[ep] = [];
+    epGroups[ep].push(s);
+  });
+  Object.entries(epGroups).forEach(([ep, sc]) => {
+    fdxImportMeta[ep] = { label, date: now, scene_count: sc.length };
+  });
+
+  await saveScenesData();
+  renderScenesTable();
+}
+
+// ─── SEARCH ───────────────────────────────────────────────────────────────────
+document.getElementById('scene-search').addEventListener('input', e => {
+  sceneSearch = e.target.value.trim();
+  const q = sceneSearch.toLowerCase();
+  document.querySelectorAll('#scene-tbody tr').forEach(tr => {
+    if (!q) { tr.classList.remove('hidden'); return; }
+    const sc = tr.dataset.sc || '';
+    const cells = tr.textContent.toLowerCase();
+    tr.classList.toggle('hidden', !cells.includes(q) && !sc.toLowerCase().includes(q));
+  });
+  const visible = document.querySelectorAll('#scene-tbody tr:not(.hidden)').length;
+  document.getElementById('count-lbl').textContent = visible === scenesRaw.length
+    ? `${scenesRaw.length} scène${scenesRaw.length > 1 ? 's' : ''}`
+    : `${visible} / ${scenesRaw.length}`;
+});
+
+// ─── REALTIME ─────────────────────────────────────────────────────────────────
+function subscribeToScenes() {
+  if (!sb) return;
+  sb.channel('projet-scenes-' + projectId)
+    .on('postgres_changes', {
+      event: '*', schema: 'public', table: 'project_data',
+      filter: 'key=eq.' + SCENES_KEY
+    }, payload => {
+      const d = payload.new?.data;
+      if (!d) return;
+      scenesRaw     = d.imported_scenes_raw || [];
+      fdxVersions   = d.fdxVersions || [];
+      fdxImportMeta = d.fdxImportMeta || {};
+      totalEpisodes = d.totalEpisodes || 0;
+      renderScenesTable();
+    })
+    .subscribe();
+}
+
+// ─── CLICK OUTSIDE TO CLOSE DROPDOWNS ────────────────────────────────────────
+document.addEventListener('click', e => {
+  if (!e.target.closest('.add-tool-wrap')) document.querySelectorAll('.tool-dropdown').forEach(d => d.remove());
+  if (!e.target.closest('.modal') && !e.target.closest('.lieu-btn')) {
+    if (document.getElementById('rename-modal').classList.contains('active')) {
+      document.getElementById('rename-cancel').click();
     }
+  }
+});
 
-    function renderSectionToggle() {
-      const toggle = document.getElementById('section-toggle');
-      toggle.querySelectorAll('button').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.section === currentProject.section);
-        btn.addEventListener('click', () => {
-          currentProject.section = btn.dataset.section;
-          persistState();
-          renderSectionToggle();
-        });
-      });
-    }
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+async function init() {
+  let state = mergeState(loadLocal());
+  projects = state;
+  currentProject = projects.find(p => p.id === projectId);
+  if (!currentProject) { location.href = '/'; return; }
 
-    function renderPage() {
-      document.title = currentProject.name + ' — Outils';
-      document.getElementById('project-title').textContent = currentProject.name;
-      document.getElementById('project-format').textContent = currentProject.format;
+  document.title = currentProject.name + ' — Outils';
+  document.getElementById('project-name').textContent = currentProject.name;
+  document.getElementById('project-format').textContent = currentProject.format || '';
+  renderSectionToggle();
+  renderTools();
+  renderAddButton();
+  wireFdxButton();
+
+  // Charger les données en parallèle
+  const [remote] = await Promise.all([
+    loadProjectState(),
+    loadScenesData()
+  ]);
+
+  renderScenesTable();
+
+  if (remote) {
+    saveLocal(remote);
+    projects = mergeState(remote);
+    currentProject = projects.find(p => p.id === projectId);
+    if (currentProject) {
       renderSectionToggle();
       renderTools();
       renderAddButton();
     }
+  }
 
-    document.addEventListener('click', e => {
-      if (!e.target.closest('.add-tool-wrap')) {
-        document.querySelectorAll('.tool-dropdown').forEach(d => d.remove());
-      }
-    });
+  subscribeToScenes();
+}
 
-    // ── Init ──────────────────────────────────────────────────────────────────
-    async function init() {
-      let state = mergeState(loadLocal());
-      projects = state;
-      currentProject = projects.find(p => p.id === projectId);
-      if (!currentProject) { location.href = '/'; return; }
-      renderFdx(); // câbler le bouton import une seule fois
-      renderPage();
-
-      const [remote] = await Promise.all([
-        loadFromSupabase(),
-        loadScenesData()
-      ]);
-      if (remote) {
-        saveLocal(remote);
-        projects = mergeState(remote);
-        currentProject = projects.find(p => p.id === projectId);
-        if (currentProject) renderPage();
-      }
-    }
-
-    init();
-  </script>
+init();
+</script>
 </body>
 </html>
