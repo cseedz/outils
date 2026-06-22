@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Table des scènes — Outils</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="/src/fdx-parser.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #ffffff; --bg2: #f8f8f8; --bg3: #f0f0f0;
+      --border: #e7e7e7; --border2: #cccccc;
+      --text: #111111; --text-muted: #777777; --text-dim: #aaaaaa;
+      --danger: #cc3333;
+      --topbar-h: 50px;
+      --controls-h: 41px;
+    }
+    html { font-size: 13px; -webkit-font-smoothing: antialiased; }
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.4; }
+
+    /* ── TOPBAR ── */
+    .topbar {
+      position: sticky; top: 0; z-index: 100; height: var(--topbar-h);
+      background: var(--bg2); border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 12px; padding: 0 20px;
+    }
+    .back-link { font-size: 11px; color: var(--text-muted); text-decoration: none; letter-spacing: .04em; padding-right: 12px; border-right: 1px solid var(--border); flex-shrink: 0; }
+    .back-link:hover { color: var(--text); }
+    .topbar-title { font-size: 14px; font-weight: 700; letter-spacing: -0.2px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .topbar-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+    .sync-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border2); transition: background 300ms; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+    .sync-dot.syncing { background: #f0a500; animation: pulse .9s infinite; }
+    .sync-dot.synced  { background: #5a9a6a; }
+    .sync-dot.error   { background: var(--danger); }
+
+    /* ── CONTROLS BAR ── */
+    .controls-bar {
+      position: sticky; top: var(--topbar-h); z-index: 99; height: var(--controls-h);
+      background: var(--bg2); border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 8px; padding: 0 20px;
+    }
+    .btn { background: var(--bg3); border: 1px solid var(--border); border-radius: 5px; cursor: pointer; font-size: 12px; font-family: inherit; color: var(--text); padding: 5px 12px; white-space: nowrap; }
+    .btn:hover { border-color: var(--border2); }
+    .search-wrap { position: relative; }
+    .scene-search {
+      background: var(--bg3); border: 1px solid var(--border); border-radius: 5px;
+      font-size: 12px; font-family: inherit; padding: 5px 8px 5px 26px;
+      outline: none; color: var(--text); width: 200px;
+    }
+    .scene-search:focus { border-color: var(--border2); }
+    .scene-search::placeholder { color: var(--text-dim); }
+    .search-icon { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 11px; pointer-events: none; }
+    .ep-filter {
+      appearance: none; background: var(--bg3); border: 1px solid var(--border); border-radius: 5px;
+      font-size: 12px; font-family: inherit; padding: 5px 10px; color: var(--text); cursor: pointer; outline: none;
+    }
+    .ep-filter:focus { border-color: var(--border2); }
+    .count-lbl { font-size: 11px; color: var(--text-muted); margin-left: auto; white-space: nowrap; }
+
+    /* ── TABLE ── */
+    .scene-table-wrap { overflow-x: auto; }
+    .scene-table { width: 100%; border-collapse: collapse; min-width: 540px; }
+
+    .scene-table thead th {
+      background: var(--bg2); font-size: 10px; font-weight: 600; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: .7px; padding: 8px 10px;
+      border-right: 1px solid var(--border); border-bottom: 1px solid var(--border);
+      white-space: nowrap; text-align: left; user-select: none;
+      position: sticky; top: calc(var(--topbar-h) + var(--controls-h)); z-index: 8;
+    }
+    .scene-table thead th:last-child { border-right: none; }
+    .scene-table tbody tr { border-bottom: 1px solid var(--border); transition: background .07s; }
+    .scene-table tbody tr:last-child { border-bottom: none; }
+    .scene-table tbody tr:hover { background: var(--bg2); }
+    .scene-table tbody tr.hidden-row { display: none; }
+    .scene-table td { padding: 0; border-right: 1px solid var(--border); vertical-align: middle; }
+    .scene-table td:last-child { border-right: none; }
+
+    /* Cell contents */
+    .sc-num { display: block; padding: 7px 10px; font-size: 11px; font-weight: 700; color: var(--text-muted); white-space: nowrap; text-align: center; min-width: 52px; }
+    .ep-lbl { display: block; padding: 7px 10px; font-size: 11px; color: var(--text-muted); text-align: center; white-space: nowrap; }
+    .lieu-btn {
+      display: block; width: 100%; text-align: left; background: none; border: none;
+      font-size: 12px; font-weight: 600; font-family: inherit; color: var(--text);
+      padding: 7px 10px; cursor: pointer; white-space: nowrap;
+    }
+    .lieu-btn:hover { background: var(--bg3); }
+    .td-select {
+      appearance: none; background: transparent; border: none; outline: none;
+      font-size: 12px; font-family: inherit; color: var(--text);
+      padding: 7px 10px; width: 100%; cursor: pointer;
+    }
+    .td-select:focus { background: var(--bg3); }
+    .td-input {
+      background: transparent; border: none; outline: none;
+      font-size: 12px; font-family: inherit; color: var(--text-muted);
+      padding: 7px 10px; width: 100%; min-width: 90px;
+    }
+    .td-input:focus { background: var(--bg3); color: var(--text); }
+    .td-input::placeholder { color: var(--text-dim); }
+    .td-page { display: block; padding: 7px 10px; font-size: 11px; color: var(--text-muted); text-align: center; white-space: nowrap; }
+
+    /* Tags */
+    .tag { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: 600; letter-spacing: .4px; white-space: nowrap; border: 1px solid; }
+    .tINT  { background:rgba(45,106,138,.1); color:#1a5a7a; border-color:rgba(45,106,138,.3); }
+    .tEXT  { background:rgba(45,138,90,.1);  color:#1a6a40; border-color:rgba(45,138,90,.3); }
+    .tMIX  { background:rgba(120,90,170,.1); color:#5a2a90; border-color:rgba(120,90,170,.3); }
+    .tJOUR { background:rgba(138,122,45,.1); color:#6a5a00; border-color:rgba(138,122,45,.3); }
+    .tNUIT { background:rgba(106,74,170,.1); color:#502a90; border-color:rgba(106,74,170,.3); }
+    .tSOIR { background:rgba(138,90,106,.1); color:#6a2a45; border-color:rgba(138,90,106,.3); }
+    .tMATIN{ background:rgba(90,138,138,.1); color:#2a6060; border-color:rgba(90,138,138,.3); }
+    .tAUBE { background:rgba(100,80,140,.1); color:#4a2a70; border-color:rgba(100,80,140,.3); }
+    .tFIN  { background:rgba(138,100,45,.1); color:#6a4000; border-color:rgba(138,100,45,.3); }
+
+    /* ── EMPTY ── */
+    .empty-msg { padding: 60px 24px; text-align: center; color: var(--text-muted); font-size: 13px; line-height: 1.8; }
+
+    /* ── RENAME MODAL ── */
+    .modal-overlay { display: none; position: fixed; inset: 0; z-index: 500; background: rgba(0,0,0,.35); align-items: center; justify-content: center; padding: 20px; }
+    .modal-overlay.active { display: flex; }
+    .modal { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; width: 100%; max-width: 400px; box-shadow: 0 6px 28px rgba(0,0,0,.12); overflow: hidden; }
+    .modal-title { font-size: 14px; font-weight: 700; padding: 18px 20px 4px; }
+    .modal-sub { font-size: 12px; color: var(--text-muted); padding: 0 20px 14px; line-height: 1.6; }
+    .modal-body { padding: 0 20px 16px; }
+    .modal-input { width: 100%; border: 1px solid var(--border); border-radius: 5px; padding: 8px 10px; font-size: 13px; font-family: inherit; outline: none; background: var(--bg3); }
+    .modal-input:focus { border-color: var(--border2); background: var(--bg); }
+    .modal-warn { font-size: 11px; color: #996600; margin-top: 8px; padding: 6px 9px; background: rgba(153,102,0,.06); border-radius: 4px; display: none; }
+    .modal-warn.visible { display: block; }
+    .modal-actions { display: flex; gap: 8px; padding: 0 20px 18px; justify-content: flex-end; }
+    .modal-btn { border: 1px solid var(--border); border-radius: 5px; padding: 7px 16px; font-size: 12px; font-family: inherit; cursor: pointer; background: var(--bg3); color: var(--text); }
+    .modal-btn:hover { border-color: var(--border2); }
+    .modal-btn.primary { background: var(--text); border-color: var(--text); color: #fff; }
+    .modal-btn.primary:hover { opacity: .85; }
+  </style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <a class="back-link" id="back-link" href="/">← Projet</a>
+  <div class="topbar-title" id="topbar-title">Table des scènes</div>
+  <div class="topbar-right">
+    <div class="sync-dot" id="sync-dot"></div>
+  </div>
+</div>
+
+<!-- CONTROLS -->
+<div class="controls-bar">
+  <button class="btn" id="btn-import-fdx">Importer FDX</button>
+  <input type="file" id="fdx-file-input" accept=".fdx" style="display:none;" multiple>
+  <select class="ep-filter" id="ep-filter" style="display:none;"></select>
+  <div class="search-wrap">
+    <span class="search-icon">⌕</span>
+    <input class="scene-search" id="scene-search" type="text" placeholder="Filtrer les scènes…">
+  </div>
+  <span class="count-lbl" id="count-lbl"></span>
+</div>
+
+<!-- TABLE -->
+<div class="scene-table-wrap">
+  <table class="scene-table" id="scene-table" style="display:none;">
+    <thead id="scene-thead"></thead>
+    <tbody id="scene-tbody"></tbody>
+  </table>
+  <div id="scene-empty" class="empty-msg"></div>
+</div>
+
+<!-- RENAME MODAL -->
+<div class="modal-overlay" id="rename-modal">
+  <div class="modal">
+    <div class="modal-title">Renommer le lieu fictif</div>
+    <div class="modal-sub" id="rename-modal-sub"></div>
+    <div class="modal-body">
+      <input class="modal-input" id="rename-input" type="text" autocomplete="off">
+      <div class="modal-warn" id="rename-warn"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn" id="rename-cancel">Annuler</button>
+      <button class="modal-btn primary" id="rename-confirm">Renommer</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── CONFIG ───────────────────────────────────────────────────────────────────
+const SUPABASE_URL = 'https://dvivafrldxzhkactsvve.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2aXZhZnJsZHh6aGthY3RzdnZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyMzQ5MDgsImV4cCI6MjA5NDgxMDkwOH0.EgyxWDERi443hefaM0LxDYDhLWQYx31feKzQ1bQU5Kc';
+
+const params      = new URLSearchParams(location.search);
+const projectId   = params.get('p');
+const projectName = decodeURIComponent(params.get('n') || projectId || '');
+const SCENES_KEY  = projectId + '_scenes';
+const TDL_KEY     = projectId + '_tdl';
+
+if (!projectId) location.href = '/';
+
+let sb = null;
+try { sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e) {}
+
+let scenesRaw     = [];
+let fdxVersions   = [];
+let fdxImportMeta = {};
+let totalEpisodes = 0;
+let _filterEp     = '';
+let _filterSearch = '';
+let _saveScenesTimer = null;
+
+function enc(s) { return encodeURIComponent(s || ''); }
+function escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ─── SYNC DOT ─────────────────────────────────────────────────────────────────
+function setSyncStatus(s) {
+  const dot = document.getElementById('sync-dot');
+  dot.className = 'sync-dot' + (s !== 'idle' ? ' ' + s : '');
+}
+
+// ─── SUPABASE ─────────────────────────────────────────────────────────────────
+async function loadScenesData() {
+  if (!sb) return;
+  try {
+    const { data: row } = await sb.from('project_data').select('data').eq('key', SCENES_KEY).maybeSingle();
+    const d = row?.data || {};
+    scenesRaw     = d.imported_scenes_raw || [];
+    fdxVersions   = d.fdxVersions || [];
+    fdxImportMeta = d.fdxImportMeta || {};
+    totalEpisodes = d.totalEpisodes || 0;
+  } catch(e) { console.warn(e); }
+}
+
+async function saveScenesData() {
+  if (!sb) return;
+  setSyncStatus('syncing');
+  try {
+    await sb.from('project_data').upsert({
+      key: SCENES_KEY,
+      data: { imported_scenes_raw: scenesRaw, fdxVersions, fdxImportMeta, totalEpisodes },
+      updated_at: new Date().toISOString()
+    });
+    setSyncStatus('synced');
+    setTimeout(() => setSyncStatus('idle'), 2000);
+  } catch(e) { setSyncStatus('error'); }
+}
+
+function scheduleSave() {
+  clearTimeout(_saveScenesTimer);
+  _saveScenesTimer = setTimeout(saveScenesData, 800);
+}
+
+// ─── EP FILTER ────────────────────────────────────────────────────────────────
+function buildEpFilter() {
+  const sel = document.getElementById('ep-filter');
+  if (totalEpisodes <= 1) { sel.style.display = 'none'; return; }
+  const eps = [...new Set(scenesRaw.map(s => parseEp(s.sc).ep).filter(e => e > 0))].sort((a,b) => a-b);
+  sel.style.display = '';
+  sel.innerHTML = `<option value="">Tous les épisodes</option>` +
+    eps.map(e => `<option value="${e}">Épisode ${String(e).padStart(2,'0')}</option>`).join('');
+  sel.value = _filterEp;
+}
+
+// ─── TABLE ────────────────────────────────────────────────────────────────────
+const IE_OPTS = ['—','INT','EXT','INT/EXT','EXT/INT'];
+const JN_OPTS = ['—','JOUR','NUIT','SOIR','MATIN','AUBE','CRÉPUSCULE','CONTINU'];
+
+function matchesFilter(s) {
+  if (_filterEp) {
+    const ep = parseEp(s.sc).ep;
+    if (String(ep) !== _filterEp) return false;
+  }
+  if (_filterSearch) {
+    const q = _filterSearch.toLowerCase();
+    const text = (String(s.sc) + ' ' + (s.lieu||'') + ' ' + (s.sous_lieu||'') + ' ' + (s.jn||'')).toLowerCase();
+    if (!text.includes(q)) return false;
+  }
+  return true;
+}
+
+function updateCountLabel() {
+  const visible = scenesRaw.filter(matchesFilter).length;
+  document.getElementById('count-lbl').textContent =
+    visible === scenesRaw.length
+      ? `${scenesRaw.length} scène${scenesRaw.length > 1 ? 's' : ''}`
+      : `${visible} / ${scenesRaw.length}`;
+}
+
+function renderTable() {
+  const isSeries = totalEpisodes > 0;
+  const tableEl  = document.getElementById('scene-table');
+  const emptyEl  = document.getElementById('scene-empty');
+  const thead    = document.getElementById('scene-thead');
+  const tbody    = document.getElementById('scene-tbody');
+
+  if (!scenesRaw.length) {
+    tableEl.style.display = 'none';
+    emptyEl.textContent = 'Aucune scène importée. Utilisez « Importer FDX » pour charger un scénario.';
+    document.getElementById('count-lbl').textContent = '';
+    return;
+  }
+
+  tableEl.style.display = '';
+  emptyEl.textContent = '';
+
+  thead.innerHTML = `<tr>
+    <th style="width:54px;text-align:center;">SC</th>
+    ${isSeries ? '<th style="width:46px;text-align:center;">ÉP</th>' : ''}
+    <th style="width:80px;">INT / EXT</th>
+    <th>Lieu fictif</th>
+    <th style="min-width:110px;">Sous-lieu</th>
+    <th style="width:80px;">J / N</th>
+    <th style="width:52px;text-align:center;">Page</th>
+  </tr>`;
+
+  tbody.innerHTML = scenesRaw.map(s => {
+    const hidden = !matchesFilter(s) ? ' hidden-row' : '';
+    const ep = isSeries ? parseEp(s.sc).ep : null;
+    const ieVal = s.int_ext || '—';
+    const jnVal = s.jn || '—';
+    return `<tr data-sc="${escHtml(String(s.sc))}"${hidden}>
+      <td><span class="sc-num">SC${escHtml(String(s.sc))}</span></td>
+      ${isSeries ? `<td><span class="ep-lbl">${ep > 0 ? 'E'+String(ep).padStart(2,'0') : '—'}</span></td>` : ''}
+      <td>
+        <select class="td-select" data-sc="${escHtml(String(s.sc))}" data-field="int_ext" onchange="onFieldChange(this)">
+          ${IE_OPTS.map(o => `<option${o===ieVal?' selected':''}>${escHtml(o)}</option>`).join('')}
+        </select>
+      </td>
+      <td><button class="lieu-btn" onclick="openRenameModal('${escHtml(s.lieu||'')}')">${escHtml(s.lieu||'—')}</button></td>
+      <td>
+        <input class="td-input" data-sc="${escHtml(String(s.sc))}" data-field="sous_lieu"
+          value="${escHtml(s.sous_lieu||'')}" placeholder="—"
+          onchange="onFieldChange(this)" onblur="onFieldChange(this)">
+      </td>
+      <td>
+        <select class="td-select" data-sc="${escHtml(String(s.sc))}" data-field="jn" onchange="onFieldChange(this)">
+          ${JN_OPTS.map(o => `<option${o===jnVal?' selected':''}>${escHtml(o)}</option>`).join('')}
+        </select>
+      </td>
+      <td><span class="td-page">${s.page && s.page !== '0' ? escHtml(String(s.page)) : '—'}</span></td>
+    </tr>`;
+  }).join('');
+
+  updateCountLabel();
+}
+
+// ─── INLINE EDIT ──────────────────────────────────────────────────────────────
+function onFieldChange(el) {
+  const scene = scenesRaw.find(s => String(s.sc) === el.dataset.sc);
+  if (!scene) return;
+  const val = el.value === '—' ? '' : el.value;
+  if (scene[el.dataset.field] === val) return;
+  scene[el.dataset.field] = val;
+  scheduleSave();
+}
+
+// ─── FILTERS ──────────────────────────────────────────────────────────────────
+document.getElementById('ep-filter').addEventListener('change', e => {
+  _filterEp = e.target.value;
+  document.querySelectorAll('#scene-tbody tr').forEach(tr => {
+    const s = scenesRaw.find(x => String(x.sc) === tr.dataset.sc);
+    if (!s) return;
+    tr.classList.toggle('hidden-row', !matchesFilter(s));
+  });
+  updateCountLabel();
+});
+
+document.getElementById('scene-search').addEventListener('input', e => {
+  _filterSearch = e.target.value.trim();
+  document.querySelectorAll('#scene-tbody tr').forEach(tr => {
+    const s = scenesRaw.find(x => String(x.sc) === tr.dataset.sc);
+    if (!s) return;
+    tr.classList.toggle('hidden-row', !matchesFilter(s));
+  });
+  updateCountLabel();
+});
+
+// ─── LIEU RENAME ──────────────────────────────────────────────────────────────
+let _renamingLieu = null;
+
+function openRenameModal(lieu) {
+  _renamingLieu = lieu;
+  const count = scenesRaw.filter(s => s.lieu === lieu).length;
+  document.getElementById('rename-modal-sub').textContent =
+    `"${lieu}" — présent dans ${count} scène${count>1?'s':''}. Le renommage sera propagé au Tableau des lieux et aux autres outils via la synchronisation.`;
+  const inp = document.getElementById('rename-input');
+  inp.value = lieu;
+  document.getElementById('rename-warn').className = 'modal-warn';
+  document.getElementById('rename-modal').classList.add('active');
+  setTimeout(() => { inp.focus(); inp.select(); }, 80);
+}
+
+document.getElementById('rename-input').addEventListener('input', () => {
+  const newVal = document.getElementById('rename-input').value.trim().toUpperCase();
+  const warn = document.getElementById('rename-warn');
+  const lieus = [...new Set(scenesRaw.map(s => s.lieu).filter(Boolean))];
+  if (newVal && newVal !== _renamingLieu && lieus.includes(newVal)) {
+    warn.textContent = `⚠ Ce lieu existe déjà — les scènes seront fusionnées avec "${newVal}".`;
+    warn.className = 'modal-warn visible';
+  } else {
+    warn.className = 'modal-warn';
+  }
+});
+
+document.getElementById('rename-cancel').onclick = () => {
+  document.getElementById('rename-modal').classList.remove('active');
+  _renamingLieu = null;
+};
+document.getElementById('rename-confirm').onclick = async () => {
+  const newLieu = document.getElementById('rename-input').value.trim().toUpperCase();
+  if (!newLieu || !_renamingLieu) return;
+  document.getElementById('rename-modal').classList.remove('active');
+  await renameLieu(_renamingLieu, newLieu);
+  _renamingLieu = null;
+};
+document.getElementById('rename-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter')  document.getElementById('rename-confirm').click();
+  if (e.key === 'Escape') document.getElementById('rename-cancel').click();
+});
+
+async function renameLieu(oldLieu, newLieu) {
+  if (oldLieu === newLieu) return;
+  setSyncStatus('syncing');
+
+  scenesRaw.forEach(s => { if (s.lieu === oldLieu) s.lieu = newLieu; });
+
+  if (sb) {
+    try {
+      const { data: tdlRow } = await sb.from('project_data').select('data').eq('key', TDL_KEY).maybeSingle();
+      if (tdlRow?.data) {
+        const tdl = tdlRow.data;
+        const TDL_MAPS = ['lieusTournage','lieuColorOverrides','sousLieuColorOverrides','lieuNotes','sousLieuNotes','lieuTournagePhotos','lieuTournageInspi','lieuTournageFloorplans'];
+        TDL_MAPS.forEach(field => {
+          if (!tdl[field] || tdl[field][oldLieu] === undefined) return;
+          if (!tdl[field][newLieu]) tdl[field][newLieu] = tdl[field][oldLieu];
+          delete tdl[field][oldLieu];
+        });
+        if (Array.isArray(tdl.scenes)) {
+          tdl.scenes.forEach(s => { if (s.lieu === oldLieu) s.lieu = newLieu; });
+        }
+        await sb.from('project_data').upsert({ key: TDL_KEY, data: tdl, updated_at: new Date().toISOString() });
+      }
+    } catch(e) { console.warn('TDL remap error:', e); }
+  }
+
+  await saveScenesData();
+  renderTable();
+}
+
+// ─── FDX IMPORT ───────────────────────────────────────────────────────────────
+document.getElementById('btn-import-fdx').onclick = () => document.getElementById('fdx-file-input').click();
+document.getElementById('fdx-file-input').onchange = async evt => {
+  const files = Array.from(evt.target.files);
+  if (!files.length) return;
+  evt.target.value = '';
+
+  const loaded = await Promise.all(files.map(f => f.text().then(t => ({ name: f.name, content: t }))));
+  let allScenes = [], allErrors = [];
+  for (const { name, content } of loaded) {
+    try {
+      const opts = _detectFdxOptions(content);
+      const parseOpts = { sep: opts.suggestDash ? 'dash' : 'slash', serieFormat: opts.hasCompactNums ? 'compact' : 'dot' };
+      const { scenes, errors } = parseFDXToScenes(content, parseOpts);
+      allScenes = [...allScenes, ...scenes];
+      allErrors = [...allErrors, ...errors];
+    } catch(e) { alert('Erreur FDX dans « ' + name + ' » : ' + e.message); return; }
+  }
+  const scMap = new Map();
+  allScenes.forEach(s => scMap.set(s.sc, s));
+  const newScenes = [...scMap.values()].sort(_scSort);
+  if (!newScenes.length) { alert('Aucune scène trouvée.'); return; }
+
+  const filename = files.length === 1 ? files[0].name : files.length + ' fichiers FDX';
+  let msg = `${newScenes.length} scènes trouvées dans « ${filename} ».`;
+  if (scenesRaw.length) msg += `\n\n${scenesRaw.length} scènes existantes seront remplacées.\nPour un import avec diff et merge, utiliser le Tableau des lieux.`;
+  if (allErrors.length) msg += `\n\n⚠ ${allErrors.length} avertissement${allErrors.length>1?'s':''}:\n` + allErrors.slice(0,5).join('\n');
+  if (!confirm(msg + '\n\nConfirmer ?')) return;
+
+  if (scenesRaw.length) {
+    fdxVersions = [...fdxVersions, {
+      id: Date.now().toString(),
+      date: new Date().toISOString(),
+      label: filename.replace(/\.fdx$/i,''),
+      ep: null,
+      scene_count: scenesRaw.length,
+      prev_scene_count: newScenes.length
+    }].slice(-20);
+  }
+  scenesRaw = newScenes;
+  const eps = new Set(newScenes.map(s => parseEp(s.sc).ep).filter(e => e > 0));
+  totalEpisodes = eps.size;
+  const now = new Date().toISOString();
+  const label = filename.replace(/\.fdx$/i,'');
+  fdxImportMeta = { '0': { label, date: now, scene_count: newScenes.length } };
+
+  await saveScenesData();
+  buildEpFilter();
+  renderTable();
+};
+
+// ─── REALTIME ─────────────────────────────────────────────────────────────────
+function subscribeToScenes() {
+  if (!sb) return;
+  sb.channel('scenes-' + projectId)
+    .on('postgres_changes', {
+      event: '*', schema: 'public', table: 'project_data',
+      filter: 'key=eq.' + SCENES_KEY
+    }, payload => {
+      const d = payload.new?.data;
+      if (!d?.imported_scenes_raw) return;
+      const openSelects = {};
+      document.querySelectorAll('.td-select:focus, .td-input:focus').forEach(el => {
+        openSelects[el.dataset.sc + '_' + el.dataset.field] = el.value;
+      });
+      scenesRaw     = d.imported_scenes_raw;
+      fdxVersions   = d.fdxVersions   || fdxVersions;
+      fdxImportMeta = d.fdxImportMeta || fdxImportMeta;
+      totalEpisodes = d.totalEpisodes  || totalEpisodes;
+      buildEpFilter();
+      renderTable();
+    })
+    .subscribe();
+}
+
+// ─── CLICK OUTSIDE MODAL ──────────────────────────────────────────────────────
+document.addEventListener('click', e => {
+  if (!e.target.closest('.modal') && !e.target.closest('.lieu-btn')) {
+    if (document.getElementById('rename-modal').classList.contains('active')) {
+      document.getElementById('rename-cancel').click();
+    }
+  }
+});
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+async function init() {
+  document.title = projectName + ' — Table des scènes';
+  document.getElementById('topbar-title').textContent = projectName + ' — Table des scènes';
+  document.getElementById('back-link').href = '/projet/?p=' + enc(projectId) + '&n=' + enc(projectName);
+
+  await loadScenesData();
+  buildEpFilter();
+  renderTable();
+  subscribeToScenes();
+}
+
+init();
+</script>
+</body>
+</html>

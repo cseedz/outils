@@ -5,29 +5,28 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Projet — Outils</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script src="/src/fdx-parser.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
       --bg: #ffffff; --bg2: #f8f8f8; --bg3: #f0f0f0;
       --border: #e7e7e7; --border2: #cccccc;
       --text: #111111; --text-muted: #777777; --text-dim: #aaaaaa;
-      --accent: #111111; --danger: #cc3333;
-      --topbar-h: 76px;
     }
     html { font-size: 13px; -webkit-font-smoothing: antialiased; }
     body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.4; }
 
     /* ── TOPBAR ── */
-    .topbar { position: sticky; top: 0; z-index: 100; background: var(--bg2); border-bottom: 1px solid var(--border); padding: 14px 24px 0; }
-    .topbar-inner { display: flex; align-items: flex-end; gap: 0; }
-    .title-block { padding-bottom: 12px; margin-right: 32px; flex-shrink: 0; }
-    .back-link { font-size: 11px; color: var(--text-muted); text-decoration: none; letter-spacing: .06em; display: block; margin-bottom: 4px; }
+    .topbar {
+      position: sticky; top: 0; z-index: 100;
+      background: var(--bg2); border-bottom: 1px solid var(--border);
+      padding: 14px 24px; display: flex; align-items: center; gap: 14px;
+    }
+    .back-link { font-size: 11px; color: var(--text-muted); text-decoration: none; letter-spacing: .06em; flex-shrink: 0; }
     .back-link:hover { color: var(--text); }
-    .project-name { font-size: 16px; font-weight: 700; letter-spacing: -0.3px; }
-    .project-format { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
-    .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 12px; padding-bottom: 12px; }
-    .section-toggle { display: inline-flex; border: 1px solid var(--border); border-radius: 3px; overflow: hidden; }
+    .topbar-divider { width: 1px; height: 16px; background: var(--border); flex-shrink: 0; }
+    .project-title { font-size: 15px; font-weight: 700; letter-spacing: -0.3px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .project-format-lbl { font-size: 11px; color: var(--text-muted); flex-shrink: 0; white-space: nowrap; }
+    .section-toggle { display: inline-flex; border: 1px solid var(--border); border-radius: 3px; overflow: hidden; flex-shrink: 0; }
     .section-toggle button {
       background: none; border: none; cursor: pointer; font-family: inherit;
       font-size: 10px; letter-spacing: .1em; text-transform: uppercase;
@@ -38,25 +37,42 @@
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
     .sync-dot.syncing { background: #f0a500; animation: pulse .9s infinite; }
     .sync-dot.synced  { background: #5a9a6a; }
-    .sync-dot.error   { background: var(--danger); }
-    /* Main tabs */
-    .tabs { display: flex; gap: 0; }
-    .tab-btn {
-      background: none; border: none; cursor: pointer; font-family: inherit;
-      font-size: 13px; color: var(--text-muted); padding: 8px 18px 12px;
-      border-bottom: 2px solid transparent; transition: color .15s, border-color .15s;
-    }
-    .tab-btn:hover { color: var(--text); }
-    .tab-btn.active { color: var(--text); border-bottom-color: var(--text); font-weight: 600; }
+    .sync-dot.error   { background: #cc3333; }
 
-    /* ── PANELS ── */
-    .panel { display: none; }
-    .panel.active { display: block; }
+    /* ── CONTENT ── */
+    .content { max-width: 700px; margin: 0 auto; padding: 40px 24px 80px; }
 
-    /* ── OUTILS PANEL ── */
-    #panel-outils { max-width: 680px; margin: 0 auto; padding: 40px 24px 80px; }
-    .section-label { font-size: 10px; font-weight: 400; letter-spacing: .14em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 16px; }
-    .tool-row { display: flex; align-items: center; justify-content: space-between; padding: 14px 0; border-bottom: 1px solid var(--border); }
+    /* ── SECTIONS ── */
+    .section { margin-bottom: 44px; }
+    .section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+    .section-label { font-size: 10px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--text-muted); }
+    .btn { background: var(--bg3); border: 1px solid var(--border); border-radius: 5px; cursor: pointer; font-size: 12px; font-family: inherit; color: var(--text); padding: 5px 12px; white-space: nowrap; transition: border-color .1s; }
+    .btn:hover { border-color: var(--border2); }
+
+    /* ── SCÉNARIO ── */
+    .scenario-box { border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+    .scenario-main { display: flex; align-items: center; gap: 16px; padding: 14px 16px; }
+    .scenario-info { flex: 1; min-width: 0; }
+    .scenario-count { font-size: 14px; font-weight: 700; }
+    .scenario-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    .scenario-link { font-size: 12px; color: var(--text); text-decoration: none; white-space: nowrap; border-bottom: 1px solid var(--border); padding-bottom: 1px; flex-shrink: 0; }
+    .scenario-link:hover { border-color: var(--text); }
+    .scenario-empty { padding: 14px 16px; font-size: 12px; color: var(--text-muted); line-height: 1.6; }
+
+    /* ── VERSIONS MINI ── */
+    .versions-mini { border-top: 1px solid var(--border); padding: 10px 16px; }
+    .versions-mini-title { font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 8px; }
+    .ver-mini-list { display: flex; flex-direction: column; gap: 4px; }
+    .ver-mini-row { display: flex; align-items: center; gap: 12px; font-size: 11px; color: var(--text-muted); }
+    .ver-mini-label { font-weight: 600; color: var(--text); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ver-mini-info { white-space: nowrap; }
+    .ver-mini-delta { font-size: 10px; font-weight: 600; white-space: nowrap; }
+    .ver-mini-delta.pos { color: #2a7a40; }
+    .ver-mini-delta.neg { color: #cc3333; }
+    .ver-mini-more { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+
+    /* ── OUTILS ── */
+    .tool-row { display: flex; align-items: center; justify-content: space-between; padding: 13px 0; border-bottom: 1px solid var(--border); }
     .tool-row:first-of-type { border-top: 1px solid var(--border); }
     .tool-name { font-size: 13px; }
     .tool-actions { display: flex; align-items: center; gap: 16px; flex-shrink: 0; }
@@ -65,238 +81,74 @@
     .btn-remove { background: none; border: none; cursor: pointer; font-size: 14px; color: var(--text-muted); line-height: 1; padding: 0 2px; opacity: 0; transition: opacity 150ms; }
     .tool-row:hover .btn-remove { opacity: 1; }
     .btn-remove:hover { color: var(--text); }
-    .no-tools { font-size: 12px; color: var(--text-muted); padding: 14px 0; }
-    .add-tool-wrap { position: relative; margin-top: 16px; }
-    .btn-add-tool { background: none; border: 1px solid var(--border); border-radius: 3px; cursor: pointer; font-size: 11px; color: var(--text-muted); letter-spacing: .06em; padding: 8px 14px; font-family: inherit; }
-    .btn-add-tool:hover { border-color: var(--text); color: var(--text); }
+    .no-tools { font-size: 12px; color: var(--text-muted); padding: 13px 0; }
+    .add-tool-wrap { position: relative; margin-top: 14px; }
+    .btn-add { background: none; border: 1px solid var(--border); border-radius: 3px; cursor: pointer; font-size: 11px; color: var(--text-muted); letter-spacing: .06em; padding: 7px 12px; font-family: inherit; }
+    .btn-add:hover { border-color: var(--text); color: var(--text); }
     .tool-dropdown { position: absolute; left: 0; top: calc(100% + 6px); background: #fff; border: 1px solid var(--border); border-radius: 4px; box-shadow: 0 4px 18px rgba(0,0,0,.1); z-index: 200; min-width: 200px; overflow: hidden; }
-    .tool-dropdown button { display: block; width: 100%; text-align: left; background: none; border: none; cursor: pointer; font-family: inherit; padding: 11px 14px; font-size: 12px; color: var(--text); }
-    .tool-dropdown button:hover { background: var(--border); }
-
-    /* ── SCÉNARIO PANEL ── */
-    #panel-scenario { display: none; }
-    #panel-scenario.active { display: block; }
-
-    /* Controls bar */
-    .controls-bar {
-      background: var(--bg2); border-bottom: 1px solid var(--border);
-      padding: 9px 24px; display: flex; gap: 8px; align-items: center;
-      position: sticky; top: var(--topbar-h); z-index: 99;
-    }
-    .btn { background: var(--bg3); border: 1px solid var(--border); border-radius: 5px; cursor: pointer; font-size: 12px; font-family: inherit; color: var(--text); padding: 5px 12px; white-space: nowrap; transition: border-color .1s; }
-    .btn:hover { border-color: var(--border2); }
-    .btn-primary { background: var(--text); border-color: var(--text); color: #fff; }
-    .btn-primary:hover { opacity: .85; }
-    .sub-tabs { display: flex; gap: 4px; }
-    .sub-tab { background: var(--bg3); border: 1px solid var(--border); border-radius: 5px; cursor: pointer; font-size: 12px; font-family: inherit; color: var(--text-muted); padding: 5px 12px; }
-    .sub-tab.active { background: var(--text); border-color: var(--text); color: #fff; }
-    .search-wrap { position: relative; }
-    .scene-search { background: var(--bg3); border: 1px solid var(--border); border-radius: 5px; font-size: 12px; font-family: inherit; padding: 5px 8px 5px 26px; outline: none; color: var(--text); width: 180px; }
-    .scene-search:focus { border-color: var(--border2); }
-    .scene-search::placeholder { color: var(--text-dim); }
-    .search-icon { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 11px; pointer-events: none; }
-    .count-lbl { font-size: 11px; color: var(--text-muted); margin-left: auto; white-space: nowrap; }
-
-    /* Sub-panels */
-    .subpanel { display: none; }
-    .subpanel.active { display: block; }
-
-    /* ── SCENE TABLE ── */
-    .scene-table-wrap { overflow-x: auto; }
-    .scene-table { width: 100%; border-collapse: collapse; min-width: 640px; }
-    .scene-table thead th {
-      background: var(--bg2); font-size: 10px; font-weight: 600; color: var(--text-muted);
-      text-transform: uppercase; letter-spacing: .8px; padding: 8px 10px;
-      border-right: 1px solid var(--border); border-bottom: 1px solid var(--border);
-      white-space: nowrap; text-align: left; user-select: none;
-      position: sticky; top: calc(var(--topbar-h) + 39px); z-index: 8; box-shadow: inset 0 -1px 0 var(--border);
-    }
-    .scene-table thead th:last-child { border-right: none; }
-    .scene-table tbody tr { border-bottom: 1px solid var(--border); transition: background .08s; }
-    .scene-table tbody tr:last-child { border-bottom: none; }
-    .scene-table tbody tr:hover { background: var(--bg2); }
-    .scene-table tbody tr.hidden { display: none; }
-    .scene-table td { padding: 0; border-right: 1px solid var(--border); vertical-align: middle; }
-    .scene-table td:last-child { border-right: none; }
-
-    /* Cell types */
-    .sc-num { padding: 6px 10px; font-size: 11px; font-weight: 700; color: var(--text-muted); white-space: nowrap; text-align: center; min-width: 52px; }
-    .ep-lbl { padding: 6px 10px; font-size: 11px; color: var(--text-muted); text-align: center; white-space: nowrap; }
-
-    .lieu-btn {
-      display: block; width: 100%; text-align: left; background: none; border: none;
-      font-size: 12px; font-weight: 600; font-family: inherit; color: var(--text);
-      padding: 6px 10px; cursor: pointer; white-space: nowrap;
-    }
-    .lieu-btn:hover { background: var(--bg3); }
-
-    .td-select {
-      appearance: none; background: transparent; border: none;
-      font-size: 12px; font-family: inherit; color: var(--text);
-      padding: 6px 10px; width: 100%; cursor: pointer; outline: none;
-    }
-    .td-select:focus { background: var(--bg3); }
-    .td-input {
-      background: transparent; border: none; font-size: 12px; font-family: inherit;
-      color: var(--text-muted); padding: 6px 10px; width: 100%; outline: none; min-width: 90px;
-    }
-    .td-input:focus { background: var(--bg3); color: var(--text); }
-    .td-input::placeholder { color: var(--text-dim); }
-    .td-page { padding: 6px 10px; font-size: 11px; color: var(--text-muted); text-align: center; white-space: nowrap; display: block; }
-
-    /* Tags INT/EXT et J/N */
-    .tag { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: 600; letter-spacing: .4px; white-space: nowrap; border: 1px solid; }
-    .tINT  { background:rgba(45,106,138,.1); color:#1a5a7a; border-color:rgba(45,106,138,.3); }
-    .tEXT  { background:rgba(45,138,90,.1);  color:#1a6a40; border-color:rgba(45,138,90,.3); }
-    .tMIX  { background:rgba(120,90,170,.1); color:#5a2a90; border-color:rgba(120,90,170,.3); }
-    .tJOUR { background:rgba(138,122,45,.1); color:#6a5a00; border-color:rgba(138,122,45,.3); }
-    .tNUIT { background:rgba(106,74,170,.1); color:#502a90; border-color:rgba(106,74,170,.3); }
-    .tSOIR { background:rgba(138,90,106,.1); color:#6a2a45; border-color:rgba(138,90,106,.3); }
-    .tMATIN{ background:rgba(90,138,138,.1); color:#2a6060; border-color:rgba(90,138,138,.3); }
-    .tAUBE { background:rgba(100,80,140,.1); color:#4a2a70; border-color:rgba(100,80,140,.3); }
-    .tFIN  { background:rgba(138,100,45,.1); color:#6a4000; border-color:rgba(138,100,45,.3); }
-    .td-tag { padding: 6px 8px; }
-
-    /* ── VERSIONS ── */
-    #sub-versions { padding: 24px; }
-    .ver-empty { font-size: 13px; color: var(--text-muted); padding: 40px 0; text-align: center; }
-    .ver-section-title { font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .8px; margin: 0 0 10px; }
-    .ver-block { margin-bottom: 28px; }
-    .ver-card { border: 1px solid var(--border); border-radius: 5px; padding: 12px 16px; margin-bottom: 6px; display: flex; align-items: center; gap: 14px; }
-    .ver-label { font-size: 13px; font-weight: 600; flex: 1; min-width: 0; }
-    .ver-info { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
-    .ver-delta { font-size: 11px; font-weight: 600; white-space: nowrap; }
-    .ver-delta.same { color: var(--text-muted); }
-    .ver-delta.pos { color: #2a7a40; }
-    .ver-delta.neg { color: var(--danger); }
-    .btn-ver-del { background: none; border: none; cursor: pointer; font-size: 13px; color: var(--text-muted); padding: 2px 4px; opacity: 0; transition: opacity 120ms; }
-    .ver-card:hover .btn-ver-del { opacity: 1; }
-    .btn-ver-del:hover { color: var(--danger); }
-
-    /* ── RENAME MODAL ── */
-    .modal-overlay { display: none; position: fixed; inset: 0; z-index: 500; background: rgba(0,0,0,.35); align-items: center; justify-content: center; padding: 20px; }
-    .modal-overlay.active { display: flex; }
-    .modal { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; width: 100%; max-width: 400px; box-shadow: 0 6px 28px rgba(0,0,0,.14); overflow: hidden; }
-    .modal-title { font-size: 14px; font-weight: 700; padding: 18px 20px 4px; }
-    .modal-sub { font-size: 12px; color: var(--text-muted); padding: 0 20px 14px; line-height: 1.6; }
-    .modal-body { padding: 0 20px 16px; }
-    .modal-input { width: 100%; border: 1px solid var(--border); border-radius: 5px; padding: 8px 10px; font-size: 13px; font-family: inherit; outline: none; background: var(--bg3); }
-    .modal-input:focus { border-color: var(--border2); background: var(--bg); }
-    .modal-warn { font-size: 11px; color: #996600; margin-top: 8px; padding: 6px 9px; background: rgba(153,102,0,.06); border-radius: 4px; display: none; }
-    .modal-warn.visible { display: block; }
-    .modal-actions { display: flex; gap: 8px; padding: 0 20px 18px; justify-content: flex-end; }
-    .modal-btn { border: 1px solid var(--border); border-radius: 5px; padding: 7px 16px; font-size: 12px; font-family: inherit; cursor: pointer; background: var(--bg3); color: var(--text); }
-    .modal-btn:hover { border-color: var(--border2); }
-    .modal-btn.primary { background: var(--text); border-color: var(--text); color: #fff; }
-    .modal-btn.primary:hover { opacity: .85; }
-
-    /* ── EMPTY ── */
-    .empty { padding: 60px 24px; text-align: center; color: var(--text-muted); font-size: 13px; line-height: 1.7; }
-    .empty a { color: var(--text); }
+    .tool-dropdown button { display: block; width: 100%; text-align: left; background: none; border: none; cursor: pointer; font-family: inherit; padding: 10px 14px; font-size: 12px; color: var(--text); }
+    .tool-dropdown button:hover { background: var(--bg3); }
   </style>
 </head>
 <body>
 
-<!-- TOPBAR -->
 <div class="topbar">
-  <div class="topbar-inner">
-    <div class="title-block">
-      <a href="/" class="back-link">← Projets</a>
-      <div class="project-name" id="project-name">—</div>
-      <div class="project-format" id="project-format"></div>
+  <a href="/" class="back-link">← Projets</a>
+  <div class="topbar-divider"></div>
+  <div class="project-title" id="project-title">—</div>
+  <div class="project-format-lbl" id="project-format"></div>
+  <div class="section-toggle" id="section-toggle">
+    <button data-section="en-cours">En cours</button>
+    <button data-section="en-dev">En développement</button>
+  </div>
+  <div class="sync-dot" id="sync-dot"></div>
+</div>
+
+<div class="content">
+
+  <!-- SCÉNARIO -->
+  <div class="section">
+    <div class="section-header">
+      <p class="section-label">Scénario</p>
+      <button class="btn" id="btn-import-fdx">Importer FDX</button>
+      <input type="file" id="fdx-file-input" accept=".fdx" style="display:none;" multiple>
     </div>
-    <div class="tabs">
-      <button class="tab-btn active" onclick="switchTab('scenario')">Scénario</button>
-      <button class="tab-btn" onclick="switchTab('outils')">Outils</button>
-    </div>
-    <div class="topbar-right">
-      <div class="section-toggle" id="section-toggle">
-        <button data-section="en-cours">En cours</button>
-        <button data-section="en-dev">En développement</button>
+    <div class="scenario-box">
+      <div id="scenario-content">
+        <div class="scenario-empty">Aucune scène importée.</div>
       </div>
-      <div class="sync-dot" id="sync-dot"></div>
-    </div>
-  </div>
-</div>
-
-<!-- PANEL SCÉNARIO -->
-<div id="panel-scenario" class="panel active">
-  <div class="controls-bar">
-    <button class="btn" id="btn-import-fdx">Importer FDX</button>
-    <input type="file" id="fdx-file-input" accept=".fdx" style="display:none;" multiple>
-    <div class="sub-tabs">
-      <button class="sub-tab active" onclick="switchSubTab('table')">Table</button>
-      <button class="sub-tab" onclick="switchSubTab('versions')">Versions</button>
-    </div>
-    <div class="search-wrap" id="search-wrap" style="display:none">
-      <span class="search-icon">⌕</span>
-      <input class="scene-search" id="scene-search" type="text" placeholder="Filtrer…">
-    </div>
-    <span class="count-lbl" id="count-lbl"></span>
-  </div>
-
-  <div id="sub-table" class="subpanel active">
-    <div class="scene-table-wrap">
-      <table class="scene-table" id="scene-table">
-        <thead id="scene-thead"></thead>
-        <tbody id="scene-tbody"></tbody>
-      </table>
-      <div id="scene-empty" class="empty" style="display:none"></div>
     </div>
   </div>
 
-  <div id="sub-versions" class="subpanel">
-    <div id="versions-content"></div>
-  </div>
-</div>
-
-<!-- PANEL OUTILS -->
-<div id="panel-outils" class="panel">
-  <div id="panel-outils-inner" style="max-width:680px;margin:0 auto;padding:40px 24px 80px;">
-    <p class="section-label">Outils</p>
+  <!-- OUTILS -->
+  <div class="section">
+    <div class="section-header">
+      <p class="section-label">Outils</p>
+    </div>
     <div id="tools-list"></div>
     <div class="add-tool-wrap" id="add-tool-wrap"></div>
   </div>
-</div>
 
-<!-- RENAME MODAL -->
-<div class="modal-overlay" id="rename-modal">
-  <div class="modal">
-    <div class="modal-title" id="rename-modal-title">Renommer le lieu fictif</div>
-    <div class="modal-sub" id="rename-modal-sub"></div>
-    <div class="modal-body">
-      <input class="modal-input" id="rename-input" type="text" autocomplete="off">
-      <div class="modal-warn" id="rename-warn"></div>
-    </div>
-    <div class="modal-actions">
-      <button class="modal-btn" id="rename-cancel">Annuler</button>
-      <button class="modal-btn primary" id="rename-confirm">Renommer</button>
-    </div>
-  </div>
 </div>
 
 <script>
-// ─── CONFIG ──────────────────────────────────────────────────────────────────
 const STORAGE_KEY  = 'outils_landing_v1';
 const SUPABASE_URL = 'https://dvivafrldxzhkactsvve.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2aXZhZnJsZHh6aGthY3RzdnZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyMzQ5MDgsImV4cCI6MjA5NDgxMDkwOH0.EgyxWDERi443hefaM0LxDYDhLWQYx31feKzQ1bQU5Kc';
 
 const params      = new URLSearchParams(location.search);
 const projectId   = params.get('p');
-const projectName = decodeURIComponent(params.get('n') || projectId || '');
 const SCENES_KEY  = projectId + '_scenes';
-const TDL_KEY     = projectId + '_tdl';
 
 if (!projectId) location.href = '/';
 
 let sb = null;
 try { sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e) {}
 
-// ─── PROJET STATE ─────────────────────────────────────────────────────────────
 const AVAILABLE_TOOLS = [
-  { id: 'tableau-lieux',  label: 'Tableau des lieux',      buildHref: p => '/tableau-des-lieux/?p=' + enc(p.id) + '&n=' + enc(p.name), buildKey: p => p.id + '_tdl' },
-  { id: 'decoupage',      label: 'Découpage technique',    buildHref: p => '/decoupage/?p='          + enc(p.id) + '&n=' + enc(p.name), buildKey: p => p.id + '_dec' },
-  { id: 'personnages',    label: 'Personnages',             buildHref: p => '/personnages/?p='        + enc(p.id) + '&n=' + enc(p.name), buildKey: p => p.id + '_personnages' }
+  { id: 'tableau-lieux', label: 'Tableau des lieux',   buildHref: p => '/tableau-des-lieux/?p=' + enc(p.id) + '&n=' + enc(p.name), buildKey: p => p.id + '_tdl' },
+  { id: 'decoupage',     label: 'Découpage technique', buildHref: p => '/decoupage/?p='          + enc(p.id) + '&n=' + enc(p.name), buildKey: p => p.id + '_dec' },
+  { id: 'personnages',   label: 'Personnages',          buildHref: p => '/personnages/?p='        + enc(p.id) + '&n=' + enc(p.name), buildKey: p => p.id + '_personnages' }
 ];
 const DEFAULT_PROJECTS = [
   { id: 'derniere-saison', name: 'La dernière saison',      format: 'Série télévision', section: 'en-cours', tools: [] },
@@ -311,66 +163,49 @@ const DEFAULT_PROJECTS = [
 ];
 
 let projects = [], currentProject = null;
+let scenesRaw = [], fdxVersions = [], fdxImportMeta = {}, totalEpisodes = 0;
 
-// ─── SCÈNES STATE ─────────────────────────────────────────────────────────────
-let scenesRaw     = [];   // imported_scenes_raw from {id}_scenes
-let fdxVersions   = [];
-let fdxImportMeta = {};
-let totalEpisodes = 0;
-let sceneSearch   = '';
-let _saveScenesTimer = null;
-
-// ─── HELPERS ─────────────────────────────────────────────────────────────────
 function enc(s) { return encodeURIComponent(s || ''); }
-function escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-// ─── SYNC DOT ─────────────────────────────────────────────────────────────────
+// ── SYNC DOT ──
 function setSyncStatus(s) {
   const dot = document.getElementById('sync-dot');
   if (!dot) return;
   dot.className = 'sync-dot' + (s !== 'idle' ? ' ' + s : '');
 }
 
-// ─── PROJET SUPABASE ─────────────────────────────────────────────────────────
+// ── PROJET STATE ──
 async function loadProjectState() {
   if (!sb) return null;
   try {
-    const { data, error } = await sb.from('project_data').select('data').eq('key', STORAGE_KEY).single();
-    if (error || !data) return null;
-    return data.data;
+    const { data } = await sb.from('project_data').select('data').eq('key', STORAGE_KEY).single();
+    return data?.data || null;
   } catch(e) { return null; }
 }
-
 async function saveProjectState(state) {
   setSyncStatus('syncing');
-  if (!sb) { setTimeout(() => setSyncStatus('idle'), 1500); return; }
+  if (!sb) { setTimeout(() => setSyncStatus('idle'), 1000); return; }
   try {
     await sb.from('project_data').upsert({ key: STORAGE_KEY, data: state, updated_at: new Date().toISOString() });
     setSyncStatus('synced');
     setTimeout(() => setSyncStatus('idle'), 2000);
   } catch(e) { setSyncStatus('error'); }
 }
-
 function saveLocal(state) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(e) {} }
 function loadLocal()      { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch(e) { return null; } }
-
 function mergeState(saved) {
   const byId = {};
   DEFAULT_PROJECTS.forEach(p => byId[p.id] = p);
   if (!saved || !Array.isArray(saved)) return DEFAULT_PROJECTS.map(p => ({ ...p }));
-  return saved.map(s => {
-    if (!byId[s.id]) return null;
-    return { ...byId[s.id], section: s.section, tools: (s.tools && s.tools.length) ? s.tools : (byId[s.id].tools || []), fdx: s.fdx || '' };
-  }).filter(Boolean);
+  return saved.map(s => s && byId[s.id] ? { ...byId[s.id], section: s.section, tools: (s.tools && s.tools.length) ? s.tools : (byId[s.id].tools || []) } : null).filter(Boolean);
 }
-
 function persistProjectState() {
-  const state = projects.map(p => ({ id: p.id, section: p.section, tools: p.tools || [], fdx: p.fdx || '' }));
+  const state = projects.map(p => ({ id: p.id, section: p.section, tools: p.tools || [] }));
   saveLocal(state);
   saveProjectState(state);
 }
 
-// ─── SCÈNES SUPABASE ─────────────────────────────────────────────────────────
+// ── SCÈNES ──
 async function loadScenesData() {
   if (!sb) return;
   try {
@@ -380,45 +215,144 @@ async function loadScenesData() {
     fdxVersions   = d.fdxVersions || [];
     fdxImportMeta = d.fdxImportMeta || {};
     totalEpisodes = d.totalEpisodes || 0;
-  } catch(e) { console.warn('scenes load error:', e); }
+  } catch(e) {}
 }
-
 async function saveScenesData() {
   if (!sb) return;
   setSyncStatus('syncing');
   try {
-    const { error } = await sb.from('project_data').upsert({
+    await sb.from('project_data').upsert({
       key: SCENES_KEY,
       data: { imported_scenes_raw: scenesRaw, fdxVersions, fdxImportMeta, totalEpisodes },
       updated_at: new Date().toISOString()
     });
-    if (error) throw error;
     setSyncStatus('synced');
     setTimeout(() => setSyncStatus('idle'), 2000);
   } catch(e) { setSyncStatus('error'); }
 }
 
-function scheduleSave() {
-  clearTimeout(_saveScenesTimer);
-  _saveScenesTimer = setTimeout(saveScenesData, 800);
+// ── SECTION TOGGLE ──
+function renderSectionToggle() {
+  document.getElementById('section-toggle').querySelectorAll('button').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.section === currentProject.section);
+    btn.onclick = () => {
+      currentProject.section = btn.dataset.section;
+      persistProjectState();
+      renderSectionToggle();
+    };
+  });
 }
 
-// ─── TABS ─────────────────────────────────────────────────────────────────────
-function switchTab(tab) {
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.getAttribute('onclick').includes(`'${tab}'`)));
-  document.getElementById('panel-scenario').classList.toggle('active', tab === 'scenario');
-  document.getElementById('panel-outils').classList.toggle('active', tab === 'outils');
+// ── SCÉNARIO META ──
+function renderScenarioSection() {
+  const el = document.getElementById('scenario-content');
+  const tableHref = '/scenes/?p=' + enc(projectId) + '&n=' + enc(currentProject.name);
+  if (!scenesRaw.length) {
+    el.innerHTML = '<div class="scenario-empty">Aucune scène importée. Importez un fichier FDX pour commencer.</div>';
+    return;
+  }
+  const eps = totalEpisodes > 0 ? ` · ${totalEpisodes} épisode${totalEpisodes > 1 ? 's' : ''}` : '';
+  const lastDate = (() => {
+    const dates = Object.values(fdxImportMeta || {}).map(m => m?.date).filter(Boolean).sort();
+    if (!dates.length) return '';
+    return ' · ' + new Date(dates[dates.length - 1]).toLocaleDateString('fr-CA', { year: 'numeric', month: 'long', day: 'numeric' });
+  })();
+
+  let versionsHtml = '';
+  if (fdxVersions.length) {
+    const shown = fdxVersions.slice(-5).reverse();
+    const rows = shown.map(v => {
+      const date = v.date ? new Date(v.date).toLocaleDateString('fr-CA', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+      const delta = v.prev_scene_count != null ? v.scene_count - v.prev_scene_count : null;
+      const deltaHtml = delta === null || delta === 0 ? '' :
+        `<span class="ver-mini-delta ${delta > 0 ? 'pos' : 'neg'}">${delta > 0 ? '+' : ''}${delta}</span>`;
+      return `<div class="ver-mini-row">
+        <span class="ver-mini-label">${v.label || 'Version'}</span>
+        <span class="ver-mini-info">${date} · ${v.scene_count} sc.</span>
+        ${deltaHtml}
+      </div>`;
+    }).join('');
+    const more = fdxVersions.length > 5 ? `<div class="ver-mini-more">+ ${fdxVersions.length - 5} autre${fdxVersions.length - 5 > 1 ? 's' : ''}</div>` : '';
+    versionsHtml = `<div class="versions-mini">
+      <div class="versions-mini-title">Versions archivées</div>
+      <div class="ver-mini-list">${rows}</div>
+      ${more}
+    </div>`;
+  }
+
+  el.innerHTML = `
+    <div class="scenario-main">
+      <div class="scenario-info">
+        <div class="scenario-count">${scenesRaw.length} scène${scenesRaw.length > 1 ? 's' : ''}${eps}</div>
+        <div class="scenario-sub">${lastDate ? lastDate.slice(3) : 'Import FDX'}</div>
+      </div>
+      <a class="scenario-link" href="${tableHref}">Ouvrir la table →</a>
+    </div>
+    ${versionsHtml}`;
 }
 
-function switchSubTab(st) {
-  document.querySelectorAll('.sub-tab').forEach(b => b.classList.toggle('active', b.getAttribute('onclick').includes(`'${st}'`)));
-  document.getElementById('sub-table').classList.toggle('active', st === 'table');
-  document.getElementById('sub-versions').classList.toggle('active', st === 'versions');
-  document.getElementById('search-wrap').style.display = st === 'table' ? '' : 'none';
-  if (st === 'versions') renderVersions();
-}
+// ── FDX IMPORT ──
+document.getElementById('btn-import-fdx').onclick = () => document.getElementById('fdx-file-input').click();
+document.getElementById('fdx-file-input').onchange = async evt => {
+  const files = Array.from(evt.target.files);
+  if (!files.length) return;
+  evt.target.value = '';
 
-// ─── RENDER OUTILS ────────────────────────────────────────────────────────────
+  // fdx-parser.js is loaded by /scenes/ page; here we do a minimal parse
+  // Load fdx-parser if not already loaded
+  if (typeof parseFDXToScenes === 'undefined') {
+    await new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = '/src/fdx-parser.js';
+      s.onload = resolve; s.onerror = reject;
+      document.head.appendChild(s);
+    });
+  }
+
+  const loaded = await Promise.all(files.map(f => f.text().then(t => ({ name: f.name, content: t }))));
+  let allScenes = [], allErrors = [];
+  for (const { name, content } of loaded) {
+    try {
+      const opts = _detectFdxOptions(content);
+      const parseOpts = { sep: opts.suggestDash ? 'dash' : 'slash', serieFormat: opts.hasCompactNums ? 'compact' : 'dot' };
+      const { scenes, errors } = parseFDXToScenes(content, parseOpts);
+      allScenes = [...allScenes, ...scenes];
+      allErrors = [...allErrors, ...errors];
+    } catch(e) { alert('Erreur FDX dans « ' + name + ' » : ' + e.message); return; }
+  }
+  const scMap = new Map();
+  allScenes.forEach(s => scMap.set(s.sc, s));
+  const newScenes = [...scMap.values()].sort(_scSort);
+  if (!newScenes.length) { alert('Aucune scène trouvée.'); return; }
+
+  const filename = files.length === 1 ? files[0].name : files.length + ' fichiers FDX';
+  let msg = `${newScenes.length} scènes trouvées dans « ${filename} ».`;
+  if (scenesRaw.length) msg += `\n\n${scenesRaw.length} scènes existantes seront remplacées.\nPour un import avec diff, utiliser le Tableau des lieux.`;
+  if (!confirm(msg + '\n\nConfirmer l\'import ?')) return;
+
+  if (scenesRaw.length) {
+    fdxVersions = [...fdxVersions, {
+      id: Date.now().toString(),
+      date: new Date().toISOString(),
+      label: 'Version précédente',
+      ep: null,
+      scene_count: scenesRaw.length,
+      prev_scene_count: 0
+    }].slice(-20);
+  }
+  scenesRaw = newScenes;
+  const eps = new Set(newScenes.map(s => (typeof parseEp === 'function' ? parseEp(s.sc).ep : 0)).filter(e => e > 0));
+  totalEpisodes = eps.size;
+  fdxImportMeta = {};
+  const now = new Date().toISOString();
+  const label = filename.replace(/\.fdx$/i, '');
+  fdxImportMeta['0'] = { label, date: now, scene_count: newScenes.length };
+
+  await saveScenesData();
+  renderScenarioSection();
+};
+
+// ── OUTILS ──
 function renderTools() {
   const p = currentProject;
   const list = document.getElementById('tools-list');
@@ -432,18 +366,15 @@ function renderTools() {
     p.tools.forEach(t => {
       const row = document.createElement('div');
       row.className = 'tool-row';
-      row.innerHTML = `
-        <div class="tool-name">${escHtml(t.label)}</div>
+      row.innerHTML = `<div class="tool-name">${t.label}</div>
         <div class="tool-actions">
-          <a class="btn-open" href="${escHtml(t.href)}">Ouvrir</a>
+          <a class="btn-open" href="${t.href}">Ouvrir</a>
           <button class="btn-remove" title="Retirer">×</button>
         </div>`;
       row.querySelector('.btn-remove').addEventListener('click', async () => {
         if (!confirm('Retirer « ' + t.label + ' » ?\n\nToutes les données seront supprimées définitivement.')) return;
         p.tools = p.tools.filter(x => x.id !== t.id);
-        if (t.supabaseKey && sb) {
-          try { await sb.from('project_data').delete().eq('key', t.supabaseKey); } catch(e) {}
-        }
+        if (t.supabaseKey && sb) { try { await sb.from('project_data').delete().eq('key', t.supabaseKey); } catch(e) {} }
         persistProjectState();
         renderTools();
         renderAddButton();
@@ -452,7 +383,6 @@ function renderTools() {
     });
   }
 }
-
 function renderAddButton() {
   const p = currentProject;
   const wrap = document.getElementById('add-tool-wrap');
@@ -461,7 +391,7 @@ function renderAddButton() {
   const remaining = AVAILABLE_TOOLS.filter(t => !addedIds.has(t.id));
   if (!remaining.length) return;
   const btn = document.createElement('button');
-  btn.className = 'btn-add-tool';
+  btn.className = 'btn-add';
   btn.textContent = '+ Ajouter un outil';
   btn.addEventListener('click', e => {
     e.stopPropagation();
@@ -471,8 +401,8 @@ function renderAddButton() {
     remaining.forEach(toolDef => {
       const item = document.createElement('button');
       item.textContent = toolDef.label;
-      item.addEventListener('click', e => {
-        e.stopPropagation();
+      item.addEventListener('click', ev => {
+        ev.stopPropagation();
         if (!p.tools) p.tools = [];
         p.tools.push({ id: toolDef.id, label: toolDef.label, href: toolDef.buildHref(p), supabaseKey: toolDef.buildKey(p) });
         persistProjectState();
@@ -487,396 +417,31 @@ function renderAddButton() {
   wrap.appendChild(btn);
 }
 
-function renderSectionToggle() {
-  document.getElementById('section-toggle').querySelectorAll('button').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.section === currentProject.section);
-    btn.onclick = () => {
-      currentProject.section = btn.dataset.section;
-      persistProjectState();
-      renderSectionToggle();
-    };
-  });
-}
+document.addEventListener('click', () => document.querySelectorAll('.tool-dropdown').forEach(d => d.remove()));
 
-// ─── RENDER SCENE TABLE ───────────────────────────────────────────────────────
-const IE_OPTS = ['—','INT','EXT','INT/EXT','EXT/INT'];
-const JN_OPTS = ['—','JOUR','NUIT','SOIR','MATIN','AUBE','CRÉPUSCULE','CONTINU'];
-
-function ieTag(v) {
-  if (!v || v === '—') return '';
-  const k = v.replace('/','').replace('EXTINT','MIX').replace('INTEXT','MIX');
-  const cls = v.includes('/') ? 'tMIX' : (v === 'INT' ? 'tINT' : 'tEXT');
-  return `<span class="tag ${cls}">${escHtml(v)}</span>`;
-}
-function jnTag(v) {
-  if (!v || v === '—') return '';
-  const map = { JOUR:'tJOUR', NUIT:'tNUIT', SOIR:'tSOIR', MATIN:'tMATIN', AUBE:'tAUBE', CRÉPUSCULE:'tFIN', CONTINU:'tFIN' };
-  return `<span class="tag ${map[v] || ''}">${escHtml(v)}</span>`;
-}
-
-function filteredScenes() {
-  if (!sceneSearch) return scenesRaw;
-  const q = sceneSearch.toLowerCase();
-  return scenesRaw.filter(s =>
-    String(s.sc).toLowerCase().includes(q) ||
-    (s.lieu || '').toLowerCase().includes(q) ||
-    (s.sous_lieu || '').toLowerCase().includes(q) ||
-    (s.jn || '').toLowerCase().includes(q)
-  );
-}
-
-function renderScenesTable() {
-  const isSeries = totalEpisodes > 0;
-  const thead = document.getElementById('scene-thead');
-  const tbody = document.getElementById('scene-tbody');
-  const emptyEl = document.getElementById('scene-empty');
-  const countLbl = document.getElementById('count-lbl');
-  const tableEl = document.getElementById('scene-table');
-
-  if (!scenesRaw.length) {
-    tableEl.style.display = 'none';
-    emptyEl.style.display = '';
-    emptyEl.innerHTML = 'Aucune scène importée.<br><span style="font-size:12px;">Utilisez <strong>Importer FDX</strong> pour charger un scénario.</span>';
-    countLbl.textContent = '';
-    document.getElementById('search-wrap').style.display = 'none';
-    return;
-  }
-
-  tableEl.style.display = '';
-  emptyEl.style.display = 'none';
-  document.getElementById('search-wrap').style.display = '';
-
-  const list = filteredScenes();
-  countLbl.textContent = list.length === scenesRaw.length
-    ? `${scenesRaw.length} scène${scenesRaw.length > 1 ? 's' : ''}`
-    : `${list.length} / ${scenesRaw.length}`;
-
-  thead.innerHTML = `<tr>
-    <th style="width:54px;text-align:center;">SC</th>
-    ${isSeries ? '<th style="width:44px;text-align:center;">ÉP</th>' : ''}
-    <th style="width:74px;">INT/EXT</th>
-    <th>Lieu fictif</th>
-    <th style="min-width:100px;">Sous-lieu</th>
-    <th style="width:70px;">J/N</th>
-    <th style="width:52px;text-align:center;">Page</th>
-  </tr>`;
-
-  const sceneSet = new Set(list.map(s => s.sc));
-  tbody.innerHTML = scenesRaw.map(s => {
-    const hidden = !sceneSet.has(s.sc) ? ' hidden' : '';
-    const ep = isSeries ? parseEp(s.sc).ep : null;
-    return `<tr data-sc="${escHtml(String(s.sc))}"${hidden}>
-      <td><span class="sc-num">SC${escHtml(String(s.sc))}</span></td>
-      ${isSeries ? `<td><span class="ep-lbl">${ep > 0 ? 'E' + String(ep).padStart(2,'0') : '—'}</span></td>` : ''}
-      <td class="td-tag">
-        <select class="td-select" data-sc="${escHtml(String(s.sc))}" data-field="int_ext" onchange="onSceneFieldChange(this)">
-          ${IE_OPTS.map(o => `<option${o === (s.int_ext||'—') ? ' selected' : ''}>${escHtml(o)}</option>`).join('')}
-        </select>
-      </td>
-      <td><button class="lieu-btn" onclick="openRenameModal('${escHtml(s.lieu || '')}')">${escHtml(s.lieu || '—')}</button></td>
-      <td><input class="td-input" data-sc="${escHtml(String(s.sc))}" data-field="sous_lieu"
-            value="${escHtml(s.sous_lieu || '')}" placeholder="—"
-            onchange="onSceneFieldChange(this)" onblur="onSceneFieldChange(this)"></td>
-      <td class="td-tag">
-        <select class="td-select" data-sc="${escHtml(String(s.sc))}" data-field="jn" onchange="onSceneFieldChange(this)">
-          ${JN_OPTS.map(o => `<option${o === (s.jn||'—') ? ' selected' : ''}>${escHtml(o)}</option>`).join('')}
-        </select>
-      </td>
-      <td><span class="td-page">${s.page && s.page !== '0' ? escHtml(String(s.page)) : '—'}</span></td>
-    </tr>`;
-  }).join('');
-}
-
-// ─── INLINE EDIT ─────────────────────────────────────────────────────────────
-function onSceneFieldChange(el) {
-  const sc = el.dataset.sc;
-  const field = el.dataset.field;
-  const val = el.value === '—' ? '' : el.value;
-  const scene = scenesRaw.find(s => String(s.sc) === sc);
-  if (!scene || scene[field] === val) return;
-  scene[field] = val;
-  scheduleSave();
-}
-
-// ─── LIEU RENAME ─────────────────────────────────────────────────────────────
-let _renamingLieu = null;
-
-function openRenameModal(lieu) {
-  _renamingLieu = lieu;
-  const count = scenesRaw.filter(s => s.lieu === lieu).length;
-  document.getElementById('rename-modal-title').textContent = 'Renommer le lieu fictif';
-  document.getElementById('rename-modal-sub').textContent = `"${lieu}" — présent dans ${count} scène${count > 1 ? 's' : ''}. Le renommage se propagera au Tableau des lieux et aux autres outils.`;
-  const inp = document.getElementById('rename-input');
-  inp.value = lieu;
-  document.getElementById('rename-warn').className = 'modal-warn';
-  document.getElementById('rename-modal').classList.add('active');
-  setTimeout(() => { inp.focus(); inp.select(); }, 80);
-}
-
-document.getElementById('rename-input').addEventListener('input', () => {
-  const newVal = document.getElementById('rename-input').value.trim().toUpperCase();
-  const warn = document.getElementById('rename-warn');
-  const existingLieus = [...new Set(scenesRaw.map(s => s.lieu).filter(Boolean))];
-  if (newVal && newVal !== _renamingLieu && existingLieus.includes(newVal)) {
-    warn.textContent = `⚠ Ce lieu existe déjà — les scènes de "${_renamingLieu}" seront fusionnées avec "${newVal}".`;
-    warn.className = 'modal-warn visible';
-  } else {
-    warn.className = 'modal-warn';
-  }
-});
-
-document.getElementById('rename-cancel').onclick = () => {
-  document.getElementById('rename-modal').classList.remove('active');
-  _renamingLieu = null;
-};
-
-document.getElementById('rename-confirm').onclick = async () => {
-  const newLieu = document.getElementById('rename-input').value.trim().toUpperCase();
-  if (!newLieu || !_renamingLieu) return;
-  document.getElementById('rename-modal').classList.remove('active');
-  const oldLieu = _renamingLieu;
-  _renamingLieu = null;
-  await renameLieu(oldLieu, newLieu);
-};
-
-document.getElementById('rename-input').addEventListener('keydown', e => {
-  if (e.key === 'Enter') document.getElementById('rename-confirm').click();
-  if (e.key === 'Escape') document.getElementById('rename-cancel').click();
-});
-
-async function renameLieu(oldLieu, newLieu) {
-  if (oldLieu === newLieu) return;
-  setSyncStatus('syncing');
-
-  // 1. Mettre à jour toutes les scènes
-  scenesRaw.forEach(s => { if (s.lieu === oldLieu) s.lieu = newLieu; });
-
-  // 2. Remapper les clés dans {id}_tdl
-  if (sb) {
-    try {
-      const { data: tdlRow } = await sb.from('project_data').select('data').eq('key', TDL_KEY).maybeSingle();
-      if (tdlRow?.data) {
-        const tdl = tdlRow.data;
-        const TDL_MAPS = ['lieusTournage','lieuColorOverrides','sousLieuColorOverrides','lieuNotes','sousLieuNotes','lieuTournagePhotos','lieuTournageInspi','lieuTournageFloorplans'];
-        TDL_MAPS.forEach(field => {
-          if (!tdl[field] || tdl[field][oldLieu] === undefined) return;
-          if (!tdl[field][newLieu]) tdl[field][newLieu] = tdl[field][oldLieu];
-          delete tdl[field][oldLieu];
-        });
-        // Aussi remapper dans le tableau de scènes interne du TDL (clé `scenes`)
-        if (Array.isArray(tdl.scenes)) {
-          tdl.scenes.forEach(s => { if (s.lieu === oldLieu) s.lieu = newLieu; });
-        }
-        await sb.from('project_data').upsert({ key: TDL_KEY, data: tdl, updated_at: new Date().toISOString() });
-      }
-    } catch(e) { console.warn('TDL remap error:', e); }
-  }
-
-  // 3. Sauvegarder {id}_scenes (déclenche Realtime → tous les outils se mettent à jour)
-  await saveScenesData();
-  renderScenesTable();
-}
-
-// ─── RENDER VERSIONS ─────────────────────────────────────────────────────────
-function renderVersions() {
-  const el = document.getElementById('versions-content');
-  if (!fdxVersions.length) {
-    el.innerHTML = '<p class="ver-empty">Aucune version archivée.</p>';
-    return;
-  }
-
-  // Grouper par épisode
-  const byEp = {};
-  fdxVersions.forEach(v => {
-    const key = v.ep !== null && v.ep !== undefined ? String(v.ep) : 'legacy';
-    if (!byEp[key]) byEp[key] = [];
-    byEp[key].push(v);
-  });
-
-  let html = '';
-  Object.entries(byEp).sort(([a],[b]) => {
-    if (a === 'legacy') return 1;
-    if (b === 'legacy') return -1;
-    return parseInt(a) - parseInt(b);
-  }).forEach(([ep, versions]) => {
-    const title = ep === 'legacy' ? 'Versions héritées' : (ep === '0' ? 'Long-métrage' : `Épisode ${ep.padStart(2,'0')}`);
-    html += `<div class="ver-block"><p class="ver-section-title">${escHtml(title)}</p>`;
-    versions.forEach((v, i) => {
-      const realIdx = fdxVersions.indexOf(v);
-      const date = v.date ? new Date(v.date).toLocaleDateString('fr-CA', { year:'numeric', month:'long', day:'numeric' }) : '—';
-      const delta = v.prev_scene_count != null ? v.scene_count - v.prev_scene_count : null;
-      const deltaTxt = delta === null ? '' : (delta === 0 ? 'Aucun changement' : (delta > 0 ? `+${delta} scène${Math.abs(delta)>1?'s':''}` : `${delta} scène${Math.abs(delta)>1?'s':''}`));
-      const deltaCls = delta === null || delta === 0 ? 'same' : (delta > 0 ? 'pos' : 'neg');
-      html += `<div class="ver-card">
-        <div class="ver-label">${escHtml(v.label || 'Version ' + (i+1))}</div>
-        <span class="ver-info">${escHtml(date)} · ${v.scene_count} sc.</span>
-        ${deltaTxt ? `<span class="ver-delta ${deltaCls}">${escHtml(deltaTxt)}</span>` : ''}
-        <button class="btn-ver-del" onclick="deleteVersion(${realIdx})" title="Supprimer">×</button>
-      </div>`;
-    });
-    html += '</div>';
-  });
-  el.innerHTML = html;
-}
-
-function deleteVersion(idx) {
-  if (!fdxVersions[idx]) return;
-  if (!confirm('Supprimer cette version archivée ?')) return;
-  fdxVersions.splice(idx, 1);
-  saveScenesData();
-  renderVersions();
-}
-
-// ─── FDX IMPORT ───────────────────────────────────────────────────────────────
-function wireFdxButton() {
-  document.getElementById('btn-import-fdx').onclick = () => document.getElementById('fdx-file-input').click();
-  document.getElementById('fdx-file-input').onchange = onFdxFileChange;
-}
-
-async function onFdxFileChange(evt) {
-  const files = Array.from(evt.target.files);
-  if (!files.length) return;
-  evt.target.value = '';
-
-  const loaded = await Promise.all(files.map(f => f.text().then(t => ({ name: f.name, content: t }))));
-  let allScenes = [], allErrors = [];
-  for (const { name, content } of loaded) {
-    try {
-      const opts = _detectFdxOptions(content);
-      const parseOpts = { sep: opts.suggestDash ? 'dash' : 'slash', serieFormat: opts.hasCompactNums ? 'compact' : 'dot' };
-      const { scenes, errors } = parseFDXToScenes(content, parseOpts);
-      allScenes = [...allScenes, ...scenes];
-      allErrors = [...allErrors, ...errors.map(e => loaded.length > 1 ? `[${name}] ${e}` : e)];
-    } catch(e) { alert('Erreur FDX dans « ' + name + ' » : ' + e.message); return; }
-  }
-
-  const scMap = new Map();
-  allScenes.forEach(s => scMap.set(s.sc, s));
-  const newScenes = [...scMap.values()].sort(_scSort);
-  if (!newScenes.length) { alert('Aucune scène trouvée dans ces fichiers.'); return; }
-
-  const existingCount = scenesRaw.length;
-  const filename = files.length === 1 ? files[0].name : `${files.length} fichiers FDX`;
-  let msg = `${newScenes.length} scène${newScenes.length > 1 ? 's' : ''} trouvée${newScenes.length > 1 ? 's' : ''} dans « ${filename} ».`;
-  if (existingCount) msg += `\n\n${existingCount} scène${existingCount > 1 ? 's' : ''} déjà importée${existingCount > 1 ? 's' : ''} — elles seront remplacées.\nPour un import avec diff et merge, utiliser le Tableau des lieux.`;
-  if (allErrors.length) msg += `\n\n⚠ ${allErrors.length} avertissement${allErrors.length > 1 ? 's' : ''} :\n` + allErrors.slice(0, 5).join('\n');
-  if (!confirm(msg + '\n\nConfirmer l\'import ?')) return;
-
-  // Archiver la version précédente
-  if (scenesRaw.length) {
-    const prevMeta = fdxImportMeta ? Object.values(fdxImportMeta)[0] : null;
-    const archived = {
-      id: Date.now().toString(),
-      date: prevMeta?.date || new Date().toISOString(),
-      label: prevMeta?.label || 'Version précédente',
-      ep: null,
-      scene_count: scenesRaw.length,
-      prev_scene_count: 0,
-      scenes_raw: scenesRaw
-    };
-    fdxVersions = [...fdxVersions, archived].slice(-20);
-  }
-
-  scenesRaw = newScenes;
-  const eps = new Set(newScenes.map(s => parseEp(s.sc).ep).filter(e => e > 0));
-  totalEpisodes = eps.size;
-  const label = filename.replace(/\.fdx$/i, '');
-  const now = new Date().toISOString();
-  fdxImportMeta = {};
-  const epGroups = {};
-  newScenes.forEach(s => {
-    const ep = parseEp(s.sc).ep;
-    if (!epGroups[ep]) epGroups[ep] = [];
-    epGroups[ep].push(s);
-  });
-  Object.entries(epGroups).forEach(([ep, sc]) => {
-    fdxImportMeta[ep] = { label, date: now, scene_count: sc.length };
-  });
-
-  await saveScenesData();
-  renderScenesTable();
-}
-
-// ─── SEARCH ───────────────────────────────────────────────────────────────────
-document.getElementById('scene-search').addEventListener('input', e => {
-  sceneSearch = e.target.value.trim();
-  const q = sceneSearch.toLowerCase();
-  document.querySelectorAll('#scene-tbody tr').forEach(tr => {
-    if (!q) { tr.classList.remove('hidden'); return; }
-    const sc = tr.dataset.sc || '';
-    const cells = tr.textContent.toLowerCase();
-    tr.classList.toggle('hidden', !cells.includes(q) && !sc.toLowerCase().includes(q));
-  });
-  const visible = document.querySelectorAll('#scene-tbody tr:not(.hidden)').length;
-  document.getElementById('count-lbl').textContent = visible === scenesRaw.length
-    ? `${scenesRaw.length} scène${scenesRaw.length > 1 ? 's' : ''}`
-    : `${visible} / ${scenesRaw.length}`;
-});
-
-// ─── REALTIME ─────────────────────────────────────────────────────────────────
-function subscribeToScenes() {
-  if (!sb) return;
-  sb.channel('projet-scenes-' + projectId)
-    .on('postgres_changes', {
-      event: '*', schema: 'public', table: 'project_data',
-      filter: 'key=eq.' + SCENES_KEY
-    }, payload => {
-      const d = payload.new?.data;
-      if (!d) return;
-      scenesRaw     = d.imported_scenes_raw || [];
-      fdxVersions   = d.fdxVersions || [];
-      fdxImportMeta = d.fdxImportMeta || {};
-      totalEpisodes = d.totalEpisodes || 0;
-      renderScenesTable();
-    })
-    .subscribe();
-}
-
-// ─── CLICK OUTSIDE TO CLOSE DROPDOWNS ────────────────────────────────────────
-document.addEventListener('click', e => {
-  if (!e.target.closest('.add-tool-wrap')) document.querySelectorAll('.tool-dropdown').forEach(d => d.remove());
-  if (!e.target.closest('.modal') && !e.target.closest('.lieu-btn')) {
-    if (document.getElementById('rename-modal').classList.contains('active')) {
-      document.getElementById('rename-cancel').click();
-    }
-  }
-});
-
-// ─── INIT ─────────────────────────────────────────────────────────────────────
+// ── INIT ──
 async function init() {
   let state = mergeState(loadLocal());
   projects = state;
   currentProject = projects.find(p => p.id === projectId);
   if (!currentProject) { location.href = '/'; return; }
 
-  document.title = currentProject.name + ' — Outils';
-  document.getElementById('project-name').textContent = currentProject.name;
+  document.title = currentProject.name + ' — Projet';
+  document.getElementById('project-title').textContent = currentProject.name;
   document.getElementById('project-format').textContent = currentProject.format || '';
   renderSectionToggle();
   renderTools();
   renderAddButton();
-  wireFdxButton();
 
-  // Charger les données en parallèle
-  const [remote] = await Promise.all([
-    loadProjectState(),
-    loadScenesData()
-  ]);
-
-  renderScenesTable();
+  const [remote] = await Promise.all([loadProjectState(), loadScenesData()]);
+  renderScenarioSection();
 
   if (remote) {
     saveLocal(remote);
     projects = mergeState(remote);
     currentProject = projects.find(p => p.id === projectId);
-    if (currentProject) {
-      renderSectionToggle();
-      renderTools();
-      renderAddButton();
-    }
+    if (currentProject) { renderSectionToggle(); renderTools(); renderAddButton(); }
   }
-
-  subscribeToScenes();
 }
 
 init();
