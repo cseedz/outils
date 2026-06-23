@@ -626,11 +626,17 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
 /* ── FDX IMPORT DIALOG ── */
 .fdx-import-btn {
   background: var(--bg3); border: 1px solid var(--border); cursor: pointer;
-  padding: 5px 11px; border-radius: 5px; font-size: 11px; font-family: inherit;
-  color: var(--text); white-space: nowrap; transition: background 0.12s;
+  padding: 6px 12px; border-radius: 5px; font-size: 12px; font-family: inherit;
+  color: var(--text); white-space: nowrap; transition: border-color .1s;
   margin-left: 10px; flex-shrink: 0;
 }
-.fdx-import-btn:hover { background: var(--bg2); border-color: var(--border2); }
+.fdx-import-btn:hover { border-color: var(--border2); }
+.tdl-back {
+  font-size: 11px; color: var(--text-muted); text-decoration: none;
+  letter-spacing: .04em; padding-left: 16px; border-left: 1px solid var(--border);
+  margin-left: 12px; white-space: nowrap; flex-shrink: 0;
+}
+.tdl-back:hover { color: var(--text); }
 .fdx-modal-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 2000;
   display: flex; align-items: center; justify-content: center; padding: 20px;
@@ -739,7 +745,7 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
     <span id="sync-size" title="Taille des données sauvegardées dans Supabase"></span>
     <input type="file" id="fdx-file-input" accept=".fdx" multiple style="display:none" onchange="onFdxFileSelected(event)">
     <button class="fdx-import-btn" onclick="triggerFdxUpload()" title="Importer un fichier Final Draft (.fdx)">Importer FDX</button>
-    <a id="back-link" href="/" style="font-size:11px;color:var(--text-muted);text-decoration:none;letter-spacing:0.04em;padding:4px 0 4px 16px;border-left:1px solid var(--border);margin-left:12px;white-space:nowrap;flex-shrink:0;" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--text-muted)'">← Outils</a>
+    <a id="back-link" href="/" class="tdl-back">← Projet</a>
     <script>
       (function() {
         var p = new URLSearchParams(location.search).get('p');
