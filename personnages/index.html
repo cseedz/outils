@@ -12,13 +12,13 @@
   --text: #111111; --text-muted: #777777; --text-dim: #aaaaaa;
   --accent: #111111; --accent2: #555555;
   --danger: #cc3333;
-  --topbar-h: 50px; --controls-h: 41px;
+  --topbar-h: 50px; --tabs-h: 36px; --controls-h: 49px;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 13px; -webkit-font-smoothing: antialiased; background: var(--bg); color: var(--text); line-height: 1.4; }
 
 /* TOPBAR */
-.topbar { position: sticky; top: 0; z-index: 100; background: var(--bg2); border-bottom: 1px solid var(--border); padding: 0 24px; height: var(--topbar-h); display: flex; align-items: center; gap: 16px; }
+.topbar { position: sticky; top: 0; z-index: 200; background: var(--bg2); border-bottom: 1px solid var(--border); padding: 0 24px; height: var(--topbar-h); display: flex; align-items: center; gap: 16px; }
 .topbar-back { color: var(--text-muted); text-decoration: none; font-size: 11px; letter-spacing: .04em; padding-right: 12px; border-right: 1px solid var(--border); flex-shrink: 0; white-space: nowrap; }
 .topbar-back:hover { color: var(--text); }
 .topbar-title { font-size: 16px; font-weight: 700; letter-spacing: -0.3px; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -27,8 +27,15 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans
 .sync-dot.synced  { background: #5a9a6a; }
 .sync-dot.error   { background: var(--danger); }
 
-/* CONTROLS BAR */
-.controls { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 10px 24px; display: flex; gap: 8px; align-items: center; position: sticky; top: var(--topbar-h); z-index: 99; }
+/* TABS */
+.tab-bar { position: sticky; top: var(--topbar-h); z-index: 100; background: var(--bg); border-bottom: 2px solid var(--border); padding: 0 24px; height: var(--tabs-h); display: flex; align-items: flex-end; gap: 0; }
+.tab-btn { background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; padding: 6px 14px 8px; font-size: 12px; font-weight: 600; color: var(--text-muted); cursor: pointer; font-family: inherit; transition: color .12s, border-color .12s; white-space: nowrap; }
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active { color: var(--text); border-bottom-color: var(--text); }
+.tab-badge { display: inline-block; font-size: 10px; background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; padding: 0 5px; margin-left: 4px; color: var(--text-muted); font-weight: 500; vertical-align: middle; line-height: 1.7; }
+
+/* CONTROLS BAR — Personnages */
+.controls { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 10px 24px; display: flex; gap: 8px; align-items: center; position: sticky; top: calc(var(--topbar-h) + var(--tabs-h)); z-index: 99; }
 .search-wrap { position: relative; min-width: 140px; max-width: 240px; flex: 1; }
 .search-input { background: var(--bg3); border: 1px solid var(--border); color: var(--text); padding: 6px 8px 6px 28px; border-radius: 5px; font-size: 12px; font-family: inherit; width: 100%; outline: none; }
 .search-input:focus { border-color: var(--accent); }
@@ -43,7 +50,7 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans
 /* TABLE */
 .table-wrap { padding: 0 24px 40px; }
 .char-table { width: 100%; border-collapse: collapse; }
-.char-table thead th { text-align: left; font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; padding: 9px 10px; border-bottom: 1px solid var(--border); position: sticky; top: calc(var(--topbar-h) + var(--controls-h)); background: var(--bg); z-index: 10; white-space: nowrap; }
+.char-table thead th { text-align: left; font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; padding: 9px 10px; border-bottom: 1px solid var(--border); position: sticky; top: calc(var(--topbar-h) + var(--tabs-h) + var(--controls-h)); background: var(--bg); z-index: 10; white-space: nowrap; }
 .char-table thead th.num { width: 36px; text-align: right; }
 .char-table thead th.sc-col { width: 72px; text-align: center; }
 .char-table thead th.rep-col { width: 72px; text-align: center; }
@@ -73,8 +80,6 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans
 /* EXPAND ROW */
 .char-expand-row { display: none; }
 .char-expand-row td { padding: 0; border-bottom: 1px solid var(--border); }
-
-/* EXPAND PANEL */
 .char-expand { padding: 10px 10px 14px 20px; background: var(--bg2); }
 .expand-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
 .field-label { font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 3px; }
@@ -86,17 +91,59 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans
 .scene-chip { display: inline-block; padding: 2px 7px; border-radius: 3px; font-size: 10px; font-weight: 600; letter-spacing: 0.4px; background: var(--bg3); color: var(--text-muted); border: 1px solid var(--border); }
 .scene-chip.has-lines { background: rgba(45,106,138,.1); color: #1a5a7a; border: 1px solid rgba(45,106,138,.3); }
 .scenes-lbl { font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 5px; }
-
-/* EMPTY */
 .empty { text-align: center; padding: 60px 24px; color: var(--text-muted); }
 .empty p { font-size: 13px; line-height: 1.6; }
 .empty a { color: var(--accent); }
-
-/* ACTEUR ROW */
 .acteur-row { display: flex; gap: 6px; align-items: center; }
 .acteur-row .field-input { flex: 1; }
 .btn-chercher { background: var(--bg3); border: 1px solid var(--border); border-radius: 5px; cursor: pointer; font-size: 11px; font-family: inherit; color: var(--text-muted); padding: 5px 10px; white-space: nowrap; flex-shrink: 0; }
 .btn-chercher:hover { border-color: var(--border2); color: var(--text); }
+
+/* AGENCES VIEW */
+.agences-bar { position: sticky; top: calc(var(--topbar-h) + var(--tabs-h)); z-index: 99; background: var(--bg2); border-bottom: 1px solid var(--border); padding: 8px 24px; display: flex; flex-direction: column; gap: 7px; }
+.ag-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.ag-search-wrap { position: relative; flex: 1; min-width: 160px; max-width: 260px; }
+.c-filter { appearance: none; background: var(--bg3); border: 1px solid var(--border); border-radius: 5px; font-size: 11px; font-family: inherit; padding: 5px 8px; color: var(--text); cursor: pointer; outline: none; height: 30px; }
+.c-filter:focus { border-color: var(--border2); }
+.filter-sep { width: 1px; height: 18px; background: var(--border); margin: 0 2px; flex-shrink: 0; align-self: center; }
+.view-toggle { display: flex; border: 1px solid var(--border); border-radius: 5px; overflow: hidden; flex-shrink: 0; }
+.vt-btn { background: var(--bg3); border: none; border-right: 1px solid var(--border); padding: 5px 10px; font-size: 11px; font-family: inherit; color: var(--text-muted); cursor: pointer; line-height: 1; white-space: nowrap; }
+.vt-btn:last-child { border-right: none; }
+.vt-btn:hover { color: var(--text); }
+.vt-btn.active { background: var(--text); color: var(--bg); }
+.filter-lbl { font-size: 10px; color: var(--text-muted); white-space: nowrap; flex-shrink: 0; }
+.c-pills { display: flex; flex-wrap: wrap; gap: 3px; }
+.c-pill { background: var(--bg3); border: 1px solid var(--border); border-radius: 4px; font-size: 10px; font-family: inherit; padding: 3px 6px; color: var(--text-muted); cursor: pointer; outline: none; transition: background .1s, border-color .1s, color .1s; line-height: 1.3; }
+.c-pill:hover { border-color: var(--border2); color: var(--text); }
+.c-pill.active { background: var(--text); border-color: var(--text); color: var(--bg); }
+.ag-count { font-size: 11px; color: var(--text-muted); margin-left: auto; white-space: nowrap; }
+
+/* AGENCES GRID — TUILES */
+.agences-tuiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)); gap: 12px; padding: 16px 24px 40px; }
+.ag-tile { border: 1px solid var(--border); border-radius: 6px; overflow: hidden; transition: border-color .12s, box-shadow .12s; background: var(--bg); }
+.ag-tile:hover { border-color: var(--border2); box-shadow: 0 2px 10px rgba(0,0,0,.07); }
+.ag-tile-photo { width: 100%; aspect-ratio: 3/4; object-fit: cover; display: block; }
+.ag-tile-placeholder { width: 100%; aspect-ratio: 3/4; display: flex; align-items: center; justify-content: center; background: var(--bg3); font-size: 28px; font-weight: 700; color: var(--border2); letter-spacing: -1px; }
+.ag-tile-body { padding: 8px 10px 10px; }
+.ag-tile-name { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 1px; }
+.ag-tile-agency { font-size: 10px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 5px; }
+.ag-tile-tags { display: flex; flex-wrap: wrap; gap: 3px; margin-bottom: 6px; }
+.ag-tag { font-size: 9px; border: 1px solid var(--border); border-radius: 3px; padding: 1px 4px; color: var(--text-muted); background: var(--bg3); white-space: nowrap; }
+.ag-link { font-size: 10px; color: var(--text-muted); text-decoration: none; }
+.ag-link:hover { color: var(--text); text-decoration: underline; }
+
+/* AGENCES GRID — LISTE */
+.agences-liste { padding: 0 24px 40px; }
+.ag-list-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--border); }
+.ag-list-row:last-child { border-bottom: none; }
+.ag-list-photo { width: 44px; height: 58px; object-fit: cover; border-radius: 3px; flex-shrink: 0; display: block; }
+.ag-list-placeholder { width: 44px; height: 58px; border-radius: 3px; flex-shrink: 0; background: var(--bg3); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: var(--border2); }
+.ag-list-info { flex: 1; min-width: 0; }
+.ag-list-name { font-size: 13px; font-weight: 600; }
+.ag-list-agency { font-size: 11px; color: var(--text-muted); }
+.ag-list-tags { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 3px; }
+.ag-list-link-wrap { flex-shrink: 0; }
+.ag-empty { text-align: center; padding: 60px 24px; color: var(--text-muted); font-size: 13px; }
 
 /* CASTING PANEL */
 .casting-overlay { position: fixed; inset: 0; z-index: 400; display: flex; justify-content: flex-end; pointer-events: none; }
@@ -105,25 +152,16 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans
 .casting-overlay.active .casting-backdrop { opacity: 1; }
 .casting-panel { position: relative; width: 400px; max-width: 100vw; height: 100%; background: var(--bg); border-left: 1px solid var(--border); display: flex; flex-direction: column; transform: translateX(100%); transition: transform 220ms cubic-bezier(.4,0,.2,1); box-shadow: -4px 0 24px rgba(0,0,0,.09); }
 .casting-overlay.active .casting-panel { transform: translateX(0); }
-
 .casting-header { padding: 13px 40px 13px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; position: relative; }
 .casting-for-lbl { font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .1em; margin-bottom: 1px; }
 .casting-char { font-size: 15px; font-weight: 700; }
 .casting-close { position: absolute; top: 10px; right: 12px; background: none; border: none; cursor: pointer; font-size: 20px; color: var(--text-muted); padding: 3px 6px; border-radius: 3px; line-height: 1; }
 .casting-close:hover { color: var(--text); background: var(--bg3); }
-
 .casting-controls { padding: 8px 10px; border-bottom: 1px solid var(--border); flex-shrink: 0; display: flex; flex-direction: column; gap: 6px; }
 .casting-filters { display: flex; flex-direction: column; gap: 5px; }
 .filter-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .filter-label { font-size: 10px; color: var(--text-muted); min-width: 42px; flex-shrink: 0; }
-.c-filter { appearance: none; background: var(--bg3); border: 1px solid var(--border); border-radius: 5px; font-size: 11px; font-family: inherit; padding: 4px 7px; color: var(--text); cursor: pointer; outline: none; }
-.c-filter:focus { border-color: var(--border2); }
-.c-pills { display: flex; flex-wrap: wrap; gap: 4px; }
-.c-pill { background: var(--bg3); border: 1px solid var(--border); border-radius: 4px; font-size: 11px; font-family: inherit; padding: 3px 7px; color: var(--text-muted); cursor: pointer; outline: none; transition: background .1s, border-color .1s, color .1s; }
-.c-pill:hover { border-color: var(--border2); color: var(--text); }
-.c-pill.active { background: var(--text); border-color: var(--text); color: var(--bg); }
 .casting-meta { padding: 4px 10px 6px; font-size: 11px; color: var(--text-muted); flex-shrink: 0; }
-
 .talent-list { flex: 1; overflow-y: auto; padding: 8px 10px; }
 .talent-card { border: 1px solid var(--border); border-radius: 5px; padding: 10px 12px; margin-bottom: 7px; display: flex; gap: 10px; align-items: flex-start; transition: border-color .1s; }
 .talent-card:hover { border-color: var(--border2); }
@@ -137,11 +175,9 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans
 .talent-actions { display: flex; gap: 6px; align-items: center; }
 .btn-assign { background: var(--text); border: 1px solid var(--text); border-radius: 4px; color: #fff; font-size: 11px; font-family: inherit; cursor: pointer; padding: 4px 10px; }
 .btn-assign:hover { opacity: .82; }
-.btn-assign:disabled { opacity: .35; cursor: default; }
 .btn-source-link { font-size: 11px; color: var(--text-muted); text-decoration: none; border-bottom: 1px solid var(--border); padding-bottom: 1px; }
 .btn-source-link:hover { color: var(--text); border-color: var(--text); }
 .talent-empty { font-size: 13px; color: var(--text-muted); padding: 30px 0; text-align: center; }
-
 .casting-import-wrap { border-top: 1px solid var(--border); flex-shrink: 0; }
 details.casting-import summary { cursor: pointer; padding: 9px 12px; font-size: 11px; color: var(--text-muted); letter-spacing: .04em; list-style: none; display: flex; align-items: center; gap: 5px; }
 details.casting-import summary::-webkit-details-marker { display: none; }
@@ -157,7 +193,7 @@ details.casting-import[open] summary::before { transform: rotate(90deg); }
 .import-status { font-size: 11px; color: var(--text-muted); margin-top: 5px; }
 
 /* TOAST */
-.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(16px); background: rgba(0,0,0,.8); color: #fff; font-size: 12px; font-weight: 500; padding: 8px 18px; border-radius: 4px; opacity: 0; transition: opacity 180ms, transform 180ms; pointer-events: none; z-index: 200; white-space: nowrap; }
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(16px); background: rgba(0,0,0,.8); color: #fff; font-size: 12px; font-weight: 500; padding: 8px 18px; border-radius: 4px; opacity: 0; transition: opacity 180ms, transform 180ms; pointer-events: none; z-index: 500; white-space: nowrap; }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 </style>
 </head>
@@ -169,44 +205,112 @@ details.casting-import[open] summary::before { transform: rotate(90deg); }
   <div class="sync-dot" id="sync-dot"></div>
 </div>
 
-<div class="controls">
-  <div class="search-wrap">
-    <span class="search-icon">⌕</span>
-    <input class="search-input" id="search-input" type="text" placeholder="Chercher un personnage…">
-  </div>
-  <div class="sort-group">
-    <button class="sort-btn active" data-sort="scenes">Scènes</button>
-    <button class="sort-btn" data-sort="lignes">Lignes</button>
-    <button class="sort-btn" data-sort="nom">Nom</button>
-  </div>
-  <div class="count-label" id="count-label"></div>
+<!-- ONGLETS -->
+<div class="tab-bar">
+  <button class="tab-btn active" id="tab-btn-pers" onclick="switchTab('personnages')">Personnages</button>
+  <button class="tab-btn" id="tab-btn-agences" onclick="switchTab('agences')">Agences<span class="tab-badge" id="tab-agences-badge"></span></button>
 </div>
 
-<div class="table-wrap">
-  <table class="char-table">
-    <thead>
-      <tr>
-        <th class="num">#</th>
-        <th>Personnage</th>
-        <th class="sc-col">Scènes</th>
-        <th class="rep-col">Répliques</th>
-        <th class="act-col">Acteur·ice</th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody id="char-tbody"></tbody>
-  </table>
-  <div id="empty-state" style="display:none;">
-    <div class="empty">
-      <p>Aucun personnage trouvé.<br>
-      <a id="empty-link" href="#">Importer un FDX</a> depuis la page projet pour extraire les personnages automatiquement.</p>
+<!-- ════════════ VUE PERSONNAGES ════════════ -->
+<div id="view-pers">
+  <div class="controls">
+    <div class="search-wrap">
+      <span class="search-icon">⌕</span>
+      <input class="search-input" id="search-input" type="text" placeholder="Chercher un personnage…">
+    </div>
+    <div class="sort-group">
+      <button class="sort-btn active" data-sort="scenes">Scènes</button>
+      <button class="sort-btn" data-sort="lignes">Lignes</button>
+      <button class="sort-btn" data-sort="nom">Nom</button>
+    </div>
+    <div class="count-label" id="count-label"></div>
+  </div>
+
+  <div class="table-wrap">
+    <table class="char-table">
+      <thead>
+        <tr>
+          <th class="num">#</th>
+          <th>Personnage</th>
+          <th class="sc-col">Scènes</th>
+          <th class="rep-col">Répliques</th>
+          <th class="act-col">Acteur·ice</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="char-tbody"></tbody>
+    </table>
+    <div id="empty-state" style="display:none;">
+      <div class="empty">
+        <p>Aucun personnage trouvé.<br>
+        <a id="empty-link" href="#">Importer un FDX</a> depuis la page projet pour extraire les personnages automatiquement.</p>
+      </div>
     </div>
   </div>
 </div>
 
+<!-- ════════════ VUE AGENCES ════════════ -->
+<div id="view-agences" style="display:none">
+  <div class="agences-bar">
+    <!-- Rangée 1 : recherche + selects + vue -->
+    <div class="ag-row">
+      <div class="ag-search-wrap">
+        <span class="search-icon">⌕</span>
+        <input class="search-input" id="ag-search" type="text" placeholder="Nom, agence…" style="width:100%">
+      </div>
+      <select class="c-filter" id="ag-genre">
+        <option value="">Genre</option>
+        <option value="femme">Femme</option>
+        <option value="homme">Homme</option>
+      </select>
+      <select class="c-filter" id="ag-agency" style="flex:1;min-width:120px;max-width:220px">
+        <option value="">Toutes les agences</option>
+      </select>
+      <div class="filter-sep"></div>
+      <div class="view-toggle">
+        <button class="vt-btn active" id="vt-tuiles" onclick="setAgView('tuiles')">⊞ Tuiles</button>
+        <button class="vt-btn" id="vt-liste" onclick="setAgView('liste')">≡ Liste</button>
+      </div>
+      <div class="ag-count" id="ag-count"></div>
+    </div>
+    <!-- Rangée 2 : filtres visuels -->
+    <div class="ag-row">
+      <span class="filter-lbl">Cheveux</span>
+      <div class="c-pills" id="ag-hair-pills">
+        <button class="c-pill" data-value="roux">roux</button>
+        <button class="c-pill" data-value="blond">blond</button>
+        <button class="c-pill" data-value="chatain">châtain</button>
+        <button class="c-pill" data-value="brun">brun</button>
+        <button class="c-pill" data-value="noir">noir</button>
+        <button class="c-pill" data-value="gris">gris</button>
+        <button class="c-pill" data-value="chauve">chauve</button>
+      </div>
+      <div class="filter-sep"></div>
+      <span class="filter-lbl">Carrure</span>
+      <div class="c-pills" id="ag-build-pills">
+        <button class="c-pill" data-value="mince">mince</button>
+        <button class="c-pill" data-value="moyenne">moyenne</button>
+        <button class="c-pill" data-value="forte">forte</button>
+      </div>
+      <div class="filter-sep"></div>
+      <span class="filter-lbl">Âge</span>
+      <div class="c-pills" id="ag-age-pills">
+        <button class="c-pill" data-value="0-12">0–12</button>
+        <button class="c-pill" data-value="13-19">13–19</button>
+        <button class="c-pill" data-value="20-29">20–29</button>
+        <button class="c-pill" data-value="30-39">30–39</button>
+        <button class="c-pill" data-value="40-49">40–49</button>
+        <button class="c-pill" data-value="50-59">50–59</button>
+        <button class="c-pill" data-value="60+">60+</button>
+      </div>
+    </div>
+  </div>
+  <div id="agences-grid"></div>
+</div>
+
 <div class="toast" id="toast"></div>
 
-<!-- CASTING PANEL -->
+<!-- ════════════ CASTING PANEL ════════════ -->
 <div class="casting-overlay" id="casting-overlay">
   <div class="casting-backdrop" onclick="closeCastingPanel()"></div>
   <div class="casting-panel">
@@ -216,9 +320,9 @@ details.casting-import[open] summary::before { transform: rotate(90deg); }
       <button class="casting-close" onclick="closeCastingPanel()">×</button>
     </div>
     <div class="casting-controls">
-      <div class="search-wrap" style="width:100%;">
+      <div class="search-wrap" style="width:100%">
         <span class="search-icon">⌕</span>
-        <input class="search-input" id="casting-search" type="text" placeholder="Nom, agence…" style="width:100%;">
+        <input class="search-input" id="casting-search" type="text" placeholder="Nom, agence…" style="width:100%">
       </div>
       <div class="casting-filters">
         <div class="filter-row">
@@ -232,33 +336,33 @@ details.casting-import[open] summary::before { transform: rotate(90deg); }
         <div class="filter-row">
           <span class="filter-label">Cheveux</span>
           <div class="c-pills" id="c-hair-pills">
-            <button class="c-pill" data-value="roux" onclick="togglePill(this)">roux</button>
-            <button class="c-pill" data-value="blond" onclick="togglePill(this)">blond</button>
-            <button class="c-pill" data-value="chatain" onclick="togglePill(this)">châtain</button>
-            <button class="c-pill" data-value="brun" onclick="togglePill(this)">brun</button>
-            <button class="c-pill" data-value="noir" onclick="togglePill(this)">noir</button>
-            <button class="c-pill" data-value="gris" onclick="togglePill(this)">gris</button>
-            <button class="c-pill" data-value="chauve" onclick="togglePill(this)">chauve</button>
+            <button class="c-pill" data-value="roux">roux</button>
+            <button class="c-pill" data-value="blond">blond</button>
+            <button class="c-pill" data-value="chatain">châtain</button>
+            <button class="c-pill" data-value="brun">brun</button>
+            <button class="c-pill" data-value="noir">noir</button>
+            <button class="c-pill" data-value="gris">gris</button>
+            <button class="c-pill" data-value="chauve">chauve</button>
           </div>
         </div>
         <div class="filter-row">
           <span class="filter-label">Carrure</span>
           <div class="c-pills" id="c-build-pills">
-            <button class="c-pill" data-value="mince" onclick="togglePill(this)">mince</button>
-            <button class="c-pill" data-value="moyenne" onclick="togglePill(this)">moyenne</button>
-            <button class="c-pill" data-value="forte" onclick="togglePill(this)">forte</button>
+            <button class="c-pill" data-value="mince">mince</button>
+            <button class="c-pill" data-value="moyenne">moyenne</button>
+            <button class="c-pill" data-value="forte">forte</button>
           </div>
         </div>
         <div class="filter-row">
           <span class="filter-label">Âge</span>
           <div class="c-pills" id="c-age-pills">
-            <button class="c-pill" data-value="0-12" onclick="togglePill(this)">0–12</button>
-            <button class="c-pill" data-value="13-19" onclick="togglePill(this)">13–19</button>
-            <button class="c-pill" data-value="20-29" onclick="togglePill(this)">20–29</button>
-            <button class="c-pill" data-value="30-39" onclick="togglePill(this)">30–39</button>
-            <button class="c-pill" data-value="40-49" onclick="togglePill(this)">40–49</button>
-            <button class="c-pill" data-value="50-59" onclick="togglePill(this)">50–59</button>
-            <button class="c-pill" data-value="60+" onclick="togglePill(this)">60+</button>
+            <button class="c-pill" data-value="0-12">0–12</button>
+            <button class="c-pill" data-value="13-19">13–19</button>
+            <button class="c-pill" data-value="20-29">20–29</button>
+            <button class="c-pill" data-value="30-39">30–39</button>
+            <button class="c-pill" data-value="40-49">40–49</button>
+            <button class="c-pill" data-value="50-59">50–59</button>
+            <button class="c-pill" data-value="60+">60+</button>
           </div>
         </div>
       </div>
@@ -296,9 +400,9 @@ let sb = null;
 try { sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e) {}
 
 // ─── STATE ───────────────────────────────────────────────────────────────────
-let scenes   = [];   // imported_scenes_raw from {id}_scenes
-let persData = {};   // { [SCRIPT_NAME]: { nomReel, acteur, notes } }
-let derived  = [];   // computed: [{ name, sceneCount, lineCount, sceneList }]
+let scenes   = [];
+let persData = {};
+let derived  = [];
 let sortKey  = 'scenes';
 let query    = '';
 let _saveDebounce = null;
@@ -315,7 +419,7 @@ function showToast(msg) {
   t.textContent = msg;
   t.classList.add('show');
   clearTimeout(_toastTimer);
-  _toastTimer = setTimeout(() => t.classList.remove('show'), 2000);
+  _toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
 }
 
 // ─── LOAD / SAVE ─────────────────────────────────────────────────────────────
@@ -348,7 +452,7 @@ function saveData() {
 
 // ─── DERIVE ──────────────────────────────────────────────────────────────────
 function derivePersonnages() {
-  const map = {}; // { name: { sceneSet, totalLines } }
+  const map = {};
   scenes.forEach(s => {
     const charLines   = s.charLines   || {};
     const charPresent = s.charPresent || [];
@@ -363,10 +467,8 @@ function derivePersonnages() {
     });
   });
   derived = Object.entries(map).map(([name, d]) => ({
-    name,
-    sceneCount: d.sceneSet.size,
-    lineCount:  d.totalLines,
-    sceneList:  [...d.sceneSet]
+    name, sceneCount: d.sceneSet.size, lineCount: d.totalLines,
+    sceneList: [...d.sceneSet]
   }));
 }
 
@@ -377,8 +479,8 @@ function sortedFiltered() {
     list = list.filter(p => {
       const enrich = persData[p.name] || {};
       return p.name.toLowerCase().includes(q)
-          || (enrich.nomReel  || '').toLowerCase().includes(q)
-          || (enrich.acteur   || '').toLowerCase().includes(q);
+          || (enrich.nomReel || '').toLowerCase().includes(q)
+          || (enrich.acteur  || '').toLowerCase().includes(q);
     });
   }
   list.sort((a, b) => {
@@ -389,13 +491,22 @@ function sortedFiltered() {
   return list;
 }
 
-// ─── RENDER ──────────────────────────────────────────────────────────────────
+// ─── UTILS ───────────────────────────────────────────────────────────────────
 function escHtml(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+function talentInitials(nom) {
+  return nom.split(' ').filter(Boolean).slice(0,2).map(w => w[0].toUpperCase()).join('');
+}
+
+function getActivePills(pillsId) {
+  return new Set([...document.querySelectorAll(`#${pillsId} .c-pill.active`)].map(b => b.dataset.value));
+}
+
+// ─── RENDER TABLE ─────────────────────────────────────────────────────────────
 function renderTable() {
-  const list = sortedFiltered();
+  const list  = sortedFiltered();
   const tbody = document.getElementById('char-tbody');
   const empty = document.getElementById('empty-state');
 
@@ -411,15 +522,11 @@ function renderTable() {
     : `${list.length} / ${derived.length}`;
 
   tbody.innerHTML = list.map((p, idx) => {
-    const enrich = persData[p.name] || {};
+    const enrich  = persData[p.name] || {};
     const realName = enrich.nomReel ? `<div class="char-real-name">${escHtml(enrich.nomReel)}</div>` : '';
-    const actorStr = enrich.acteur ? escHtml(enrich.acteur) : '';
-
-    // Scene chips — speaking scenes in blue
+    const actorStr = enrich.acteur  ? escHtml(enrich.acteur) : '';
     const speakingScenes = new Set();
-    scenes.forEach(s => {
-      if (s.charLines && s.charLines[p.name]) speakingScenes.add(String(s.sc));
-    });
+    scenes.forEach(s => { if (s.charLines && s.charLines[p.name]) speakingScenes.add(String(s.sc)); });
     const chips = p.sceneList
       .sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }))
       .map(sc => {
@@ -427,8 +534,9 @@ function renderTable() {
         return `<span class="${cls}">SC${escHtml(sc)}</span>`;
       }).join('');
 
+    // Stocker le nom du personnage dans data-name pour toggleChar et openCastingPanel
     return `
-      <tr class="char-row" id="char-${escHtml(p.name)}" onclick="toggleChar('${escHtml(p.name)}')">
+      <tr class="char-row" data-name="${escHtml(p.name)}" onclick="toggleChar(this.dataset.name)">
         <td class="td-num">${idx + 1}</td>
         <td>
           <div class="char-name-wrap">
@@ -449,24 +557,24 @@ function renderTable() {
                 <div class="field-label">Nom réel du personnage</div>
                 <input class="field-input" type="text" placeholder="Ex: Xavier Beaulieu"
                   value="${escHtml(enrich.nomReel || '')}"
-                  onchange="updateField('${escHtml(p.name)}', 'nomReel', this.value)"
-                  onblur="updateField('${escHtml(p.name)}', 'nomReel', this.value)">
+                  data-char="${escHtml(p.name)}" data-field="nomReel"
+                  onchange="updateFieldFromInput(this)" onblur="updateFieldFromInput(this)">
               </div>
               <div>
                 <div class="field-label">Acteur · Actrice</div>
                 <div class="acteur-row">
                   <input class="field-input" type="text" placeholder="Nom de l'interprète"
                     value="${escHtml(enrich.acteur || '')}"
-                    onchange="updateField('${escHtml(p.name)}', 'acteur', this.value)"
-                    onblur="updateField('${escHtml(p.name)}', 'acteur', this.value)">
-                  <button class="btn-chercher" onclick="openCastingPanel('${escHtml(p.name)}')">Chercher →</button>
+                    data-char="${escHtml(p.name)}" data-field="acteur"
+                    onchange="updateFieldFromInput(this)" onblur="updateFieldFromInput(this)">
+                  <button class="btn-chercher" data-char="${escHtml(p.name)}" onclick="openCastingPanel(this.dataset.char)">Chercher →</button>
                 </div>
               </div>
               <div class="field-notes">
                 <div class="field-label">Notes</div>
                 <textarea class="field-input" placeholder="Disponibilités, contacts, contraintes…"
-                  onchange="updateField('${escHtml(p.name)}', 'notes', this.value)"
-                  onblur="updateField('${escHtml(p.name)}', 'notes', this.value)">${escHtml(enrich.notes || '')}</textarea>
+                  data-char="${escHtml(p.name)}" data-field="notes"
+                  onchange="updateFieldFromInput(this)" onblur="updateFieldFromInput(this)">${escHtml(enrich.notes || '')}</textarea>
               </div>
             </div>
             <div class="scenes-lbl">Présent dans</div>
@@ -479,28 +587,32 @@ function renderTable() {
 
 // ─── INTERACTIONS ─────────────────────────────────────────────────────────────
 function toggleChar(name) {
-  const row = document.getElementById('char-' + name);
+  const rows = document.querySelectorAll(`.char-row[data-name="${CSS.escape(name)}"]`);
+  if (!rows.length) return;
+  const row = rows[0];
   const expandRow = document.getElementById('expand-' + name);
-  if (!row) return;
   const isOpen = row.classList.toggle('open');
   if (expandRow) expandRow.style.display = isOpen ? 'table-row' : 'none';
+}
+
+function updateFieldFromInput(el) {
+  const name  = el.dataset.char;
+  const field = el.dataset.field;
+  const value = el.value;
+  updateField(name, field, value);
 }
 
 function updateField(name, field, value) {
   if (!persData[name]) persData[name] = {};
   if (persData[name][field] === value) return;
   persData[name][field] = value;
-  // Update display without full re-render
-  const row = document.getElementById('char-' + name);
-  if (row) {
+  const rows = document.querySelectorAll(`.char-row[data-name="${CSS.escape(name)}"]`);
+  if (rows.length) {
+    const row = rows[0];
     const nameWrap = row.querySelector('.char-name-wrap');
     if (nameWrap && field === 'nomReel') {
       let realEl = nameWrap.querySelector('.char-real-name');
-      if (!realEl && value) {
-        realEl = document.createElement('div');
-        realEl.className = 'char-real-name';
-        nameWrap.appendChild(realEl);
-      }
+      if (!realEl && value) { realEl = document.createElement('div'); realEl.className = 'char-real-name'; nameWrap.appendChild(realEl); }
       if (realEl) realEl.textContent = value;
     }
     if (field === 'acteur') {
@@ -519,7 +631,6 @@ document.querySelectorAll('.sort-btn').forEach(btn => {
     renderTable();
   });
 });
-
 document.getElementById('search-input').addEventListener('input', e => {
   query = e.target.value.trim();
   renderTable();
@@ -529,55 +640,56 @@ document.getElementById('search-input').addEventListener('input', e => {
 function subscribeToScenes() {
   if (!sb) return;
   sb.channel('pers-scenes-' + _projectId)
-    .on('postgres_changes', {
-      event: '*',
-      schema: 'public',
-      table: 'project_data',
-      filter: 'key=eq.' + SCENES_KEY
-    }, payload => {
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'project_data', filter: 'key=eq.' + SCENES_KEY }, payload => {
       const newScenes = payload.new?.data?.imported_scenes_raw;
       if (!newScenes) return;
-      // Snapshot des lignes ouvertes avant de re-rendre
-      const openNames = new Set(
-        [...document.querySelectorAll('.char-row.open')].map(r => r.id.slice(5))
-      );
+      const openNames = new Set([...document.querySelectorAll('.char-row.open')].map(r => r.dataset.name));
       scenes = newScenes;
       derivePersonnages();
       renderTable();
       openNames.forEach(name => {
-        const row = document.getElementById('char-' + name);
+        const rows = document.querySelectorAll(`.char-row[data-name="${CSS.escape(name)}"]`);
         const expandRow = document.getElementById('expand-' + name);
-        if (row) {
-          row.classList.add('open');
-          if (expandRow) expandRow.style.display = 'table-row';
-        }
+        if (rows.length) { rows[0].classList.add('open'); if (expandRow) expandRow.style.display = 'table-row'; }
       });
       showToast('Scènes mises à jour');
-    })
-    .subscribe();
+    }).subscribe();
+}
+
+// ─── TABS ────────────────────────────────────────────────────────────────────
+let _activeTab = 'personnages';
+
+function switchTab(tab) {
+  _activeTab = tab;
+  document.getElementById('tab-btn-pers').classList.toggle('active', tab === 'personnages');
+  document.getElementById('tab-btn-agences').classList.toggle('active', tab === 'agences');
+  document.getElementById('view-pers').style.display    = tab === 'personnages' ? '' : 'none';
+  document.getElementById('view-agences').style.display = tab === 'agences'     ? '' : 'none';
+  if (tab === 'agences') {
+    populateAgencesAgencyFilter();
+    renderAgencesGrid();
+  }
 }
 
 // ─── CASTING PANEL ───────────────────────────────────────────────────────────
 const CASTING_KEY = 'casting_talents';
 const MOCK_TALENTS = [
-  {id:1, nom:"Léa Bouchard",       agence:"Acte 1",          couleur_cheveux:"roux",    age_min:24, age_max:30, carrure:"mince",   source_url:"#"},
-  {id:2, nom:"Marc-Antoine Dubé",  agence:"Agence Goodwin",  couleur_cheveux:"brun",    age_min:35, age_max:42, carrure:"forte",   source_url:"#"},
-  {id:3, nom:"Fatima Haddad",      agence:"MVA",             couleur_cheveux:"noir",    age_min:28, age_max:34, carrure:"moyenne", source_url:"#"},
-  {id:4, nom:"Simon Roy",          agence:"Agence JR",       couleur_cheveux:"blond",   age_min:19, age_max:25, carrure:"mince",   source_url:"#"},
-  {id:5, nom:"Geneviève Tremblay", agence:"Agence La Suite", couleur_cheveux:"chatain", age_min:45, age_max:52, carrure:"moyenne", source_url:"#"},
-  {id:6, nom:"Pierre Lavoie",      agence:"Agence Cormier",  couleur_cheveux:"gris",    age_min:58, age_max:65, carrure:"forte",   source_url:"#"},
-  {id:7, nom:"Aïcha Ndiaye",       agence:"Forte Artists",   couleur_cheveux:"noir",    age_min:22, age_max:28, carrure:"mince",   source_url:"#"},
-  {id:8, nom:"Olivier Bergeron",   agence:"Premier Rôle",    couleur_cheveux:"roux",    age_min:31, age_max:38, carrure:"moyenne", source_url:"#"},
+  {id:1, nom:"Léa Bouchard",       agence:"Acte 1",          couleur_cheveux:"roux",    age_min:24, age_max:30, carrure:"mince",   genre:"femme", source_url:"#"},
+  {id:2, nom:"Marc-Antoine Dubé",  agence:"Agence Goodwin",  couleur_cheveux:"brun",    age_min:35, age_max:42, carrure:"forte",   genre:"homme", source_url:"#"},
+  {id:3, nom:"Fatima Haddad",      agence:"MVA",             couleur_cheveux:"noir",    age_min:28, age_max:34, carrure:"moyenne", genre:"femme", source_url:"#"},
+  {id:4, nom:"Simon Roy",          agence:"Agence JR",       couleur_cheveux:"blond",   age_min:19, age_max:25, carrure:"mince",   genre:"homme", source_url:"#"},
+  {id:5, nom:"Geneviève Tremblay", agence:"Agence La Suite", couleur_cheveux:"chatain", age_min:45, age_max:52, carrure:"moyenne", genre:"femme", source_url:"#"},
+  {id:6, nom:"Pierre Lavoie",      agence:"Agence Cormier",  couleur_cheveux:"gris",    age_min:58, age_max:65, carrure:"forte",   genre:"homme", source_url:"#"},
 ];
 const AGE_RANGES = {
-  '0-12': [0,12], '13-19': [13,19], '20-29': [20,29], '30-39': [30,39],
-  '40-49': [40,49], '50-59': [50,59], '60+': [60,130]
+  '0-12':[0,12], '13-19':[13,19], '20-29':[20,29], '30-39':[30,39],
+  '40-49':[40,49], '50-59':[50,59], '60+':[60,130]
 };
 
-let talentsData = [];
+let talentsData       = [];
 let _usingMockTalents = false;
-let _assigningChar = null;
-let _profileUrlSet = new Set(); // URLs uniques = fiches individuelles
+let _assigningChar    = null;
+let _profileUrlSet    = new Set();
 
 function buildProfileUrlSet() {
   const counts = {};
@@ -586,19 +698,21 @@ function buildProfileUrlSet() {
 }
 
 async function loadCastingData() {
-  if (!sb) { talentsData = MOCK_TALENTS; _usingMockTalents = true; buildProfileUrlSet(); return; }
+  if (!sb) { talentsData = MOCK_TALENTS; _usingMockTalents = true; buildProfileUrlSet(); _updateTabBadge(); return; }
   try {
     const { data: row } = await sb.from('project_data').select('data').eq('key', CASTING_KEY).maybeSingle();
     if (row?.data?.talents?.length) {
       talentsData = row.data.talents;
       _usingMockTalents = false;
       buildProfileUrlSet();
+      _updateTabBadge();
       return;
     }
   } catch(e) {}
   talentsData = MOCK_TALENTS;
   _usingMockTalents = true;
   buildProfileUrlSet();
+  _updateTabBadge();
 }
 
 async function saveCastingDataToSupabase(data) {
@@ -608,66 +722,63 @@ async function saveCastingDataToSupabase(data) {
   } catch(e) { console.warn(e); }
 }
 
-function talentInitials(nom) {
-  return nom.split(' ').filter(Boolean).slice(0,2).map(w => w[0].toUpperCase()).join('');
+function _updateTabBadge() {
+  const b = document.getElementById('tab-agences-badge');
+  if (b) b.textContent = talentsData.length ? talentsData.length : '';
 }
 
-function getActivePills(pillsId) {
-  return new Set([...document.querySelectorAll(`#${pillsId} .c-pill.active`)].map(b => b.dataset.value));
-}
-
-function togglePill(btn) {
-  btn.classList.toggle('active');
-  renderCastingList();
-}
-
-function castingFilteredTalents() {
-  const q     = document.getElementById('casting-search').value.trim().toLowerCase();
-  const genre = document.getElementById('c-genre').value;
-  const agency= document.getElementById('c-agency').value;
-  const hairs = getActivePills('c-hair-pills');
-  const builds= getActivePills('c-build-pills');
-  const ages  = getActivePills('c-age-pills');
+// Filtre partagé casting + agences
+function _filterTalents(opts) {
+  const { q, genre, agency, hairs, builds, ages } = opts;
   return talentsData.filter(t => {
-    if (genre  && t.genre !== genre) return false;
+    if (genre  && t.genre  !== genre)  return false;
     if (agency && t.agence !== agency) return false;
-    if (hairs.size && !hairs.has(t.couleur_cheveux)) return false;
-    if (builds.size && !builds.has(t.carrure)) return false;
+    if (hairs.size  && !hairs.has(t.couleur_cheveux))  return false;
+    if (builds.size && !builds.has(t.carrure))         return false;
     if (ages.size) {
-      const matches = [...ages].some(k => {
+      const ok = [...ages].some(k => {
         const [lo, hi] = AGE_RANGES[k] || [0, 130];
         return t.age_min <= hi && t.age_max >= lo;
       });
-      if (!matches) return false;
+      if (!ok) return false;
     }
-    if (q) {
-      const txt = (t.nom + ' ' + t.agence).toLowerCase();
-      if (!txt.includes(q)) return false;
-    }
+    if (q) { if (!(t.nom + ' ' + t.agence).toLowerCase().includes(q)) return false; }
     return true;
   });
 }
 
+function castingFilteredTalents() {
+  return _filterTalents({
+    q:      document.getElementById('casting-search').value.trim().toLowerCase(),
+    genre:  document.getElementById('c-genre').value,
+    agency: document.getElementById('c-agency').value,
+    hairs:  getActivePills('c-hair-pills'),
+    builds: getActivePills('c-build-pills'),
+    ages:   getActivePills('c-age-pills'),
+  });
+}
+
 function renderCastingList() {
-  const list = castingFilteredTalents();
-  const el   = document.getElementById('talent-list');
-  const meta = document.getElementById('casting-meta');
+  const list      = castingFilteredTalents();
+  const el        = document.getElementById('talent-list');
+  const meta      = document.getElementById('casting-meta');
   const isPicking = !!_assigningChar;
   meta.textContent = (_usingMockTalents ? '(données d\'exemple) · ' : '') +
     list.length + ' / ' + talentsData.length + ' fiche' + (talentsData.length > 1 ? 's' : '');
-  if (!list.length) {
-    el.innerHTML = '<div class="talent-empty">Aucune fiche ne correspond.</div>';
-    return;
-  }
+  if (!list.length) { el.innerHTML = '<div class="talent-empty">Aucune fiche ne correspond.</div>'; return; }
+
   el.innerHTML = list.map(t => {
-    const ageStr = t.age_min + '–' + t.age_max + ' ans';
-    const hasProfile = t.source_url && t.source_url !== '#' && _profileUrlSet.has(t.source_url);
-    const srcBtn = hasProfile
-      ? `<a class="btn-source-link" href="${t.source_url}" target="_blank" rel="noopener">Fiche ↗</a>` : '';
-    const initials = talentInitials(t.nom);
+    const ageStr    = t.age_min + '–' + t.age_max + ' ans';
+    const hasProf   = t.source_url && t.source_url !== '#' && _profileUrlSet.has(t.source_url);
+    const srcBtn    = hasProf ? `<a class="btn-source-link" href="${escHtml(t.source_url)}" target="_blank" rel="noopener">Fiche ↗</a>` : '';
+    const initials  = talentInitials(t.nom);
     const avatarHtml = t.photo_url
       ? `<img class="talent-avatar-img" src="${escHtml(t.photo_url)}" alt="${escHtml(t.nom)}" loading="lazy" onerror="this.outerHTML='<div class=\\'talent-avatar\\'>${initials}</div>'">`
       : `<div class="talent-avatar">${initials}</div>`;
+    // Fix: data attributes au lieu d'inline onclick avec interpolation de chaîne
+    const assignBtn = isPicking
+      ? `<button class="btn-assign" data-nom="${escHtml(t.nom)}" data-agence="${escHtml(t.agence)}">Assigner →</button>`
+      : '';
     return `<div class="talent-card">
       ${avatarHtml}
       <div class="talent-info">
@@ -679,14 +790,18 @@ function renderCastingList() {
           <span class="talent-tag">${escHtml(ageStr)}</span>
           ${t.carrure ? `<span class="talent-tag">${escHtml(t.carrure)}</span>` : ''}
         </div>
-        <div class="talent-actions">
-          ${isPicking ? `<button class="btn-assign" onclick="assignTalent('${escHtml(t.nom)}', '${escHtml(t.agence)}')">Assigner →</button>` : ''}
-          ${srcBtn}
-        </div>
+        <div class="talent-actions">${assignBtn}${srcBtn}</div>
       </div>
     </div>`;
   }).join('');
 }
+
+// Délégation d'événement pour btn-assign — corrige le bug apostrophe
+document.getElementById('talent-list').addEventListener('click', e => {
+  const btn = e.target.closest('.btn-assign');
+  if (!btn) return;
+  assignTalent(btn.dataset.nom, btn.dataset.agence);
+});
 
 function populateCastingAgencyFilter() {
   const agencies = [...new Set(talentsData.map(t => t.agence).filter(Boolean))].sort((a,b) => a.localeCompare(b,'fr'));
@@ -699,20 +814,13 @@ function populateCastingAgencyFilter() {
 
 function openCastingPanel(charName) {
   _assigningChar = charName;
-  const forLbl  = document.getElementById('casting-for-lbl');
-  const charEl  = document.getElementById('casting-char-name');
-  if (charName) {
-    forLbl.textContent = 'Casting pour';
-    charEl.textContent = charName;
-  } else {
-    forLbl.textContent = 'Base de casting';
-    charEl.textContent = '';
-  }
+  document.getElementById('casting-for-lbl').textContent  = charName ? 'Casting pour' : 'Base de casting';
+  document.getElementById('casting-char-name').textContent = charName || '';
   document.getElementById('casting-search').value = '';
-  ['c-genre'].forEach(id => document.getElementById(id).value = '');
-  ['c-hair-pills','c-build-pills','c-age-pills'].forEach(id => {
-    document.querySelectorAll(`#${id} .c-pill`).forEach(b => b.classList.remove('active'));
-  });
+  document.getElementById('c-genre').value = '';
+  ['c-hair-pills','c-build-pills','c-age-pills'].forEach(id =>
+    document.querySelectorAll(`#${id} .c-pill`).forEach(b => b.classList.remove('active'))
+  );
   populateCastingAgencyFilter();
   renderCastingList();
   document.getElementById('casting-overlay').classList.add('active');
@@ -728,19 +836,29 @@ function assignTalent(nom, agence) {
   if (!_assigningChar) return;
   const charName = _assigningChar;
   updateField(charName, 'acteur', nom);
-  const row = document.getElementById('char-' + charName);
-  if (row) {
-    const inp = row.querySelector('.acteur-row input');
+  // Sync l'input encore ouvert dans la ligne expandée
+  const rows = document.querySelectorAll(`.char-row[data-name="${CSS.escape(charName)}"]`);
+  if (rows.length) {
+    const inp = rows[0].nextElementSibling?.querySelector('.acteur-row input');
     if (inp) inp.value = nom;
   }
   closeCastingPanel();
   showToast(nom + ' assigné·e à ' + charName);
 }
 
-// Casting panel filter events (selects only — pills have onclick)
+// Événements casting panel — délégation pour les pills
 ['casting-search','c-genre','c-agency'].forEach(id => {
-  document.getElementById(id).addEventListener('input', renderCastingList);
-  document.getElementById(id).addEventListener('change', renderCastingList);
+  const el = document.getElementById(id);
+  el.addEventListener('input', renderCastingList);
+  el.addEventListener('change', renderCastingList);
+});
+['c-hair-pills','c-build-pills','c-age-pills'].forEach(id => {
+  document.getElementById(id).addEventListener('click', e => {
+    const pill = e.target.closest('.c-pill');
+    if (!pill) return;
+    pill.classList.toggle('active');
+    renderCastingList();
+  });
 });
 
 // Import / export
@@ -757,18 +875,130 @@ document.getElementById('casting-save-btn').addEventListener('click', async () =
     await saveCastingDataToSupabase(parsed);
     populateCastingAgencyFilter();
     renderCastingList();
+    _updateTabBadge();
     status.textContent = parsed.length + ' fiches enregistrées.';
     setTimeout(() => { status.textContent = ''; }, 4000);
   } catch(e) { status.textContent = 'JSON invalide : ' + e.message; }
 });
-
 document.getElementById('casting-export-btn').addEventListener('click', () => {
   document.getElementById('casting-import-area').value = JSON.stringify(talentsData, null, 2);
 });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCastingPanel(); });
 
-// Close on Escape
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeCastingPanel();
+// ─── AGENCES TAB ─────────────────────────────────────────────────────────────
+let _agView = 'tuiles';
+
+function setAgView(view) {
+  _agView = view;
+  document.getElementById('vt-tuiles').classList.toggle('active', view === 'tuiles');
+  document.getElementById('vt-liste').classList.toggle('active', view === 'liste');
+  renderAgencesGrid();
+}
+
+function populateAgencesAgencyFilter() {
+  const agencies = [...new Set(talentsData.map(t => t.agence).filter(Boolean))].sort((a,b) => a.localeCompare(b,'fr'));
+  const sel = document.getElementById('ag-agency');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">Toutes les agences</option>';
+  agencies.forEach(a => { const o = document.createElement('option'); o.value = o.textContent = a; sel.appendChild(o); });
+  sel.value = agencies.includes(cur) ? cur : '';
+}
+
+function filterAgencesTalents() {
+  return _filterTalents({
+    q:      document.getElementById('ag-search').value.trim().toLowerCase(),
+    genre:  document.getElementById('ag-genre').value,
+    agency: document.getElementById('ag-agency').value,
+    hairs:  getActivePills('ag-hair-pills'),
+    builds: getActivePills('ag-build-pills'),
+    ages:   getActivePills('ag-age-pills'),
+  });
+}
+
+function _agPhotoHtml(t, mode) {
+  const initials = talentInitials(t.nom);
+  if (mode === 'tile') {
+    return t.photo_url
+      ? `<img class="ag-tile-photo" src="${escHtml(t.photo_url)}" alt="${escHtml(t.nom)}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+        + `<div class="ag-tile-placeholder" style="display:none">${initials}</div>`
+      : `<div class="ag-tile-placeholder">${initials}</div>`;
+  }
+  return t.photo_url
+    ? `<img class="ag-list-photo" src="${escHtml(t.photo_url)}" alt="${escHtml(t.nom)}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+      + `<div class="ag-list-placeholder" style="display:none">${initials}</div>`
+    : `<div class="ag-list-placeholder">${initials}</div>`;
+}
+
+function _agTags(t) {
+  const ageStr = (t.age_min || t.age_max) ? `${t.age_min||0}–${t.age_max||'?'}` : '';
+  return [
+    t.genre ? (t.genre === 'femme' ? 'F' : 'H') : '',
+    t.couleur_cheveux || '',
+    ageStr ? ageStr + ' ans' : '',
+    t.carrure || '',
+  ].filter(Boolean).map(s => `<span class="ag-tag">${escHtml(s)}</span>`).join('');
+}
+
+function renderAgTile(t) {
+  const hasProf  = t.source_url && t.source_url !== '#' && _profileUrlSet.has(t.source_url);
+  const linkHtml = hasProf ? `<a class="ag-link" href="${escHtml(t.source_url)}" target="_blank" rel="noopener">Fiche ↗</a>` : '';
+  return `<div class="ag-tile">
+    ${_agPhotoHtml(t, 'tile')}
+    <div class="ag-tile-body">
+      <div class="ag-tile-name">${escHtml(t.nom)}</div>
+      <div class="ag-tile-agency">${escHtml(t.agence)}</div>
+      <div class="ag-tile-tags">${_agTags(t)}</div>
+      ${linkHtml}
+    </div>
+  </div>`;
+}
+
+function renderAgListRow(t) {
+  const hasProf  = t.source_url && t.source_url !== '#' && _profileUrlSet.has(t.source_url);
+  const linkHtml = hasProf ? `<a class="ag-link" href="${escHtml(t.source_url)}" target="_blank" rel="noopener">Fiche ↗</a>` : '';
+  return `<div class="ag-list-row">
+    ${_agPhotoHtml(t, 'list')}
+    <div class="ag-list-info">
+      <div class="ag-list-name">${escHtml(t.nom)}</div>
+      <div class="ag-list-agency">${escHtml(t.agence)}</div>
+      <div class="ag-list-tags">${_agTags(t)}</div>
+    </div>
+    <div class="ag-list-link-wrap">${linkHtml}</div>
+  </div>`;
+}
+
+function renderAgencesGrid() {
+  const list    = filterAgencesTalents();
+  const grid    = document.getElementById('agences-grid');
+  const countEl = document.getElementById('ag-count');
+  countEl.textContent = list.length + ' / ' + talentsData.length + ' fiche' + (talentsData.length > 1 ? 's' : '');
+  if (!list.length) {
+    grid.className = '';
+    grid.innerHTML = '<div class="ag-empty">Aucune fiche ne correspond aux filtres.</div>';
+    return;
+  }
+  if (_agView === 'tuiles') {
+    grid.className = 'agences-tuiles';
+    grid.innerHTML = list.map(renderAgTile).join('');
+  } else {
+    grid.className = 'agences-liste';
+    grid.innerHTML = list.map(renderAgListRow).join('');
+  }
+}
+
+// Événements filtres Agences
+['ag-search','ag-genre','ag-agency'].forEach(id => {
+  const el = document.getElementById(id);
+  el.addEventListener('input', renderAgencesGrid);
+  el.addEventListener('change', renderAgencesGrid);
+});
+['ag-hair-pills','ag-build-pills','ag-age-pills'].forEach(id => {
+  document.getElementById(id).addEventListener('click', e => {
+    const pill = e.target.closest('.c-pill');
+    if (!pill) return;
+    pill.classList.toggle('active');
+    renderAgencesGrid();
+  });
 });
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
