@@ -113,9 +113,15 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans
 .casting-close:hover { color: var(--text); background: var(--bg3); }
 
 .casting-controls { padding: 8px 10px; border-bottom: 1px solid var(--border); flex-shrink: 0; display: flex; flex-direction: column; gap: 6px; }
-.casting-filters { display: flex; gap: 6px; flex-wrap: wrap; }
+.casting-filters { display: flex; flex-direction: column; gap: 5px; }
+.filter-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.filter-label { font-size: 10px; color: var(--text-muted); min-width: 42px; flex-shrink: 0; }
 .c-filter { appearance: none; background: var(--bg3); border: 1px solid var(--border); border-radius: 5px; font-size: 11px; font-family: inherit; padding: 4px 7px; color: var(--text); cursor: pointer; outline: none; }
 .c-filter:focus { border-color: var(--border2); }
+.c-pills { display: flex; flex-wrap: wrap; gap: 4px; }
+.c-pill { background: var(--bg3); border: 1px solid var(--border); border-radius: 4px; font-size: 11px; font-family: inherit; padding: 3px 7px; color: var(--text-muted); cursor: pointer; outline: none; transition: background .1s, border-color .1s, color .1s; }
+.c-pill:hover { border-color: var(--border2); color: var(--text); }
+.c-pill.active { background: var(--text); border-color: var(--text); color: var(--bg); }
 .casting-meta { padding: 4px 10px 6px; font-size: 11px; color: var(--text-muted); flex-shrink: 0; }
 
 .talent-list { flex: 1; overflow-y: auto; padding: 8px 10px; }
@@ -215,28 +221,46 @@ details.casting-import[open] summary::before { transform: rotate(90deg); }
         <input class="search-input" id="casting-search" type="text" placeholder="Nom, agence…" style="width:100%;">
       </div>
       <div class="casting-filters">
-        <select class="c-filter" id="c-hair">
-          <option value="">Cheveux</option>
-          <option>roux</option><option>blond</option><option>chatain</option>
-          <option>brun</option><option>noir</option><option>gris</option><option>chauve</option>
-        </select>
-        <select class="c-filter" id="c-age">
-          <option value="">Âge</option>
-          <option value="0-12">0-12</option><option value="13-19">13-19</option>
-          <option value="20-29">20-29</option><option value="30-39">30-39</option>
-          <option value="40-49">40-49</option><option value="50-59">50-59</option>
-          <option value="60+">60+</option>
-        </select>
-        <select class="c-filter" id="c-build">
-          <option value="">Carrure</option>
-          <option>mince</option><option>moyenne</option><option>forte</option>
-        </select>
-        <select class="c-filter" id="c-genre">
-          <option value="">Genre</option>
-          <option value="femme">Femme</option>
-          <option value="homme">Homme</option>
-        </select>
-        <select class="c-filter" id="c-agency"><option value="">Toutes les agences</option></select>
+        <div class="filter-row">
+          <select class="c-filter" id="c-genre">
+            <option value="">Genre</option>
+            <option value="femme">Femme</option>
+            <option value="homme">Homme</option>
+          </select>
+          <select class="c-filter" id="c-agency" style="flex:1"><option value="">Toutes les agences</option></select>
+        </div>
+        <div class="filter-row">
+          <span class="filter-label">Cheveux</span>
+          <div class="c-pills" id="c-hair-pills">
+            <button class="c-pill" data-value="roux" onclick="togglePill(this)">roux</button>
+            <button class="c-pill" data-value="blond" onclick="togglePill(this)">blond</button>
+            <button class="c-pill" data-value="chatain" onclick="togglePill(this)">châtain</button>
+            <button class="c-pill" data-value="brun" onclick="togglePill(this)">brun</button>
+            <button class="c-pill" data-value="noir" onclick="togglePill(this)">noir</button>
+            <button class="c-pill" data-value="gris" onclick="togglePill(this)">gris</button>
+            <button class="c-pill" data-value="chauve" onclick="togglePill(this)">chauve</button>
+          </div>
+        </div>
+        <div class="filter-row">
+          <span class="filter-label">Carrure</span>
+          <div class="c-pills" id="c-build-pills">
+            <button class="c-pill" data-value="mince" onclick="togglePill(this)">mince</button>
+            <button class="c-pill" data-value="moyenne" onclick="togglePill(this)">moyenne</button>
+            <button class="c-pill" data-value="forte" onclick="togglePill(this)">forte</button>
+          </div>
+        </div>
+        <div class="filter-row">
+          <span class="filter-label">Âge</span>
+          <div class="c-pills" id="c-age-pills">
+            <button class="c-pill" data-value="0-12" onclick="togglePill(this)">0–12</button>
+            <button class="c-pill" data-value="13-19" onclick="togglePill(this)">13–19</button>
+            <button class="c-pill" data-value="20-29" onclick="togglePill(this)">20–29</button>
+            <button class="c-pill" data-value="30-39" onclick="togglePill(this)">30–39</button>
+            <button class="c-pill" data-value="40-49" onclick="togglePill(this)">40–49</button>
+            <button class="c-pill" data-value="50-59" onclick="togglePill(this)">50–59</button>
+            <button class="c-pill" data-value="60+" onclick="togglePill(this)">60+</button>
+          </div>
+        </div>
       </div>
     </div>
     <div class="casting-meta" id="casting-meta"></div>
@@ -588,21 +612,33 @@ function talentInitials(nom) {
   return nom.split(' ').filter(Boolean).slice(0,2).map(w => w[0].toUpperCase()).join('');
 }
 
+function getActivePills(pillsId) {
+  return new Set([...document.querySelectorAll(`#${pillsId} .c-pill.active`)].map(b => b.dataset.value));
+}
+
+function togglePill(btn) {
+  btn.classList.toggle('active');
+  renderCastingList();
+}
+
 function castingFilteredTalents() {
   const q     = document.getElementById('casting-search').value.trim().toLowerCase();
-  const hair  = document.getElementById('c-hair').value;
-  const age   = document.getElementById('c-age').value;
-  const build = document.getElementById('c-build').value;
   const genre = document.getElementById('c-genre').value;
   const agency= document.getElementById('c-agency').value;
+  const hairs = getActivePills('c-hair-pills');
+  const builds= getActivePills('c-build-pills');
+  const ages  = getActivePills('c-age-pills');
   return talentsData.filter(t => {
-    if (hair   && t.couleur_cheveux !== hair) return false;
-    if (build  && t.carrure !== build) return false;
     if (genre  && t.genre !== genre) return false;
     if (agency && t.agence !== agency) return false;
-    if (age) {
-      const [lo,hi] = AGE_RANGES[age] || [0,130];
-      if (!(t.age_min <= hi && t.age_max >= lo)) return false;
+    if (hairs.size && !hairs.has(t.couleur_cheveux)) return false;
+    if (builds.size && !builds.has(t.carrure)) return false;
+    if (ages.size) {
+      const matches = [...ages].some(k => {
+        const [lo, hi] = AGE_RANGES[k] || [0, 130];
+        return t.age_min <= hi && t.age_max >= lo;
+      });
+      if (!matches) return false;
     }
     if (q) {
       const txt = (t.nom + ' ' + t.agence).toLowerCase();
@@ -673,7 +709,10 @@ function openCastingPanel(charName) {
     charEl.textContent = '';
   }
   document.getElementById('casting-search').value = '';
-  ['c-hair','c-age','c-build','c-genre'].forEach(id => document.getElementById(id).value = '');
+  ['c-genre'].forEach(id => document.getElementById(id).value = '');
+  ['c-hair-pills','c-build-pills','c-age-pills'].forEach(id => {
+    document.querySelectorAll(`#${id} .c-pill`).forEach(b => b.classList.remove('active'));
+  });
   populateCastingAgencyFilter();
   renderCastingList();
   document.getElementById('casting-overlay').classList.add('active');
@@ -698,8 +737,8 @@ function assignTalent(nom, agence) {
   showToast(nom + ' assigné·e à ' + charName);
 }
 
-// Casting panel filter events
-['casting-search','c-hair','c-age','c-build','c-genre','c-agency'].forEach(id => {
+// Casting panel filter events (selects only — pills have onclick)
+['casting-search','c-genre','c-agency'].forEach(id => {
   document.getElementById(id).addEventListener('input', renderCastingList);
   document.getElementById(id).addEventListener('change', renderCastingList);
 });
