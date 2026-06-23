@@ -121,7 +121,8 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans
 .talent-list { flex: 1; overflow-y: auto; padding: 8px 10px; }
 .talent-card { border: 1px solid var(--border); border-radius: 5px; padding: 10px 12px; margin-bottom: 7px; display: flex; gap: 10px; align-items: flex-start; transition: border-color .1s; }
 .talent-card:hover { border-color: var(--border2); }
-.talent-avatar { width: 40px; height: 52px; border-radius: 3px; background: var(--bg3); display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700; color: var(--text-muted); flex-shrink: 0; letter-spacing: -1px; }
+.talent-avatar { width: 52px; height: 66px; border-radius: 3px; background: var(--bg3); display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700; color: var(--text-muted); flex-shrink: 0; letter-spacing: -1px; }
+.talent-avatar-img { width: 52px; height: 66px; object-fit: cover; border-radius: 3px; flex-shrink: 0; display: block; }
 .talent-info { flex: 1; min-width: 0; }
 .talent-name { font-size: 13px; font-weight: 600; margin-bottom: 1px; }
 .talent-agence { font-size: 11px; color: var(--text-muted); margin-bottom: 5px; }
@@ -229,6 +230,11 @@ details.casting-import[open] summary::before { transform: rotate(90deg); }
         <select class="c-filter" id="c-build">
           <option value="">Carrure</option>
           <option>mince</option><option>moyenne</option><option>forte</option>
+        </select>
+        <select class="c-filter" id="c-genre">
+          <option value="">Genre</option>
+          <option value="femme">Femme</option>
+          <option value="homme">Homme</option>
         </select>
         <select class="c-filter" id="c-agency"><option value="">Toutes les agences</option></select>
       </div>
@@ -547,19 +553,28 @@ const AGE_RANGES = {
 let talentsData = [];
 let _usingMockTalents = false;
 let _assigningChar = null;
+let _profileUrlSet = new Set(); // URLs uniques = fiches individuelles
+
+function buildProfileUrlSet() {
+  const counts = {};
+  talentsData.forEach(t => { if (t.source_url) counts[t.source_url] = (counts[t.source_url]||0)+1; });
+  _profileUrlSet = new Set(Object.entries(counts).filter(([,n]) => n === 1).map(([u]) => u));
+}
 
 async function loadCastingData() {
-  if (!sb) { talentsData = MOCK_TALENTS; _usingMockTalents = true; return; }
+  if (!sb) { talentsData = MOCK_TALENTS; _usingMockTalents = true; buildProfileUrlSet(); return; }
   try {
     const { data: row } = await sb.from('project_data').select('data').eq('key', CASTING_KEY).maybeSingle();
     if (row?.data?.talents?.length) {
       talentsData = row.data.talents;
       _usingMockTalents = false;
+      buildProfileUrlSet();
       return;
     }
   } catch(e) {}
   talentsData = MOCK_TALENTS;
   _usingMockTalents = true;
+  buildProfileUrlSet();
 }
 
 async function saveCastingDataToSupabase(data) {
@@ -578,10 +593,12 @@ function castingFilteredTalents() {
   const hair  = document.getElementById('c-hair').value;
   const age   = document.getElementById('c-age').value;
   const build = document.getElementById('c-build').value;
+  const genre = document.getElementById('c-genre').value;
   const agency= document.getElementById('c-agency').value;
   return talentsData.filter(t => {
     if (hair   && t.couleur_cheveux !== hair) return false;
     if (build  && t.carrure !== build) return false;
+    if (genre  && t.genre !== genre) return false;
     if (agency && t.agence !== agency) return false;
     if (age) {
       const [lo,hi] = AGE_RANGES[age] || [0,130];
@@ -608,14 +625,20 @@ function renderCastingList() {
   }
   el.innerHTML = list.map(t => {
     const ageStr = t.age_min + '–' + t.age_max + ' ans';
-    const srcBtn = (t.source_url && t.source_url !== '#')
-      ? `<a class="btn-source-link" href="${t.source_url}" target="_blank" rel="noopener">Fiche agence ↗</a>` : '';
+    const hasProfile = t.source_url && t.source_url !== '#' && _profileUrlSet.has(t.source_url);
+    const srcBtn = hasProfile
+      ? `<a class="btn-source-link" href="${t.source_url}" target="_blank" rel="noopener">Fiche ↗</a>` : '';
+    const initials = talentInitials(t.nom);
+    const avatarHtml = t.photo_url
+      ? `<img class="talent-avatar-img" src="${escHtml(t.photo_url)}" alt="${escHtml(t.nom)}" loading="lazy" onerror="this.outerHTML='<div class=\\'talent-avatar\\'>${initials}</div>'">`
+      : `<div class="talent-avatar">${initials}</div>`;
     return `<div class="talent-card">
-      <div class="talent-avatar">${talentInitials(t.nom)}</div>
+      ${avatarHtml}
       <div class="talent-info">
         <div class="talent-name">${escHtml(t.nom)}</div>
         <div class="talent-agence">${escHtml(t.agence)}</div>
         <div class="talent-tags">
+          ${t.genre ? `<span class="talent-tag">${t.genre === 'femme' ? 'F' : 'H'}</span>` : ''}
           ${t.couleur_cheveux ? `<span class="talent-tag">${escHtml(t.couleur_cheveux)}</span>` : ''}
           <span class="talent-tag">${escHtml(ageStr)}</span>
           ${t.carrure ? `<span class="talent-tag">${escHtml(t.carrure)}</span>` : ''}
@@ -650,7 +673,7 @@ function openCastingPanel(charName) {
     charEl.textContent = '';
   }
   document.getElementById('casting-search').value = '';
-  ['c-hair','c-age','c-build'].forEach(id => document.getElementById(id).value = '');
+  ['c-hair','c-age','c-build','c-genre'].forEach(id => document.getElementById(id).value = '');
   populateCastingAgencyFilter();
   renderCastingList();
   document.getElementById('casting-overlay').classList.add('active');
@@ -676,7 +699,7 @@ function assignTalent(nom, agence) {
 }
 
 // Casting panel filter events
-['casting-search','c-hair','c-age','c-build','c-agency'].forEach(id => {
+['casting-search','c-hair','c-age','c-build','c-genre','c-agency'].forEach(id => {
   document.getElementById(id).addEventListener('input', renderCastingList);
   document.getElementById(id).addEventListener('change', renderCastingList);
 });
@@ -691,6 +714,7 @@ document.getElementById('casting-save-btn').addEventListener('click', async () =
     if (!Array.isArray(parsed)) throw new Error('pas un tableau');
     talentsData = parsed;
     _usingMockTalents = false;
+    buildProfileUrlSet();
     await saveCastingDataToSupabase(parsed);
     populateCastingAgencyFilter();
     renderCastingList();
