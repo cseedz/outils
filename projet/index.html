@@ -51,13 +51,16 @@
 
     /* ── SCÉNARIO ── */
     .scenario-box { border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
-    .scenario-main { display: flex; align-items: center; gap: 16px; padding: 14px 16px; }
+    .scenario-main { display: flex; align-items: flex-start; gap: 16px; padding: 14px 16px; }
     .scenario-info { flex: 1; min-width: 0; }
     .scenario-count { font-size: 14px; font-weight: 700; }
-    .scenario-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
-    .scenario-label { font-style: italic; }
-    .scenario-eps { color: var(--text-dim); }
-    .scenario-link { font-size: 12px; color: var(--text); text-decoration: none; white-space: nowrap; border-bottom: 1px solid var(--border); padding-bottom: 1px; flex-shrink: 0; }
+    .scenario-date { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+    .ep-lines { margin-top: 8px; display: flex; flex-direction: column; gap: 3px; }
+    .ep-line { font-size: 11px; display: flex; align-items: baseline; gap: 5px; }
+    .ep-num { color: var(--text); font-weight: 600; white-space: nowrap; }
+    .ep-sep { color: var(--text-dim); }
+    .ep-label { color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .scenario-link { font-size: 12px; color: var(--text); text-decoration: none; white-space: nowrap; border-bottom: 1px solid var(--border); padding-bottom: 1px; flex-shrink: 0; margin-top: 2px; }
     .scenario-link:hover { border-color: var(--text); }
     .scenario-empty { padding: 14px 16px; font-size: 12px; color: var(--text-muted); line-height: 1.6; }
 
@@ -254,25 +257,43 @@ function renderScenarioSection() {
     return;
   }
 
-  // Dernière meta par date
+  // Ligne 1 : nb scènes · nb épisodes
+  const nbSc  = scenesRaw.length;
+  const nbEp  = totalEpisodes || Object.keys(fdxImportMeta || {}).map(Number).filter(e => e > 0).length;
+  const countLine = nbSc + ' scène' + (nbSc > 1 ? 's' : '')
+    + (nbEp > 0 ? ' · ' + nbEp + ' épisode' + (nbEp > 1 ? 's' : '') : '');
+
+  // Ligne 2 : date la plus récente tous épisodes confondus
   const metas = Object.values(fdxImportMeta || {}).filter(m => m?.date);
   const lastMeta = metas.sort((a, b) => new Date(b.date) - new Date(a.date))[0];
   const lastDate = lastMeta?.date
     ? new Date(lastMeta.date).toLocaleDateString('fr-CA', { year: 'numeric', month: 'long', day: 'numeric' })
     : '';
-  const lastLabel = lastMeta?.label || '';
 
-  // Épisodes importés (clés numériques > 0 dans fdxImportMeta)
+  // Lignes épisodes : une par clé numérique > 0, triées
   const epKeys = Object.keys(fdxImportMeta || {})
     .map(Number).filter(e => e > 0).sort((a, b) => a - b);
-  const epsLine = epKeys.length
-    ? 'Épisodes ' + epKeys.map(e => String(e).padStart(2, '0')).join(', ')
-    : '';
 
-  const countEps = totalEpisodes > 0
-    ? ` · ${totalEpisodes} épisode${totalEpisodes > 1 ? 's' : ''}`
-    : '';
+  let epLinesHtml = '';
+  if (epKeys.length) {
+    epLinesHtml = '<div class="ep-lines">' + epKeys.map(ep => {
+      const meta  = fdxImportMeta[String(ep)] || {};
+      const label = (meta.label || '').replace(/\.fdx$/i, '').trim();
+      return `<div class="ep-line">
+        <span class="ep-num">Épisode ${String(ep).padStart(2, '0')}</span>
+        <span class="ep-sep">·</span>
+        <span class="ep-label">${label || '—'}</span>
+      </div>`;
+    }).join('') + '</div>';
+  } else if (lastMeta?.label) {
+    // Import monofichier (clé '0') : afficher le label sans numéro d'épisode
+    const label = lastMeta.label.replace(/\.fdx$/i, '').trim();
+    epLinesHtml = `<div class="ep-lines"><div class="ep-line">
+      <span class="ep-label">${label}</span>
+    </div></div>`;
+  }
 
+  // Versions archivées
   let versionsHtml = '';
   if (fdxVersions.length) {
     const shown = fdxVersions.slice(-5).reverse();
@@ -287,7 +308,8 @@ function renderScenarioSection() {
         ${deltaHtml}
       </div>`;
     }).join('');
-    const more = fdxVersions.length > 5 ? `<div class="ver-mini-more">+ ${fdxVersions.length - 5} autre${fdxVersions.length - 5 > 1 ? 's' : ''}</div>` : '';
+    const more = fdxVersions.length > 5
+      ? `<div class="ver-mini-more">+ ${fdxVersions.length - 5} autre${fdxVersions.length - 5 > 1 ? 's' : ''}</div>` : '';
     versionsHtml = `<div class="versions-mini">
       <div class="versions-mini-title">Versions archivées</div>
       <div class="ver-mini-list">${rows}</div>
@@ -298,10 +320,9 @@ function renderScenarioSection() {
   el.innerHTML = `
     <div class="scenario-main">
       <div class="scenario-info">
-        <div class="scenario-count">${scenesRaw.length} scène${scenesRaw.length > 1 ? 's' : ''}${countEps}</div>
-        ${lastDate ? `<div class="scenario-sub">${lastDate}</div>` : ''}
-        ${lastLabel ? `<div class="scenario-sub scenario-label">${lastLabel}</div>` : ''}
-        ${epsLine ? `<div class="scenario-sub scenario-eps">${epsLine}</div>` : ''}
+        <div class="scenario-count">${countLine}</div>
+        ${lastDate ? `<div class="scenario-date">${lastDate}</div>` : ''}
+        ${epLinesHtml}
       </div>
       <a class="scenario-link" href="${tableHref}">Ouvrir la table →</a>
     </div>
