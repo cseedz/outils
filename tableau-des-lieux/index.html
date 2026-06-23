@@ -730,10 +730,10 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
       <div class="version" id="project-version">v1 &middot; 2026-06-15</div>
     </div>
     <div class="tabs">
-      <button class="tab-btn active" onclick="switchTab('vue-lieux')">Lieux</button>
-      <button class="tab-btn" onclick="switchTab('lieux')">Locations</button>
-      <button class="tab-btn" onclick="switchTab('recap')">Récapitulatif</button>
-      <button class="tab-btn" onclick="switchTab('outils')">Outils</button>
+      <button class="tab-btn active" data-tab="vue-lieux" onclick="switchTab('vue-lieux')">Lieux</button>
+      <button class="tab-btn" data-tab="lieux"    onclick="switchTab('lieux')">Locations</button>
+      <button class="tab-btn" data-tab="recap"    onclick="switchTab('recap')">Récapitulatif</button>
+      <button class="tab-btn" data-tab="outils"   onclick="switchTab('outils')">Outils</button>
     </div>
     <div id="sync-dot" class="sync-dot idle" title="Non connecté"></div>
     <span id="sync-size" title="Taille des données sauvegardées dans Supabase"></span>
@@ -1553,8 +1553,7 @@ async function loadFromSupabase() {
 
 // ─── TABS ───────────────────────────────────────────────────────────────────
 function switchTab(tab) {
-  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active',
-    (i===0&&tab==='vue-lieux')||(i===1&&tab==='tableau')||(i===2&&tab==='lieux')||(i===3&&tab==='recap')||(i===4&&tab==='outils')||(i===5&&tab==='versions')));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   document.getElementById('panel-vue-lieux').classList.toggle('active', tab==='vue-lieux');
   document.getElementById('panel-tableau').classList.toggle('active', tab==='tableau');
   document.getElementById('panel-lieux').classList.toggle('active', tab==='lieux');
