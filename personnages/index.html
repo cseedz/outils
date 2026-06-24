@@ -433,7 +433,7 @@ details.casting-import[open] summary::before { transform: rotate(90deg); }
         <option value="forte">Forte</option>
         <option value="_clear">— effacer —</option>
       </select>
-      <input type="text" id="batch-nationalite" class="ag-batch-select" placeholder="Nationalité…" style="min-width:110px">
+      <input type="text" id="batch-nationalite" class="ag-batch-select" placeholder="Nationalité…" style="min-width:110px" list="nationalite-datalist">
       <select id="batch-char" class="ag-batch-select" style="min-width:140px">
         <option value="">+ Shortlist de…</option>
       </select>
@@ -443,6 +443,18 @@ details.casting-import[open] summary::before { transform: rotate(90deg); }
   </div>
   <div id="agences-grid"></div>
 </div>
+
+<datalist id="nationalite-datalist">
+  <option value="Algérienne"><option value="Américaine"><option value="Autochtone">
+  <option value="Belge"><option value="Brésilienne"><option value="Camerounaise">
+  <option value="Canadienne"><option value="Chinoise"><option value="Colombienne">
+  <option value="Congolaise"><option value="Coréenne"><option value="Espagnole">
+  <option value="Française"><option value="Haïtienne"><option value="Indienne">
+  <option value="Ivoirienne"><option value="Japonaise"><option value="Libanaise">
+  <option value="Marocaine"><option value="Mexicaine"><option value="Philippinne">
+  <option value="Portugaise"><option value="Québécoise"><option value="Sénégalaise">
+  <option value="Suisse"><option value="Tunisienne"><option value="Vietnamienne">
+</datalist>
 
 <div class="toast" id="toast"></div>
 
@@ -500,7 +512,7 @@ details.casting-import[open] summary::before { transform: rotate(90deg); }
       </div>
       <div class="te-field">
         <label class="te-label">Nationalité</label>
-        <input type="text" id="te-nationalite" class="te-input" placeholder="ex. québécoise, haïtienne…">
+        <input type="text" id="te-nationalite" class="te-input" placeholder="ex. québécoise, haïtienne…" list="nationalite-datalist">
       </div>
       <div class="te-field">
         <label class="te-label">Carrure</label>
@@ -1258,13 +1270,23 @@ function populateAgencesAgencyFilter() {
   sel.value = agencies.includes(cur) ? cur : '';
 }
 
+const PRESET_NATIONALITIES = [
+  'Algérienne','Américaine','Autochtone','Belge','Brésilienne',
+  'Camerounaise','Canadienne','Chinoise','Colombienne','Congolaise',
+  'Coréenne','Espagnole','Française','Haïtienne','Indienne',
+  'Ivoirienne','Japonaise','Libanaise','Marocaine','Mexicaine',
+  'Philippinne','Portugaise','Québécoise','Sénégalaise','Suisse',
+  'Tunisienne','Vietnamienne',
+];
+
 function populateAgNationaliteFilter() {
-  const nats = [...new Set(talentsData.map(t => t.nationalite).filter(Boolean))].sort((a,b) => a.localeCompare(b,'fr'));
+  const fromData = talentsData.map(t => t.nationalite).filter(Boolean);
+  const all = [...new Set([...PRESET_NATIONALITIES, ...fromData])].sort((a,b) => a.localeCompare(b,'fr'));
   const sel  = document.getElementById('ag-nationalite');
   const cur  = sel.value;
   sel.innerHTML = '<option value="">Nationalité</option>';
-  nats.forEach(n => { const o = document.createElement('option'); o.value = o.textContent = n; sel.appendChild(o); });
-  sel.value = nats.includes(cur) ? cur : '';
+  all.forEach(n => { const o = document.createElement('option'); o.value = o.textContent = n; sel.appendChild(o); });
+  sel.value = all.includes(cur) ? cur : '';
 }
 
 function toggleAgNoPhoto() {
