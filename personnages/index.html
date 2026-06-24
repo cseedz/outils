@@ -356,8 +356,8 @@ details.casting-import[open] summary::before { transform: rotate(90deg); }
       <select class="c-filter" id="ag-agency" style="flex:1;min-width:120px;max-width:220px">
         <option value="">Toutes les agences</option>
       </select>
-      <select class="c-filter" id="ag-nationalite" style="min-width:110px;max-width:180px">
-        <option value="">Nationalité</option>
+      <select class="c-filter" id="ag-peau" style="min-width:110px;max-width:180px">
+        <option value="">Teinte de peau</option>
       </select>
       <div class="filter-sep"></div>
       <div class="sort-group">
@@ -433,7 +433,17 @@ details.casting-import[open] summary::before { transform: rotate(90deg); }
         <option value="forte">Forte</option>
         <option value="_clear">— effacer —</option>
       </select>
-      <input type="text" id="batch-nationalite" class="ag-batch-select" placeholder="Nationalité…" style="min-width:110px" list="nationalite-datalist">
+      <select id="batch-peau" class="ag-batch-select" style="min-width:120px">
+        <option value="">Teinte de peau…</option>
+        <option value="Très claire">Très claire</option>
+        <option value="Claire">Claire</option>
+        <option value="Médium">Médium</option>
+        <option value="Mate">Mate</option>
+        <option value="Caramel">Caramel</option>
+        <option value="Foncée">Foncée</option>
+        <option value="Très foncée">Très foncée</option>
+        <option value="_clear">— effacer —</option>
+      </select>
       <select id="batch-char" class="ag-batch-select" style="min-width:140px">
         <option value="">+ Shortlist de…</option>
       </select>
@@ -444,17 +454,6 @@ details.casting-import[open] summary::before { transform: rotate(90deg); }
   <div id="agences-grid"></div>
 </div>
 
-<datalist id="nationalite-datalist">
-  <option value="Algérienne"><option value="Américaine"><option value="Autochtone">
-  <option value="Belge"><option value="Brésilienne"><option value="Camerounaise">
-  <option value="Canadienne"><option value="Chinoise"><option value="Colombienne">
-  <option value="Congolaise"><option value="Coréenne"><option value="Espagnole">
-  <option value="Française"><option value="Haïtienne"><option value="Indienne">
-  <option value="Ivoirienne"><option value="Japonaise"><option value="Libanaise">
-  <option value="Marocaine"><option value="Mexicaine"><option value="Philippinne">
-  <option value="Portugaise"><option value="Québécoise"><option value="Sénégalaise">
-  <option value="Suisse"><option value="Tunisienne"><option value="Vietnamienne">
-</datalist>
 
 <div class="toast" id="toast"></div>
 
@@ -511,8 +510,17 @@ details.casting-import[open] summary::before { transform: rotate(90deg); }
         </div>
       </div>
       <div class="te-field">
-        <label class="te-label">Nationalité</label>
-        <input type="text" id="te-nationalite" class="te-input" placeholder="ex. québécoise, haïtienne…" list="nationalite-datalist">
+        <label class="te-label">Teinte de peau</label>
+        <select id="te-peau" class="te-select">
+          <option value="">— non spécifiée —</option>
+          <option value="Très claire">Très claire</option>
+          <option value="Claire">Claire</option>
+          <option value="Médium">Médium</option>
+          <option value="Mate">Mate</option>
+          <option value="Caramel">Caramel</option>
+          <option value="Foncée">Foncée</option>
+          <option value="Très foncée">Très foncée</option>
+        </select>
       </div>
       <div class="te-field">
         <label class="te-label">Carrure</label>
@@ -898,7 +906,7 @@ function switchTab(tab) {
   document.getElementById('view-agences').style.display = tab === 'agences'     ? '' : 'none';
   if (tab === 'agences') {
     populateAgencesAgencyFilter();
-    populateAgNationaliteFilter();
+    populateAgPeauFilter();
     renderAgencesGrid();
   }
 }
@@ -961,11 +969,11 @@ function _updateTabBadge() {
 
 // Filtre partagé casting + agences
 function _filterTalents(opts) {
-  const { q, genre, agency, hairs, builds, ageRange, nationalite } = opts;
+  const { q, genre, agency, hairs, builds, ageRange, peau } = opts;
   return talentsData.filter(t => {
-    if (genre       && t.genre       !== genre)       return false;
-    if (agency      && t.agence      !== agency)      return false;
-    if (nationalite && (t.nationalite || '').toLowerCase() !== nationalite.toLowerCase()) return false;
+    if (genre  && t.genre  !== genre)  return false;
+    if (agency && t.agence !== agency) return false;
+    if (peau   && t.couleur_peau !== peau) return false;
     if (hairs.size  && !hairs.has(t.couleur_cheveux)) return false;
     if (builds.size && !builds.has(t.carrure))        return false;
     if (ageRange) {
@@ -1270,21 +1278,14 @@ function populateAgencesAgencyFilter() {
   sel.value = agencies.includes(cur) ? cur : '';
 }
 
-const PRESET_NATIONALITIES = [
-  'Algérienne','Américaine','Autochtone','Belge','Brésilienne',
-  'Camerounaise','Canadienne','Chinoise','Colombienne','Congolaise',
-  'Coréenne','Espagnole','Française','Haïtienne','Indienne',
-  'Ivoirienne','Japonaise','Libanaise','Marocaine','Mexicaine',
-  'Philippinne','Portugaise','Québécoise','Sénégalaise','Suisse',
-  'Tunisienne','Vietnamienne',
-];
+const SKIN_TONES = ['Très claire','Claire','Médium','Mate','Caramel','Foncée','Très foncée'];
 
-function populateAgNationaliteFilter() {
-  const fromData = talentsData.map(t => t.nationalite).filter(Boolean);
-  const all = [...new Set([...PRESET_NATIONALITIES, ...fromData])].sort((a,b) => a.localeCompare(b,'fr'));
-  const sel  = document.getElementById('ag-nationalite');
-  const cur  = sel.value;
-  sel.innerHTML = '<option value="">Nationalité</option>';
+function populateAgPeauFilter() {
+  const fromData = talentsData.map(t => t.couleur_peau).filter(Boolean);
+  const all = [...new Set([...SKIN_TONES, ...fromData])];
+  const sel = document.getElementById('ag-peau');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">Teinte de peau</option>';
   all.forEach(n => { const o = document.createElement('option'); o.value = o.textContent = n; sel.appendChild(o); });
   sel.value = all.includes(cur) ? cur : '';
 }
@@ -1301,7 +1302,7 @@ function resetAgencesFilters() {
   document.getElementById('ag-search').value      = '';
   document.getElementById('ag-genre').value       = '';
   document.getElementById('ag-agency').value      = '';
-  document.getElementById('ag-nationalite').value = '';
+  document.getElementById('ag-peau').value = '';
   ['ag-hair-pills','ag-build-pills'].forEach(id =>
     document.querySelectorAll(`#${id} .c-pill`).forEach(b => b.classList.remove('active'))
   );
@@ -1363,9 +1364,9 @@ async function applyBatchEdit() {
   const genre    = document.getElementById('batch-genre').value;
   const cheveux  = document.getElementById('batch-cheveux').value;
   const carrure  = document.getElementById('batch-carrure').value;
-  const batchNat = document.getElementById('batch-nationalite').value.trim();
-  const charKey  = document.getElementById('batch-char').value;
-  if (!genre && !cheveux && !carrure && !batchNat && !charKey) { showToast('Choisir au moins une action'); return; }
+  const batchPeau = document.getElementById('batch-peau').value;
+  const charKey   = document.getElementById('batch-char').value;
+  if (!genre && !cheveux && !carrure && !batchPeau && !charKey) { showToast('Choisir au moins une action'); return; }
 
   let metaChanged = false;
   for (const key of _agSelected) {
@@ -1375,7 +1376,7 @@ async function applyBatchEdit() {
     if (genre)      { t.genre           = genre      === '_clear' ? undefined : genre;      metaChanged = true; }
     if (cheveux)    { t.couleur_cheveux = cheveux    === '_clear' ? undefined : cheveux;    metaChanged = true; }
     if (carrure)    { t.carrure         = carrure    === '_clear' ? undefined : carrure;    metaChanged = true; }
-    if (batchNat)   { t.nationalite     = batchNat;                                         metaChanged = true; }
+    if (batchPeau)  { t.couleur_peau = batchPeau === '_clear' ? undefined : batchPeau;       metaChanged = true; }
   }
   if (metaChanged) await saveCastingDataToSupabase(talentsData);
 
@@ -1393,7 +1394,7 @@ async function applyBatchEdit() {
 
   const n = _agSelected.size;
   _agSelected.clear();
-  ['batch-genre','batch-cheveux','batch-carrure','batch-char','batch-nationalite'].forEach(id =>
+  ['batch-genre','batch-cheveux','batch-carrure','batch-char','batch-peau'].forEach(id =>
     document.getElementById(id).value = '');
   updateBatchBar();
   renderAgencesGrid();
@@ -1409,7 +1410,7 @@ function filterAgencesTalents() {
     hairs:       getActivePills('ag-hair-pills'),
     builds:      getActivePills('ag-build-pills'),
     ageRange:    getAgeSliderRange('ag'),
-    nationalite: document.getElementById('ag-nationalite').value,
+    peau:        document.getElementById('ag-peau').value,
   });
   if (_agNoPhotoOnly) list = list.filter(t => !t.photo_url);
   return list;
@@ -1625,7 +1626,7 @@ function openTalentEditModal(talent) {
   document.getElementById('te-cheveux').value     = talent.couleur_cheveux || '';
   document.getElementById('te-age-min').value     = talent.age_min ?? '';
   document.getElementById('te-age-max').value     = talent.age_max ?? '';
-  document.getElementById('te-nationalite').value = talent.nationalite || '';
+  document.getElementById('te-peau').value = talent.couleur_peau || '';
   document.getElementById('te-carrure').value     = talent.carrure || '';
   document.getElementById('talent-edit-overlay').style.display = 'flex';
   setTimeout(() => document.getElementById('te-nom').focus(), 80);
@@ -1645,7 +1646,7 @@ async function saveTalentEdit() {
   t.nom             = newNom;
   t.genre           = document.getElementById('te-genre').value       || undefined;
   t.couleur_cheveux = document.getElementById('te-cheveux').value     || undefined;
-  t.nationalite     = document.getElementById('te-nationalite').value.trim() || undefined;
+  t.couleur_peau    = document.getElementById('te-peau').value || undefined;
   const mn = parseInt(document.getElementById('te-age-min').value);
   const mx = parseInt(document.getElementById('te-age-max').value);
   if (!isNaN(mn)) t.age_min = mn;
@@ -1653,7 +1654,7 @@ async function saveTalentEdit() {
   t.carrure         = document.getElementById('te-carrure').value  || undefined;
   await saveCastingDataToSupabase(talentsData);
   buildProfileUrlSet();
-  populateAgNationaliteFilter();
+  populateAgPeauFilter();
   renderAgencesGrid();
   renderCastingList();
   closeTalentEdit();
@@ -1665,7 +1666,7 @@ document.getElementById('talent-edit-overlay').addEventListener('click', e => {
 });
 
 // Événements filtres Agences
-['ag-search','ag-genre','ag-agency','ag-nationalite'].forEach(id => {
+['ag-search','ag-genre','ag-agency','ag-peau'].forEach(id => {
   const el = document.getElementById(id);
   el.addEventListener('input', renderAgencesGrid);
   el.addEventListener('change', renderAgencesGrid);
