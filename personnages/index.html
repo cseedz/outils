@@ -120,8 +120,23 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans
 
 /* AGENCES GRID — TUILES */
 .agences-tuiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)); gap: 12px; padding: 16px 24px 40px; }
-.ag-tile { border: 1px solid var(--border); border-radius: 6px; overflow: hidden; transition: border-color .12s, box-shadow .12s; background: var(--bg); cursor: pointer; }
+.ag-tile { position: relative; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; transition: border-color .12s, box-shadow .12s; background: var(--bg); cursor: pointer; }
 .ag-tile:hover { border-color: var(--border2); box-shadow: 0 2px 10px rgba(0,0,0,.07); }
+.ag-tile.ag-selected { border-color: var(--accent) !important; box-shadow: inset 0 0 0 1px var(--accent); }
+.ag-check { position: absolute; top: 6px; right: 6px; width: 18px; height: 18px; border-radius: 4px; border: 2px solid rgba(255,255,255,.75); background: rgba(0,0,0,.18); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: transparent; pointer-events: none; z-index: 2; }
+.ag-check.checked { background: var(--accent); border-color: var(--accent); color: #fff; }
+.ag-list-row.ag-selected { background: var(--bg2); border-left: 3px solid var(--accent); padding-left: 5px; }
+.ag-list-check { width: 15px; height: 15px; border: 2px solid var(--border2); border-radius: 3px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; color: transparent; }
+.ag-list-check.checked { background: var(--accent); border-color: var(--accent); color: #fff; }
+/* BATCH BAR */
+.ag-batch-row { display: none; align-items: center; gap: 8px; flex-wrap: wrap; padding-top: 6px; border-top: 1px solid var(--border); }
+.ag-batch-row.visible { display: flex; }
+.ag-batch-count { font-size: 11px; font-weight: 600; white-space: nowrap; min-width: 80px; }
+.ag-batch-select { font-size: 11px; font-family: inherit; border: 1px solid var(--border); border-radius: 4px; padding: 4px 6px; background: var(--bg); color: var(--text); }
+.ag-batch-btn { font-size: 11px; font-family: inherit; border: 1px solid var(--border); border-radius: 4px; padding: 4px 10px; cursor: pointer; background: none; color: var(--text-muted); white-space: nowrap; }
+.ag-batch-btn:hover { border-color: var(--border2); color: var(--text); }
+.ag-batch-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.ag-batch-btn.primary:hover { opacity: .85; }
 .ag-tile-photo { width: 100%; aspect-ratio: 3/4; object-fit: cover; display: block; }
 .ag-tile-placeholder { width: 100%; aspect-ratio: 3/4; display: flex; align-items: center; justify-content: center; background: var(--bg3); font-size: 28px; font-weight: 700; color: var(--border2); letter-spacing: -1px; }
 .ag-tile-body { padding: 8px 10px 10px; }
@@ -352,6 +367,7 @@ details.casting-import[open] summary::before { transform: rotate(90deg); }
         <button class="vt-btn" id="vt-liste" onclick="setAgView('liste')">≡ Liste</button>
       </div>
       <div class="ag-count" id="ag-count"></div>
+      <button class="sort-btn" id="ag-select-mode-btn" onclick="toggleAgSelectMode()">Sélectionner</button>
     </div>
     <!-- Rangée 2 : filtres visuels -->
     <div class="ag-row">
@@ -386,6 +402,39 @@ details.casting-import[open] summary::before { transform: rotate(90deg); }
       <div class="filter-sep"></div>
       <button class="sort-btn" id="ag-no-photo-btn" onclick="toggleAgNoPhoto()">Sans photos</button>
       <button class="sort-btn" onclick="resetAgencesFilters()" title="Réinitialiser tous les filtres">↺ Réinit.</button>
+    </div>
+    <!-- Rangée 3 : batch sélection (visible en mode sélection) -->
+    <div class="ag-row ag-batch-row" id="ag-batch-row">
+      <span class="ag-batch-count" id="ag-batch-count">0 sélectionné</span>
+      <select id="batch-genre" class="ag-batch-select">
+        <option value="">Genre…</option>
+        <option value="femme">Femme</option>
+        <option value="homme">Homme</option>
+        <option value="_clear">— effacer —</option>
+      </select>
+      <select id="batch-cheveux" class="ag-batch-select">
+        <option value="">Cheveux…</option>
+        <option value="roux">Roux</option>
+        <option value="blond">Blond</option>
+        <option value="chatain">Châtain</option>
+        <option value="brun">Brun</option>
+        <option value="noir">Noir</option>
+        <option value="gris">Gris</option>
+        <option value="chauve">Chauve</option>
+        <option value="_clear">— effacer —</option>
+      </select>
+      <select id="batch-carrure" class="ag-batch-select">
+        <option value="">Carrure…</option>
+        <option value="mince">Mince</option>
+        <option value="moyenne">Moyenne</option>
+        <option value="forte">Forte</option>
+        <option value="_clear">— effacer —</option>
+      </select>
+      <select id="batch-char" class="ag-batch-select" style="min-width:140px">
+        <option value="">+ Shortlist de…</option>
+      </select>
+      <button class="ag-batch-btn primary" onclick="applyBatchEdit()">Appliquer</button>
+      <button class="ag-batch-btn" onclick="clearAgSelection()">Tout désélectionner</button>
     </div>
   </div>
   <div id="agences-grid"></div>
@@ -1228,6 +1277,86 @@ function resetAgencesFilters() {
   renderAgencesGrid();
 }
 
+// ─── MODE SÉLECTION BATCH ────────────────────────────────────────────────────
+let _agSelectMode = false;
+const _agSelected = new Set();
+
+function toggleAgSelectMode() {
+  _agSelectMode = !_agSelectMode;
+  _agSelected.clear();
+  const btn = document.getElementById('ag-select-mode-btn');
+  btn.classList.toggle('active', _agSelectMode);
+  btn.textContent = _agSelectMode ? '✕ Quitter sélection' : 'Sélectionner';
+  updateBatchBar();
+  renderAgencesGrid();
+}
+
+function clearAgSelection() {
+  _agSelected.clear();
+  updateBatchBar();
+  renderAgencesGrid();
+}
+
+function updateBatchBar() {
+  const bar   = document.getElementById('ag-batch-row');
+  const count = _agSelected.size;
+  bar.classList.toggle('visible', _agSelectMode);
+  if (!_agSelectMode) return;
+  document.getElementById('ag-batch-count').textContent =
+    count === 0 ? 'Aucune sélection' :
+    count + ' sélectionné' + (count > 1 ? 'e·s' : '');
+  const charSel = document.getElementById('batch-char');
+  const curVal  = charSel.value;
+  charSel.innerHTML = '<option value="">+ Shortlist de…</option>';
+  derived.slice().sort((a,b) => a.name.localeCompare(b.name,'fr')).forEach(p => {
+    const o = document.createElement('option');
+    o.value = o.textContent = p.name;
+    charSel.appendChild(o);
+  });
+  charSel.value = curVal;
+}
+
+async function applyBatchEdit() {
+  if (!_agSelected.size) { showToast('Aucune fiche sélectionnée'); return; }
+  const genre   = document.getElementById('batch-genre').value;
+  const cheveux = document.getElementById('batch-cheveux').value;
+  const carrure = document.getElementById('batch-carrure').value;
+  const charKey = document.getElementById('batch-char').value;
+  if (!genre && !cheveux && !carrure && !charKey) { showToast('Choisir au moins une action'); return; }
+
+  let metaChanged = false;
+  for (const key of _agSelected) {
+    const [nom, agence] = key.split('\x00');
+    const t = talentsData.find(x => x.nom === nom && x.agence === agence);
+    if (!t) continue;
+    if (genre)   { t.genre           = genre   === '_clear' ? undefined : genre;   metaChanged = true; }
+    if (cheveux) { t.couleur_cheveux = cheveux === '_clear' ? undefined : cheveux; metaChanged = true; }
+    if (carrure) { t.carrure         = carrure === '_clear' ? undefined : carrure; metaChanged = true; }
+  }
+  if (metaChanged) await saveCastingDataToSupabase(talentsData);
+
+  if (charKey) {
+    if (!persData[charKey]) persData[charKey] = {};
+    const sl = persData[charKey].shortlist || [];
+    let added = 0;
+    for (const key of _agSelected) {
+      const [nom, agence] = key.split('\x00');
+      if (!sl.find(c => c.nom === nom)) { sl.push({ nom, agence }); added++; }
+    }
+    persData[charKey].shortlist = sl;
+    if (added > 0) { saveData(); renderTable(); }
+  }
+
+  const n = _agSelected.size;
+  _agSelected.clear();
+  ['batch-genre','batch-cheveux','batch-carrure','batch-char'].forEach(id =>
+    document.getElementById(id).value = '');
+  updateBatchBar();
+  renderAgencesGrid();
+  renderCastingList();
+  showToast(n + ' fiche' + (n > 1 ? 's' : '') + ' modifiée' + (n > 1 ? 's' : ''));
+}
+
 function filterAgencesTalents() {
   let list = _filterTalents({
     q:        document.getElementById('ag-search').value.trim().toLowerCase(),
@@ -1268,7 +1397,11 @@ function _agTags(t) {
 function renderAgTile(t) {
   const hasProf  = t.source_url && t.source_url !== '#' && _profileUrlSet.has(t.source_url);
   const linkHtml = hasProf ? `<a class="ag-link" href="${escHtml(t.source_url)}" target="_blank" rel="noopener">Fiche ↗</a>` : '';
-  return `<div class="ag-tile" data-nom="${escHtml(t.nom)}" data-agence="${escHtml(t.agence)}">
+  const selKey   = t.nom + '\x00' + t.agence;
+  const isSel    = _agSelectMode && _agSelected.has(selKey);
+  const checkHtml = _agSelectMode ? `<div class="ag-check${isSel ? ' checked' : ''}">${isSel ? '✓' : ''}</div>` : '';
+  return `<div class="ag-tile${isSel ? ' ag-selected' : ''}" data-nom="${escHtml(t.nom)}" data-agence="${escHtml(t.agence)}">
+    ${checkHtml}
     ${_agPhotoHtml(t, 'tile')}
     <div class="ag-tile-body">
       <div class="ag-tile-name">${escHtml(t.nom)}</div>
@@ -1282,7 +1415,11 @@ function renderAgTile(t) {
 function renderAgListRow(t) {
   const hasProf  = t.source_url && t.source_url !== '#' && _profileUrlSet.has(t.source_url);
   const linkHtml = hasProf ? `<a class="ag-link" href="${escHtml(t.source_url)}" target="_blank" rel="noopener">Fiche ↗</a>` : '';
-  return `<div class="ag-list-row" data-nom="${escHtml(t.nom)}" data-agence="${escHtml(t.agence)}">
+  const selKey   = t.nom + '\x00' + t.agence;
+  const isSel    = _agSelectMode && _agSelected.has(selKey);
+  const checkHtml = _agSelectMode ? `<div class="ag-list-check${isSel ? ' checked' : ''}">${isSel ? '✓' : ''}</div>` : '';
+  return `<div class="ag-list-row${isSel ? ' ag-selected' : ''}" data-nom="${escHtml(t.nom)}" data-agence="${escHtml(t.agence)}">
+    ${checkHtml}
     ${_agPhotoHtml(t, 'list')}
     <div class="ag-list-info">
       <div class="ag-list-name">${escHtml(t.nom)}</div>
@@ -1403,6 +1540,15 @@ document.getElementById('agences-grid').addEventListener('click', e => {
   if (!card) return;
   const nom    = card.dataset.nom;
   const agence = card.dataset.agence;
+  if (_agSelectMode) {
+    const key  = nom + '\x00' + agence;
+    const isSel = _agSelected.has(key) ? (_agSelected.delete(key), false) : (_agSelected.add(key), true);
+    card.classList.toggle('ag-selected', isSel);
+    const chk = card.querySelector('.ag-check, .ag-list-check');
+    if (chk) { chk.classList.toggle('checked', isSel); chk.textContent = isSel ? '✓' : ''; }
+    updateBatchBar();
+    return;
+  }
   const talent = talentsData.find(t => t.nom === nom && t.agence === agence);
   if (!talent) return;
   openAgTalentPopover(talent, card.getBoundingClientRect());
