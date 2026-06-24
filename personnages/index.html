@@ -356,6 +356,9 @@ details.casting-import[open] summary::before { transform: rotate(90deg); }
       <select class="c-filter" id="ag-agency" style="flex:1;min-width:120px;max-width:220px">
         <option value="">Toutes les agences</option>
       </select>
+      <select class="c-filter" id="ag-nationalite" style="min-width:110px;max-width:180px">
+        <option value="">Nationalité</option>
+      </select>
       <div class="filter-sep"></div>
       <div class="sort-group">
         <button class="sort-btn" id="ag-sort-az" onclick="setAgSort('az')">A → Z</button>
@@ -430,6 +433,7 @@ details.casting-import[open] summary::before { transform: rotate(90deg); }
         <option value="forte">Forte</option>
         <option value="_clear">— effacer —</option>
       </select>
+      <input type="text" id="batch-nationalite" class="ag-batch-select" placeholder="Nationalité…" style="min-width:110px">
       <select id="batch-char" class="ag-batch-select" style="min-width:140px">
         <option value="">+ Shortlist de…</option>
       </select>
@@ -493,6 +497,10 @@ details.casting-import[open] summary::before { transform: rotate(90deg); }
           <label class="te-label">Âge max</label>
           <input type="number" id="te-age-max" class="te-input" min="0" max="99">
         </div>
+      </div>
+      <div class="te-field">
+        <label class="te-label">Nationalité</label>
+        <input type="text" id="te-nationalite" class="te-input" placeholder="ex. québécoise, haïtienne…">
       </div>
       <div class="te-field">
         <label class="te-label">Carrure</label>
@@ -878,6 +886,7 @@ function switchTab(tab) {
   document.getElementById('view-agences').style.display = tab === 'agences'     ? '' : 'none';
   if (tab === 'agences') {
     populateAgencesAgencyFilter();
+    populateAgNationaliteFilter();
     renderAgencesGrid();
   }
 }
@@ -940,12 +949,13 @@ function _updateTabBadge() {
 
 // Filtre partagé casting + agences
 function _filterTalents(opts) {
-  const { q, genre, agency, hairs, builds, ageRange } = opts;
+  const { q, genre, agency, hairs, builds, ageRange, nationalite } = opts;
   return talentsData.filter(t => {
-    if (genre  && t.genre  !== genre)  return false;
-    if (agency && t.agence !== agency) return false;
-    if (hairs.size  && !hairs.has(t.couleur_cheveux))  return false;
-    if (builds.size && !builds.has(t.carrure))         return false;
+    if (genre       && t.genre       !== genre)       return false;
+    if (agency      && t.agence      !== agency)      return false;
+    if (nationalite && (t.nationalite || '').toLowerCase() !== nationalite.toLowerCase()) return false;
+    if (hairs.size  && !hairs.has(t.couleur_cheveux)) return false;
+    if (builds.size && !builds.has(t.carrure))        return false;
     if (ageRange) {
       const [lo, hi] = ageRange;
       if (t.age_min > hi || t.age_max < lo) return false;
@@ -1248,6 +1258,15 @@ function populateAgencesAgencyFilter() {
   sel.value = agencies.includes(cur) ? cur : '';
 }
 
+function populateAgNationaliteFilter() {
+  const nats = [...new Set(talentsData.map(t => t.nationalite).filter(Boolean))].sort((a,b) => a.localeCompare(b,'fr'));
+  const sel  = document.getElementById('ag-nationalite');
+  const cur  = sel.value;
+  sel.innerHTML = '<option value="">Nationalité</option>';
+  nats.forEach(n => { const o = document.createElement('option'); o.value = o.textContent = n; sel.appendChild(o); });
+  sel.value = nats.includes(cur) ? cur : '';
+}
+
 function toggleAgNoPhoto() {
   _agNoPhotoOnly = !_agNoPhotoOnly;
   const btn = document.getElementById('ag-no-photo-btn');
@@ -1257,9 +1276,10 @@ function toggleAgNoPhoto() {
 }
 
 function resetAgencesFilters() {
-  document.getElementById('ag-search').value = '';
-  document.getElementById('ag-genre').value  = '';
-  document.getElementById('ag-agency').value = '';
+  document.getElementById('ag-search').value      = '';
+  document.getElementById('ag-genre').value       = '';
+  document.getElementById('ag-agency').value      = '';
+  document.getElementById('ag-nationalite').value = '';
   ['ag-hair-pills','ag-build-pills'].forEach(id =>
     document.querySelectorAll(`#${id} .c-pill`).forEach(b => b.classList.remove('active'))
   );
@@ -1318,20 +1338,22 @@ function updateBatchBar() {
 
 async function applyBatchEdit() {
   if (!_agSelected.size) { showToast('Aucune fiche sélectionnée'); return; }
-  const genre   = document.getElementById('batch-genre').value;
-  const cheveux = document.getElementById('batch-cheveux').value;
-  const carrure = document.getElementById('batch-carrure').value;
-  const charKey = document.getElementById('batch-char').value;
-  if (!genre && !cheveux && !carrure && !charKey) { showToast('Choisir au moins une action'); return; }
+  const genre    = document.getElementById('batch-genre').value;
+  const cheveux  = document.getElementById('batch-cheveux').value;
+  const carrure  = document.getElementById('batch-carrure').value;
+  const batchNat = document.getElementById('batch-nationalite').value.trim();
+  const charKey  = document.getElementById('batch-char').value;
+  if (!genre && !cheveux && !carrure && !batchNat && !charKey) { showToast('Choisir au moins une action'); return; }
 
   let metaChanged = false;
   for (const key of _agSelected) {
     const [nom, agence] = key.split('\x00');
     const t = talentsData.find(x => x.nom === nom && x.agence === agence);
     if (!t) continue;
-    if (genre)   { t.genre           = genre   === '_clear' ? undefined : genre;   metaChanged = true; }
-    if (cheveux) { t.couleur_cheveux = cheveux === '_clear' ? undefined : cheveux; metaChanged = true; }
-    if (carrure) { t.carrure         = carrure === '_clear' ? undefined : carrure; metaChanged = true; }
+    if (genre)      { t.genre           = genre      === '_clear' ? undefined : genre;      metaChanged = true; }
+    if (cheveux)    { t.couleur_cheveux = cheveux    === '_clear' ? undefined : cheveux;    metaChanged = true; }
+    if (carrure)    { t.carrure         = carrure    === '_clear' ? undefined : carrure;    metaChanged = true; }
+    if (batchNat)   { t.nationalite     = batchNat;                                         metaChanged = true; }
   }
   if (metaChanged) await saveCastingDataToSupabase(talentsData);
 
@@ -1349,7 +1371,7 @@ async function applyBatchEdit() {
 
   const n = _agSelected.size;
   _agSelected.clear();
-  ['batch-genre','batch-cheveux','batch-carrure','batch-char'].forEach(id =>
+  ['batch-genre','batch-cheveux','batch-carrure','batch-char','batch-nationalite'].forEach(id =>
     document.getElementById(id).value = '');
   updateBatchBar();
   renderAgencesGrid();
@@ -1362,9 +1384,10 @@ function filterAgencesTalents() {
     q:        document.getElementById('ag-search').value.trim().toLowerCase(),
     genre:    document.getElementById('ag-genre').value,
     agency:   document.getElementById('ag-agency').value,
-    hairs:    getActivePills('ag-hair-pills'),
-    builds:   getActivePills('ag-build-pills'),
-    ageRange: getAgeSliderRange('ag'),
+    hairs:       getActivePills('ag-hair-pills'),
+    builds:      getActivePills('ag-build-pills'),
+    ageRange:    getAgeSliderRange('ag'),
+    nationalite: document.getElementById('ag-nationalite').value,
   });
   if (_agNoPhotoOnly) list = list.filter(t => !t.photo_url);
   return list;
@@ -1575,12 +1598,13 @@ let _editingNom = null, _editingAgence = null;
 function openTalentEditModal(talent) {
   _editingNom    = talent.nom;
   _editingAgence = talent.agence;
-  document.getElementById('te-nom').value     = talent.nom || '';
-  document.getElementById('te-genre').value   = talent.genre || '';
-  document.getElementById('te-cheveux').value = talent.couleur_cheveux || '';
-  document.getElementById('te-age-min').value = talent.age_min ?? '';
-  document.getElementById('te-age-max').value = talent.age_max ?? '';
-  document.getElementById('te-carrure').value = talent.carrure || '';
+  document.getElementById('te-nom').value         = talent.nom || '';
+  document.getElementById('te-genre').value       = talent.genre || '';
+  document.getElementById('te-cheveux').value     = talent.couleur_cheveux || '';
+  document.getElementById('te-age-min').value     = talent.age_min ?? '';
+  document.getElementById('te-age-max').value     = talent.age_max ?? '';
+  document.getElementById('te-nationalite').value = talent.nationalite || '';
+  document.getElementById('te-carrure').value     = talent.carrure || '';
   document.getElementById('talent-edit-overlay').style.display = 'flex';
   setTimeout(() => document.getElementById('te-nom').focus(), 80);
 }
@@ -1597,8 +1621,9 @@ async function saveTalentEdit() {
   const newNom = document.getElementById('te-nom').value.trim();
   if (!newNom) { document.getElementById('te-nom').focus(); return; }
   t.nom             = newNom;
-  t.genre           = document.getElementById('te-genre').value   || undefined;
-  t.couleur_cheveux = document.getElementById('te-cheveux').value || undefined;
+  t.genre           = document.getElementById('te-genre').value       || undefined;
+  t.couleur_cheveux = document.getElementById('te-cheveux').value     || undefined;
+  t.nationalite     = document.getElementById('te-nationalite').value.trim() || undefined;
   const mn = parseInt(document.getElementById('te-age-min').value);
   const mx = parseInt(document.getElementById('te-age-max').value);
   if (!isNaN(mn)) t.age_min = mn;
@@ -1606,6 +1631,7 @@ async function saveTalentEdit() {
   t.carrure         = document.getElementById('te-carrure').value  || undefined;
   await saveCastingDataToSupabase(talentsData);
   buildProfileUrlSet();
+  populateAgNationaliteFilter();
   renderAgencesGrid();
   renderCastingList();
   closeTalentEdit();
@@ -1617,7 +1643,7 @@ document.getElementById('talent-edit-overlay').addEventListener('click', e => {
 });
 
 // Événements filtres Agences
-['ag-search','ag-genre','ag-agency'].forEach(id => {
+['ag-search','ag-genre','ag-agency','ag-nationalite'].forEach(id => {
   const el = document.getElementById(id);
   el.addEventListener('input', renderAgencesGrid);
   el.addEventListener('change', renderAgencesGrid);
