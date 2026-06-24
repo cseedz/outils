@@ -1377,10 +1377,12 @@ async function applyBatchEdit() {
     const [nom, agence] = key.split('\x00');
     const t = talentsData.find(x => x.nom === nom && x.agence === agence);
     if (!t) continue;
-    if (genre)      { t.genre           = genre      === '_clear' ? undefined : genre;      metaChanged = true; }
-    if (cheveux)    { t.couleur_cheveux = cheveux    === '_clear' ? undefined : cheveux;    metaChanged = true; }
-    if (carrure)    { t.carrure         = carrure    === '_clear' ? undefined : carrure;    metaChanged = true; }
-    if (batchPeau)  { t.couleur_peau = batchPeau === '_clear' ? undefined : batchPeau;       metaChanged = true; }
+    const batchChanged = [];
+    if (genre)     { t.genre           = genre     === '_clear' ? undefined : genre;     metaChanged = true; batchChanged.push('genre'); }
+    if (cheveux)   { t.couleur_cheveux = cheveux   === '_clear' ? undefined : cheveux;   metaChanged = true; batchChanged.push('couleur_cheveux'); }
+    if (carrure)   { t.carrure         = carrure   === '_clear' ? undefined : carrure;   metaChanged = true; batchChanged.push('carrure'); }
+    if (batchPeau) { t.couleur_peau    = batchPeau === '_clear' ? undefined : batchPeau; metaChanged = true; batchChanged.push('couleur_peau'); }
+    if (batchChanged.length) t._manual_fields = [...new Set([...(t._manual_fields || []), ...batchChanged])];
   }
   if (metaChanged) await saveCastingDataToSupabase(talentsData);
 
@@ -1647,15 +1649,18 @@ async function saveTalentEdit() {
   const t      = talentsData[idx];
   const newNom = document.getElementById('te-nom').value.trim();
   if (!newNom) { document.getElementById('te-nom').focus(); return; }
-  t.nom             = newNom;
-  t.genre           = document.getElementById('te-genre').value       || undefined;
-  t.couleur_cheveux = document.getElementById('te-cheveux').value     || undefined;
-  t.couleur_peau    = document.getElementById('te-peau').value || undefined;
+  const changed = [];
+  const _set = (field, val) => { if (t[field] !== val) { t[field] = val; changed.push(field); } else { t[field] = val; } };
+  if (newNom !== t.nom) { t.nom = newNom; changed.push('nom'); } else { t.nom = newNom; }
+  _set('genre',           document.getElementById('te-genre').value       || undefined);
+  _set('couleur_cheveux', document.getElementById('te-cheveux').value     || undefined);
+  _set('couleur_peau',    document.getElementById('te-peau').value        || undefined);
+  _set('carrure',         document.getElementById('te-carrure').value     || undefined);
   const mn = parseInt(document.getElementById('te-age-min').value);
   const mx = parseInt(document.getElementById('te-age-max').value);
-  if (!isNaN(mn)) t.age_min = mn;
-  if (!isNaN(mx)) t.age_max = mx;
-  t.carrure         = document.getElementById('te-carrure').value  || undefined;
+  if (!isNaN(mn) && t.age_min !== mn) { t.age_min = mn; changed.push('age_min'); } else if (!isNaN(mn)) t.age_min = mn;
+  if (!isNaN(mx) && t.age_max !== mx) { t.age_max = mx; changed.push('age_max'); } else if (!isNaN(mx)) t.age_max = mx;
+  if (changed.length) t._manual_fields = [...new Set([...(t._manual_fields || []), ...changed])];
   await saveCastingDataToSupabase(talentsData);
   buildProfileUrlSet();
   populateAgPeauFilter();
