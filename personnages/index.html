@@ -208,7 +208,11 @@ details.casting-import[open] summary::before { transform: rotate(90deg); }
 .btn-csl-remove { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 16px; padding: 1px 4px; line-height: 1; border-radius: 3px; flex-shrink: 0; }
 .btn-csl-remove:hover { color: var(--text); background: var(--bg3); }
 /* btn-assign état "déjà dans la liste" */
-.btn-assign.in-list { background: var(--bg3); color: var(--text-muted); border: 1px solid var(--border); cursor: default; }
+.btn-assign.in-list { background: var(--bg3); color: var(--text-muted); border: 1px solid var(--border); }
+/* btn-role : bouton "Confirmer le rôle" dans le panel casting */
+.btn-role { background: none; border: 1px solid var(--border2); border-radius: 4px; color: var(--text-muted); font-size: 11px; font-family: inherit; cursor: pointer; padding: 4px 10px; }
+.btn-role:hover { border-color: var(--text); color: var(--text); }
+.btn-role.is-actor { background: var(--accent); border-color: var(--accent); color: #fff; }
 /* Chips shortlist dans le tableau des personnages */
 .shortlist-chips { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 3px; }
 .sl-chip { font-size: 10px; background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; padding: 1px 7px; color: var(--text-muted); white-space: nowrap; }
@@ -862,11 +866,11 @@ function renderCastingList() {
     const avatarHtml = t.photo_url
       ? `<img class="talent-avatar-img" src="${escHtml(t.photo_url)}" alt="${escHtml(t.nom)}" loading="lazy" onerror="this.outerHTML='<div class=\\'talent-avatar\\'>${initials}</div>'">`
       : `<div class="talent-avatar">${initials}</div>`;
-    const inList = isPicking && (getShortlist(_assigningChar)).some(c => c.nom === t.nom);
+    const inList  = isPicking && getShortlist(_assigningChar).some(c => c.nom === t.nom);
+    const isActor = isPicking && (persData[_assigningChar] || {}).acteur === t.nom;
     const assignBtn = isPicking
-      ? (inList
-          ? `<button class="btn-assign in-list" disabled>✓ Dans la liste</button>`
-          : `<button class="btn-assign" data-nom="${escHtml(t.nom)}" data-agence="${escHtml(t.agence)}">Ajouter →</button>`)
+      ? `<button class="btn-assign${inList ? ' in-list' : ''}" data-nom="${escHtml(t.nom)}" data-agence="${escHtml(t.agence)}" data-action="shortlist">${inList ? '✓ Liste' : '+ Liste'}</button>
+         <button class="btn-role${isActor ? ' is-actor' : ''}" data-nom="${escHtml(t.nom)}" data-agence="${escHtml(t.agence)}" data-action="assign">${isActor ? '★ Rôle' : '☆ Rôle'}</button>`
       : '';
     return `<div class="talent-card">
       ${avatarHtml}
@@ -885,11 +889,19 @@ function renderCastingList() {
   }).join('');
 }
 
-// Délégation d'événement pour btn-assign
+// Délégation d'événement pour btn-assign / btn-role
 document.getElementById('talent-list').addEventListener('click', e => {
-  const btn = e.target.closest('.btn-assign');
-  if (!btn || btn.disabled) return;
-  addToShortlist(btn.dataset.nom, btn.dataset.agence);
+  const btn = e.target.closest('.btn-assign, .btn-role');
+  if (!btn) return;
+  const { nom, agence, action } = btn.dataset;
+  if (action === 'assign') {
+    if (!_assigningChar) return;
+    _assignTalentToChar(nom, agence, _assigningChar);
+    renderCastingShortlist();
+    renderCastingList();
+  } else {
+    addToShortlist(nom, agence);
+  }
 });
 
 function populateCastingAgencyFilter() {
