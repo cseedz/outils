@@ -221,7 +221,10 @@ details.casting-import[open] summary::before { transform: rotate(90deg); }
 .age-slider-wrap input[type=range] { position: absolute; width: 100%; height: 3px; top: 50%; transform: translateY(-50%); appearance: none; -webkit-appearance: none; background: transparent; pointer-events: none; margin: 0; padding: 0; border: none; outline: none; }
 .age-slider-wrap input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 13px; height: 13px; border-radius: 50%; background: var(--accent); pointer-events: all; cursor: pointer; border: 2px solid var(--bg); box-shadow: 0 0 0 1px var(--accent); }
 .age-slider-wrap input[type=range]::-moz-range-thumb { width: 13px; height: 13px; border-radius: 50%; background: var(--accent); pointer-events: all; cursor: pointer; border: 2px solid var(--bg); box-shadow: 0 0 0 1px var(--accent); }
-.age-val-label { font-size: 10px; color: var(--text-muted); white-space: nowrap; min-width: 60px; }
+.age-num-input { width: 30px; font-size: 10px; border: 1px solid var(--border); border-radius: 3px; padding: 2px 3px; background: var(--bg); color: var(--text); text-align: center; font-family: inherit; -moz-appearance: textfield; }
+.age-num-input:focus { outline: none; border-color: var(--border2); }
+.age-num-input::-webkit-inner-spin-button, .age-num-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.age-num-sep { font-size: 10px; color: var(--text-muted); }
 
 /* TOAST */
 .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(16px); background: rgba(0,0,0,.8); color: #fff; font-size: 12px; font-weight: 500; padding: 8px 18px; border-radius: 4px; opacity: 0; transition: opacity 180ms, transform 180ms; pointer-events: none; z-index: 500; white-space: nowrap; }
@@ -336,7 +339,9 @@ details.casting-import[open] summary::before { transform: rotate(90deg); }
         <input type="range" id="ag-age-min" min="0" max="80" value="0" step="1">
         <input type="range" id="ag-age-max" min="0" max="80" value="80" step="1">
       </div>
-      <span class="age-val-label" id="ag-age-label">tout</span>
+      <input type="number" class="age-num-input" id="ag-age-num-min" min="0" max="80" value="0">
+      <span class="age-num-sep">–</span>
+      <input type="number" class="age-num-input" id="ag-age-num-max" min="0" max="80" value="80">
       <div class="filter-sep"></div>
       <button class="sort-btn" id="ag-no-photo-btn" onclick="toggleAgNoPhoto()">Sans photos</button>
     </div>
@@ -401,7 +406,9 @@ details.casting-import[open] summary::before { transform: rotate(90deg); }
             <input type="range" id="c-age-min" min="0" max="80" value="0" step="1">
             <input type="range" id="c-age-max" min="0" max="80" value="80" step="1">
           </div>
-          <span class="age-val-label" id="c-age-label">tout</span>
+          <input type="number" class="age-num-input" id="c-age-num-min" min="0" max="80" value="0">
+          <span class="age-num-sep">–</span>
+          <input type="number" class="age-num-input" id="c-age-num-max" min="0" max="80" value="80">
         </div>
       </div>
     </div>
@@ -796,8 +803,8 @@ function updateAgeSlider(prefix, renderFn) {
   const pMin = (min / 80) * 100, pMax = (max / 80) * 100;
   document.getElementById(prefix + '-age-fill').style.left  = pMin + '%';
   document.getElementById(prefix + '-age-fill').style.width = (pMax - pMin) + '%';
-  const lbl = (min === 0 && max === 80) ? 'tout' : min === max ? min + ' ans' : min + '–' + max + ' ans';
-  document.getElementById(prefix + '-age-label').textContent = lbl;
+  document.getElementById(prefix + '-age-num-min').value = min;
+  document.getElementById(prefix + '-age-num-max').value = max;
   renderFn();
 }
 
@@ -1000,6 +1007,16 @@ function closeCastingPanel() {
 });
 document.getElementById('c-age-min').addEventListener('input', () => updateAgeSlider('c', renderCastingList));
 document.getElementById('c-age-max').addEventListener('input', () => updateAgeSlider('c', renderCastingList));
+function _syncNumToSlider(prefix, side, renderFn) {
+  const numEl = document.getElementById(prefix + '-age-num-' + side);
+  let v = parseInt(numEl.value);
+  v = isNaN(v) ? (side === 'min' ? 0 : 80) : Math.max(0, Math.min(80, v));
+  numEl.value = v;
+  document.getElementById(prefix + '-age-' + side).value = v;
+  updateAgeSlider(prefix, renderFn);
+}
+document.getElementById('c-age-num-min').addEventListener('change', () => _syncNumToSlider('c', 'min', renderCastingList));
+document.getElementById('c-age-num-max').addEventListener('change', () => _syncNumToSlider('c', 'max', renderCastingList));
 
 // Import / export
 document.getElementById('casting-save-btn').addEventListener('click', async () => {
@@ -1167,6 +1184,8 @@ function renderAgencesGrid() {
 });
 document.getElementById('ag-age-min').addEventListener('input', () => updateAgeSlider('ag', renderAgencesGrid));
 document.getElementById('ag-age-max').addEventListener('input', () => updateAgeSlider('ag', renderAgencesGrid));
+document.getElementById('ag-age-num-min').addEventListener('change', () => _syncNumToSlider('ag', 'min', renderAgencesGrid));
+document.getElementById('ag-age-num-max').addEventListener('change', () => _syncNumToSlider('ag', 'max', renderAgencesGrid));
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 async function init() {
