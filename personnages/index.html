@@ -385,6 +385,7 @@ details.casting-import[open] summary::before { transform: rotate(90deg); }
       <input type="number" class="age-num-input" id="ag-age-num-max" min="0" max="80" value="80">
       <div class="filter-sep"></div>
       <button class="sort-btn" id="ag-no-photo-btn" onclick="toggleAgNoPhoto()">Sans photos</button>
+      <button class="sort-btn" onclick="resetAgencesFilters()" title="Réinitialiser tous les filtres">↺ Réinit.</button>
     </div>
   </div>
   <div id="agences-grid"></div>
@@ -1203,6 +1204,27 @@ function toggleAgNoPhoto() {
   const btn = document.getElementById('ag-no-photo-btn');
   btn.classList.toggle('active', _agNoPhotoOnly);
   btn.textContent = _agNoPhotoOnly ? 'Sans photos ✕' : 'Sans photos';
+  renderAgencesGrid();
+}
+
+function resetAgencesFilters() {
+  document.getElementById('ag-search').value = '';
+  document.getElementById('ag-genre').value  = '';
+  document.getElementById('ag-agency').value = '';
+  ['ag-hair-pills','ag-build-pills'].forEach(id =>
+    document.querySelectorAll(`#${id} .c-pill`).forEach(b => b.classList.remove('active'))
+  );
+  document.getElementById('ag-age-min').value     = 0;
+  document.getElementById('ag-age-max').value     = 80;
+  document.getElementById('ag-age-num-min').value = 0;
+  document.getElementById('ag-age-num-max').value = 80;
+  updateAgeSlider('ag', () => {});
+  if (_agNoPhotoOnly) {
+    _agNoPhotoOnly = false;
+    const btn = document.getElementById('ag-no-photo-btn');
+    btn.classList.remove('active');
+    btn.textContent = 'Sans photos';
+  }
   renderAgencesGrid();
 }
 
