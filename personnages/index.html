@@ -330,6 +330,8 @@ details.casting-import[open] summary::before { transform: rotate(90deg); }
         <button class="c-pill" data-value="50-59">50–59</button>
         <button class="c-pill" data-value="60+">60+</button>
       </div>
+      <div class="filter-sep"></div>
+      <button class="sort-btn" id="ag-no-photo-btn" onclick="toggleAgNoPhoto()">Sans photos</button>
     </div>
   </div>
   <div id="agences-grid"></div>
@@ -1000,6 +1002,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCasting
 // ─── AGENCES TAB ─────────────────────────────────────────────────────────────
 let _agView = 'tuiles';
 let _agSort = '';
+let _agNoPhotoOnly = false;
 
 function setAgSort(key) {
   _agSort = _agSort === key ? '' : key;
@@ -1028,8 +1031,16 @@ function populateAgencesAgencyFilter() {
   sel.value = agencies.includes(cur) ? cur : '';
 }
 
+function toggleAgNoPhoto() {
+  _agNoPhotoOnly = !_agNoPhotoOnly;
+  const btn = document.getElementById('ag-no-photo-btn');
+  btn.classList.toggle('active', _agNoPhotoOnly);
+  btn.textContent = _agNoPhotoOnly ? 'Sans photos ✕' : 'Sans photos';
+  renderAgencesGrid();
+}
+
 function filterAgencesTalents() {
-  return _filterTalents({
+  let list = _filterTalents({
     q:      document.getElementById('ag-search').value.trim().toLowerCase(),
     genre:  document.getElementById('ag-genre').value,
     agency: document.getElementById('ag-agency').value,
@@ -1037,6 +1048,8 @@ function filterAgencesTalents() {
     builds: getActivePills('ag-build-pills'),
     ages:   getActivePills('ag-age-pills'),
   });
+  if (_agNoPhotoOnly) list = list.filter(t => !t.photo_url);
+  return list;
 }
 
 function _agPhotoHtml(t, mode) {
