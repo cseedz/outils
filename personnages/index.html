@@ -120,7 +120,7 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans
 
 /* AGENCES GRID — TUILES */
 .agences-tuiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)); gap: 12px; padding: 16px 24px 40px; }
-.ag-tile { border: 1px solid var(--border); border-radius: 6px; overflow: hidden; transition: border-color .12s, box-shadow .12s; background: var(--bg); }
+.ag-tile { border: 1px solid var(--border); border-radius: 6px; overflow: hidden; transition: border-color .12s, box-shadow .12s; background: var(--bg); cursor: pointer; }
 .ag-tile:hover { border-color: var(--border2); box-shadow: 0 2px 10px rgba(0,0,0,.07); }
 .ag-tile-photo { width: 100%; aspect-ratio: 3/4; object-fit: cover; display: block; }
 .ag-tile-placeholder { width: 100%; aspect-ratio: 3/4; display: flex; align-items: center; justify-content: center; background: var(--bg3); font-size: 28px; font-weight: 700; color: var(--border2); letter-spacing: -1px; }
@@ -134,7 +134,7 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans
 
 /* AGENCES GRID — LISTE */
 .agences-liste { padding: 0 24px 40px; }
-.ag-list-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--border); }
+.ag-list-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--border); cursor: pointer; }
 .ag-list-row:last-child { border-bottom: none; }
 .ag-list-photo { width: 44px; height: 58px; object-fit: cover; border-radius: 3px; flex-shrink: 0; display: block; }
 .ag-list-placeholder { width: 44px; height: 58px; border-radius: 3px; flex-shrink: 0; background: var(--bg3); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: var(--border2); }
@@ -221,6 +221,17 @@ details.casting-import[open] summary::before { transform: rotate(90deg); }
 .age-slider-wrap input[type=range] { position: absolute; width: 100%; height: 3px; top: 50%; transform: translateY(-50%); appearance: none; -webkit-appearance: none; background: transparent; pointer-events: none; margin: 0; padding: 0; border: none; outline: none; }
 .age-slider-wrap input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 13px; height: 13px; border-radius: 50%; background: var(--accent); pointer-events: all; cursor: pointer; border: 2px solid var(--bg); box-shadow: 0 0 0 1px var(--accent); }
 .age-slider-wrap input[type=range]::-moz-range-thumb { width: 13px; height: 13px; border-radius: 50%; background: var(--accent); pointer-events: all; cursor: pointer; border: 2px solid var(--bg); box-shadow: 0 0 0 1px var(--accent); }
+/* TALENT POPOVER (onglet Agences) */
+.ag-popover { position: fixed; background: var(--bg); border: 1px solid var(--border2); border-radius: 6px; box-shadow: 0 4px 20px rgba(0,0,0,.14); padding: 10px; z-index: 300; min-width: 190px; max-width: 260px; max-height: 340px; overflow-y: auto; display: none; }
+.ag-pop-header { font-size: 12px; font-weight: 600; margin-bottom: 4px; }
+.ag-pop-agency { font-size: 10px; color: var(--text-muted); margin-bottom: 8px; padding-bottom: 7px; border-bottom: 1px solid var(--border); }
+.ag-pop-label { font-size: 10px; text-transform: uppercase; letter-spacing: .07em; color: var(--text-muted); margin-bottom: 5px; }
+.ag-pop-char-btn { display: flex; align-items: center; justify-content: space-between; width: 100%; background: none; border: none; font-family: inherit; font-size: 11px; color: var(--text); padding: 5px 6px; cursor: pointer; border-radius: 4px; text-align: left; }
+.ag-pop-char-btn:hover { background: var(--bg3); }
+.ag-pop-char-btn.in-list { color: var(--text-muted); }
+.ag-pop-check { font-size: 12px; flex-shrink: 0; }
+.ag-pop-empty { font-size: 11px; color: var(--text-muted); font-style: italic; padding: 2px 4px; }
+
 .age-num-input { width: 30px; font-size: 10px; border: 1px solid var(--border); border-radius: 3px; padding: 2px 3px; background: var(--bg); color: var(--text); text-align: center; font-family: inherit; -moz-appearance: textfield; }
 .age-num-input:focus { outline: none; border-color: var(--border2); }
 .age-num-input::-webkit-inner-spin-button, .age-num-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
@@ -350,6 +361,13 @@ details.casting-import[open] summary::before { transform: rotate(90deg); }
 </div>
 
 <div class="toast" id="toast"></div>
+
+<div class="ag-popover" id="ag-popover">
+  <div class="ag-pop-header" id="ag-pop-name"></div>
+  <div class="ag-pop-agency" id="ag-pop-agency"></div>
+  <div class="ag-pop-label">Ajouter à la shortlist de…</div>
+  <div id="ag-pop-list"></div>
+</div>
 
 <!-- ════════════ CASTING PANEL ════════════ -->
 <div class="casting-overlay" id="casting-overlay">
@@ -1122,7 +1140,7 @@ function _agTags(t) {
 function renderAgTile(t) {
   const hasProf  = t.source_url && t.source_url !== '#' && _profileUrlSet.has(t.source_url);
   const linkHtml = hasProf ? `<a class="ag-link" href="${escHtml(t.source_url)}" target="_blank" rel="noopener">Fiche ↗</a>` : '';
-  return `<div class="ag-tile">
+  return `<div class="ag-tile" data-nom="${escHtml(t.nom)}" data-agence="${escHtml(t.agence)}">
     ${_agPhotoHtml(t, 'tile')}
     <div class="ag-tile-body">
       <div class="ag-tile-name">${escHtml(t.nom)}</div>
@@ -1136,7 +1154,7 @@ function renderAgTile(t) {
 function renderAgListRow(t) {
   const hasProf  = t.source_url && t.source_url !== '#' && _profileUrlSet.has(t.source_url);
   const linkHtml = hasProf ? `<a class="ag-link" href="${escHtml(t.source_url)}" target="_blank" rel="noopener">Fiche ↗</a>` : '';
-  return `<div class="ag-list-row">
+  return `<div class="ag-list-row" data-nom="${escHtml(t.nom)}" data-agence="${escHtml(t.agence)}">
     ${_agPhotoHtml(t, 'list')}
     <div class="ag-list-info">
       <div class="ag-list-name">${escHtml(t.nom)}</div>
@@ -1167,6 +1185,81 @@ function renderAgencesGrid() {
     grid.innerHTML = list.map(renderAgListRow).join('');
   }
 }
+
+// ─── POPOVER TALENT (onglet Agences) ─────────────────────────────────────────
+let _agPopTalent = null;
+
+function _addTalentToChar(nom, agence, charName) {
+  if (!persData[charName]) persData[charName] = {};
+  const sl = persData[charName].shortlist || [];
+  if (sl.find(c => c.nom === nom)) { showToast(nom + ' est déjà dans la shortlist de ' + charName); return; }
+  sl.push({ nom, agence });
+  persData[charName].shortlist = sl;
+  saveData();
+  renderTable();
+  showToast(nom + ' ajouté·e à ' + charName);
+}
+
+function openAgTalentPopover(talent, anchorRect) {
+  _agPopTalent = talent;
+  const pop = document.getElementById('ag-popover');
+  document.getElementById('ag-pop-name').textContent   = talent.nom;
+  document.getElementById('ag-pop-agency').textContent = talent.agence;
+  const chars = derived.slice().sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+  if (!chars.length) {
+    document.getElementById('ag-pop-list').innerHTML = '<div class="ag-pop-empty">Aucun personnage dans ce projet.</div>';
+  } else {
+    document.getElementById('ag-pop-list').innerHTML = chars.map(p => {
+      const inList = getShortlist(p.name).some(c => c.nom === talent.nom);
+      return `<button class="ag-pop-char-btn${inList ? ' in-list' : ''}" data-char="${escHtml(p.name)}">
+        <span>${escHtml(p.name)}</span>
+        <span class="ag-pop-check">${inList ? '✓' : '+'}</span>
+      </button>`;
+    }).join('');
+  }
+  pop.style.display = 'block';
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const pw = pop.offsetWidth, ph = pop.offsetHeight;
+  let top  = anchorRect.bottom + 6;
+  let left = anchorRect.left;
+  if (left + pw > vw - 8) left = vw - pw - 8;
+  if (top  + ph > vh - 8) top  = anchorRect.top - ph - 6;
+  pop.style.top  = top  + 'px';
+  pop.style.left = left + 'px';
+}
+
+function closeAgTalentPopover() {
+  document.getElementById('ag-popover').style.display = 'none';
+  _agPopTalent = null;
+}
+
+document.getElementById('ag-popover').addEventListener('click', e => {
+  const btn = e.target.closest('.ag-pop-char-btn');
+  if (!btn || !_agPopTalent) return;
+  const charName = btn.dataset.char;
+  _addTalentToChar(_agPopTalent.nom, _agPopTalent.agence, charName);
+  btn.classList.add('in-list');
+  btn.querySelector('.ag-pop-check').textContent = '✓';
+});
+
+document.getElementById('agences-grid').addEventListener('click', e => {
+  if (e.target.closest('a')) return;
+  const card = e.target.closest('.ag-tile, .ag-list-row');
+  if (!card) return;
+  const nom    = card.dataset.nom;
+  const agence = card.dataset.agence;
+  const talent = talentsData.find(t => t.nom === nom && t.agence === agence);
+  if (!talent) return;
+  openAgTalentPopover(talent, card.getBoundingClientRect());
+});
+
+document.addEventListener('click', e => {
+  const pop = document.getElementById('ag-popover');
+  if (pop.style.display === 'none') return;
+  if (!pop.contains(e.target) && !e.target.closest('.ag-tile') && !e.target.closest('.ag-list-row')) {
+    closeAgTalentPopover();
+  }
+}, true);
 
 // Événements filtres Agences
 ['ag-search','ag-genre','ag-agency'].forEach(id => {
