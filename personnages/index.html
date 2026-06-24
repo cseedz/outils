@@ -451,6 +451,7 @@ details.casting-import[open] summary::before { transform: rotate(90deg); }
         <option value="">+ Shortlist de…</option>
       </select>
       <button class="ag-batch-btn primary" onclick="applyBatchEdit()">Appliquer</button>
+      <button class="ag-batch-btn" onclick="selectAllVisible()">Tout sélectionner</button>
       <button class="ag-batch-btn" onclick="clearAgSelection()">Tout désélectionner</button>
     </div>
   </div>
@@ -1336,6 +1337,13 @@ function toggleAgSelectMode() {
   const btn = document.getElementById('ag-select-mode-btn');
   btn.classList.toggle('active', _agSelectMode);
   btn.textContent = _agSelectMode ? '✕ Quitter sélection' : 'Sélectionner';
+  updateBatchBar();
+  renderAgencesGrid();
+}
+
+function selectAllVisible() {
+  const list = filterAgencesTalents();
+  list.forEach(t => _agSelected.add(t.nom + '\x00' + t.agence));
   updateBatchBar();
   renderAgencesGrid();
 }
