@@ -237,6 +237,30 @@ details.casting-import[open] summary::before { transform: rotate(90deg); }
 .ag-pop-action-btn:hover { border-color: var(--border2); color: var(--text); }
 .ag-pop-action-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 .ag-pop-empty { font-size: 11px; color: var(--text-muted); font-style: italic; padding: 2px 4px; }
+.ag-pop-edit-row { padding-top: 8px; margin-top: 6px; border-top: 1px solid var(--border); }
+.ag-pop-edit-btn { background: none; border: none; font-size: 11px; color: var(--text-muted); cursor: pointer; font-family: inherit; padding: 2px 4px; }
+.ag-pop-edit-btn:hover { color: var(--text); }
+.btn-edit-talent { background: none; border: none; font-size: 14px; cursor: pointer; color: var(--text-muted); padding: 2px 4px; line-height: 1; }
+.btn-edit-talent:hover { color: var(--text); }
+/* MODAL MODIFICATION FICHE */
+.te-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 400; display: flex; align-items: center; justify-content: center; }
+.te-modal { background: var(--bg); border: 1px solid var(--border2); border-radius: 8px; width: 300px; box-shadow: 0 8px 32px rgba(0,0,0,.18); overflow: hidden; }
+.te-header { display: flex; align-items: center; justify-content: space-between; padding: 11px 14px 9px; border-bottom: 1px solid var(--border); }
+.te-title { font-size: 13px; font-weight: 600; }
+.te-close { background: none; border: none; font-size: 18px; cursor: pointer; color: var(--text-muted); padding: 0 4px; line-height: 1; }
+.te-close:hover { color: var(--text); }
+.te-body { padding: 12px 14px; display: flex; flex-direction: column; gap: 9px; }
+.te-field { display: flex; flex-direction: column; gap: 3px; }
+.te-label { font-size: 10px; color: var(--text-muted); }
+.te-input, .te-select { font-size: 12px; font-family: inherit; border: 1px solid var(--border); border-radius: 4px; padding: 5px 7px; background: var(--bg3); color: var(--text); width: 100%; }
+.te-input:focus, .te-select:focus { outline: none; border-color: var(--border2); }
+.te-row2 { display: flex; gap: 10px; }
+.te-row2 .te-field { flex: 1; }
+.te-footer { display: flex; gap: 8px; justify-content: flex-end; padding: 9px 14px 12px; border-top: 1px solid var(--border); }
+.te-btn-cancel { background: none; border: 1px solid var(--border); border-radius: 4px; font-size: 11px; font-family: inherit; cursor: pointer; padding: 5px 12px; color: var(--text-muted); }
+.te-btn-cancel:hover { border-color: var(--border2); color: var(--text); }
+.te-btn-save { background: var(--accent); border: 1px solid var(--accent); border-radius: 4px; font-size: 11px; font-family: inherit; cursor: pointer; padding: 5px 14px; color: #fff; }
+.te-btn-save:hover { opacity: .85; }
 
 .age-num-input { width: 30px; font-size: 10px; border: 1px solid var(--border); border-radius: 3px; padding: 2px 3px; background: var(--bg); color: var(--text); text-align: center; font-family: inherit; -moz-appearance: textfield; }
 .age-num-input:focus { outline: none; border-color: var(--border2); }
@@ -373,6 +397,68 @@ details.casting-import[open] summary::before { transform: rotate(90deg); }
   <div class="ag-pop-agency" id="ag-pop-agency"></div>
   <div class="ag-pop-label">Ajouter à la shortlist de…</div>
   <div id="ag-pop-list"></div>
+  <div class="ag-pop-edit-row">
+    <button class="ag-pop-edit-btn" id="ag-pop-edit-btn">✏ Modifier la fiche</button>
+  </div>
+</div>
+
+<div id="talent-edit-overlay" class="te-overlay" style="display:none">
+  <div class="te-modal">
+    <div class="te-header">
+      <span class="te-title">Modifier la fiche</span>
+      <button class="te-close" onclick="closeTalentEdit()">×</button>
+    </div>
+    <div class="te-body">
+      <div class="te-field">
+        <label class="te-label">Nom</label>
+        <input type="text" id="te-nom" class="te-input">
+      </div>
+      <div class="te-field">
+        <label class="te-label">Genre</label>
+        <select id="te-genre" class="te-select">
+          <option value="">— non spécifié —</option>
+          <option value="femme">Femme</option>
+          <option value="homme">Homme</option>
+        </select>
+      </div>
+      <div class="te-field">
+        <label class="te-label">Cheveux</label>
+        <select id="te-cheveux" class="te-select">
+          <option value="">— non spécifié —</option>
+          <option value="roux">Roux</option>
+          <option value="blond">Blond</option>
+          <option value="chatain">Châtain</option>
+          <option value="brun">Brun</option>
+          <option value="noir">Noir</option>
+          <option value="gris">Gris</option>
+          <option value="chauve">Chauve</option>
+        </select>
+      </div>
+      <div class="te-row2">
+        <div class="te-field">
+          <label class="te-label">Âge min</label>
+          <input type="number" id="te-age-min" class="te-input" min="0" max="99">
+        </div>
+        <div class="te-field">
+          <label class="te-label">Âge max</label>
+          <input type="number" id="te-age-max" class="te-input" min="0" max="99">
+        </div>
+      </div>
+      <div class="te-field">
+        <label class="te-label">Carrure</label>
+        <select id="te-carrure" class="te-select">
+          <option value="">— non spécifié —</option>
+          <option value="mince">Mince</option>
+          <option value="moyenne">Moyenne</option>
+          <option value="forte">Forte</option>
+        </select>
+      </div>
+    </div>
+    <div class="te-footer">
+      <button class="te-btn-cancel" onclick="closeTalentEdit()">Annuler</button>
+      <button class="te-btn-save" onclick="saveTalentEdit()">Enregistrer</button>
+    </div>
+  </div>
 </div>
 
 <!-- ════════════ CASTING PANEL ════════════ -->
@@ -883,14 +969,20 @@ function renderCastingList() {
           <span class="talent-tag">${escHtml(ageStr)}</span>
           ${t.carrure ? `<span class="talent-tag">${escHtml(t.carrure)}</span>` : ''}
         </div>
-        <div class="talent-actions">${assignBtn}${srcBtn}</div>
+        <div class="talent-actions">${assignBtn}${srcBtn}<button class="btn-edit-talent" data-nom="${escHtml(t.nom)}" data-agence="${escHtml(t.agence)}" title="Modifier la fiche">✏</button></div>
       </div>
     </div>`;
   }).join('');
 }
 
-// Délégation d'événement pour btn-assign / btn-role
+// Délégation d'événement pour btn-assign / btn-role / btn-edit-talent
 document.getElementById('talent-list').addEventListener('click', e => {
+  const editBtn = e.target.closest('.btn-edit-talent');
+  if (editBtn) {
+    const talent = talentsData.find(x => x.nom === editBtn.dataset.nom && x.agence === editBtn.dataset.agence);
+    if (talent) openTalentEditModal(talent);
+    return;
+  }
   const btn = e.target.closest('.btn-assign, .btn-role');
   if (!btn) return;
   const { nom, agence, action } = btn.dataset;
@@ -1301,6 +1393,60 @@ document.addEventListener('click', e => {
     closeAgTalentPopover();
   }
 }, true);
+
+document.getElementById('ag-pop-edit-btn').addEventListener('click', () => {
+  if (!_agPopTalent) return;
+  const t = _agPopTalent;
+  closeAgTalentPopover();
+  openTalentEditModal(t);
+});
+
+// ─── MODAL MODIFICATION FICHE ────────────────────────────────────────────────
+let _editingNom = null, _editingAgence = null;
+
+function openTalentEditModal(talent) {
+  _editingNom    = talent.nom;
+  _editingAgence = talent.agence;
+  document.getElementById('te-nom').value     = talent.nom || '';
+  document.getElementById('te-genre').value   = talent.genre || '';
+  document.getElementById('te-cheveux').value = talent.couleur_cheveux || '';
+  document.getElementById('te-age-min').value = talent.age_min ?? '';
+  document.getElementById('te-age-max').value = talent.age_max ?? '';
+  document.getElementById('te-carrure').value = talent.carrure || '';
+  document.getElementById('talent-edit-overlay').style.display = 'flex';
+  setTimeout(() => document.getElementById('te-nom').focus(), 80);
+}
+
+function closeTalentEdit() {
+  document.getElementById('talent-edit-overlay').style.display = 'none';
+  _editingNom = null; _editingAgence = null;
+}
+
+async function saveTalentEdit() {
+  const idx = talentsData.findIndex(t => t.nom === _editingNom && t.agence === _editingAgence);
+  if (idx === -1) { closeTalentEdit(); return; }
+  const t      = talentsData[idx];
+  const newNom = document.getElementById('te-nom').value.trim();
+  if (!newNom) { document.getElementById('te-nom').focus(); return; }
+  t.nom             = newNom;
+  t.genre           = document.getElementById('te-genre').value   || undefined;
+  t.couleur_cheveux = document.getElementById('te-cheveux').value || undefined;
+  const mn = parseInt(document.getElementById('te-age-min').value);
+  const mx = parseInt(document.getElementById('te-age-max').value);
+  if (!isNaN(mn)) t.age_min = mn;
+  if (!isNaN(mx)) t.age_max = mx;
+  t.carrure         = document.getElementById('te-carrure').value  || undefined;
+  await saveCastingDataToSupabase(talentsData);
+  buildProfileUrlSet();
+  renderAgencesGrid();
+  renderCastingList();
+  closeTalentEdit();
+  showToast('Fiche mise à jour');
+}
+
+document.getElementById('talent-edit-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('talent-edit-overlay')) closeTalentEdit();
+});
 
 // Événements filtres Agences
 ['ag-search','ag-genre','ag-agency'].forEach(id => {
