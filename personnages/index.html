@@ -352,6 +352,7 @@ details.casting-import[open] summary::before { transform: rotate(90deg); }
         <option value="">Genre</option>
         <option value="femme">Femme</option>
         <option value="homme">Homme</option>
+        <option value="_unset">Non spécifié</option>
       </select>
       <select class="c-filter" id="ag-agency" style="flex:1;min-width:120px;max-width:220px">
         <option value="">Toutes les agences</option>
@@ -576,6 +577,7 @@ details.casting-import[open] summary::before { transform: rotate(90deg); }
             <button class="c-pill" data-value="noir">noir</button>
             <button class="c-pill" data-value="gris">gris</button>
             <button class="c-pill" data-value="chauve">chauve</button>
+          <button class="c-pill" data-value="_unset">non spécifié</button>
           </div>
         </div>
         <div class="filter-row">
@@ -584,6 +586,7 @@ details.casting-import[open] summary::before { transform: rotate(90deg); }
             <button class="c-pill" data-value="mince">mince</button>
             <button class="c-pill" data-value="moyenne">moyenne</button>
             <button class="c-pill" data-value="forte">forte</button>
+          <button class="c-pill" data-value="_unset">non spécifié</button>
           </div>
         </div>
         <div class="filter-row">
@@ -971,11 +974,11 @@ function _updateTabBadge() {
 function _filterTalents(opts) {
   const { q, genre, agency, hairs, builds, ageRange, peau } = opts;
   return talentsData.filter(t => {
-    if (genre  && t.genre  !== genre)  return false;
+    if (genre === '_unset') { if (t.genre) return false; } else if (genre && t.genre !== genre) return false;
     if (agency && t.agence !== agency) return false;
-    if (peau   && t.couleur_peau !== peau) return false;
-    if (hairs.size  && !hairs.has(t.couleur_cheveux)) return false;
-    if (builds.size && !builds.has(t.carrure))        return false;
+    if (peau === '_unset') { if (t.couleur_peau) return false; } else if (peau && t.couleur_peau !== peau) return false;
+    if (hairs.size  && !hairs.has(t.couleur_cheveux || '_unset')) return false;
+    if (builds.size && !builds.has(t.carrure        || '_unset')) return false;
     if (ageRange) {
       const [lo, hi] = ageRange;
       if (t.age_min > hi || t.age_max < lo) return false;
@@ -1287,7 +1290,8 @@ function populateAgPeauFilter() {
   const cur = sel.value;
   sel.innerHTML = '<option value="">Teinte de peau</option>';
   all.forEach(n => { const o = document.createElement('option'); o.value = o.textContent = n; sel.appendChild(o); });
-  sel.value = all.includes(cur) ? cur : '';
+  const unset = document.createElement('option'); unset.value = '_unset'; unset.textContent = 'Non spécifiée'; sel.appendChild(unset);
+  sel.value = (all.includes(cur) || cur === '_unset') ? cur : '';
 }
 
 function toggleAgNoPhoto() {
