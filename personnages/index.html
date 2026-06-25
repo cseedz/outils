@@ -476,6 +476,22 @@ details.casting-import[open] summary::before { transform: rotate(90deg); }
 
 <div class="toast" id="toast"></div>
 
+<div class="talent-preview-pop" id="talent-preview-pop" style="display:none">
+  <div class="talent-preview-body">
+    <div id="tp-avatar-wrap"></div>
+    <div class="talent-preview-info">
+      <div class="talent-name" id="tp-nom"></div>
+      <div class="talent-agence" id="tp-agence"></div>
+      <div class="talent-tags" id="tp-tags"></div>
+      <div class="tp-links" id="tp-links"></div>
+    </div>
+  </div>
+  <div id="tp-chars-wrap" style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border)">
+    <div class="ag-pop-label">Ajouter à la shortlist de…</div>
+    <div id="tp-chars-list"></div>
+  </div>
+</div>
+
 <div class="ag-popover" id="ag-popover">
   <div class="ag-pop-header" id="ag-pop-name"></div>
   <div class="ag-pop-agency" id="ag-pop-agency"></div>
@@ -1862,20 +1878,6 @@ async function init() {
 
 init();
 </script>
-<div class="talent-preview-pop" id="talent-preview-pop" style="display:none">
-  <div class="talent-preview-body">
-    <div id="tp-avatar-wrap"></div>
-    <div class="talent-preview-info">
-      <div class="talent-name" id="tp-nom"></div>
-      <div class="talent-agence" id="tp-agence"></div>
-      <div class="talent-tags" id="tp-tags"></div>
-      <div class="tp-links" id="tp-links"></div>
-    </div>
-  </div>
-  <div id="tp-chars-wrap" style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border)">
-    <div class="ag-pop-label">Ajouter à la shortlist de…</div>
-    <div id="tp-chars-list"></div>
-  </div>
-</div>
 </body>
 </html>
+
