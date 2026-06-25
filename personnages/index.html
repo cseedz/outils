@@ -1287,14 +1287,15 @@ function populateAgencesAgencyFilter() {
 const SKIN_TONES = ['Très claire','Claire','Médium','Mate','Caramel','Foncée','Très foncée'];
 
 function populateAgPeauFilter() {
-  const fromData = talentsData.map(t => t.couleur_peau).filter(Boolean);
-  const all = [...new Set([...SKIN_TONES, ...fromData])];
+  const present = new Set(talentsData.map(t => t.couleur_peau).filter(Boolean));
   const sel = document.getElementById('ag-peau');
   const cur = sel.value;
   sel.innerHTML = '<option value="">Teinte de peau</option>';
-  all.forEach(n => { const o = document.createElement('option'); o.value = o.textContent = n; sel.appendChild(o); });
+  SKIN_TONES.filter(s => present.has(s)).forEach(n => {
+    const o = document.createElement('option'); o.value = o.textContent = n; sel.appendChild(o);
+  });
   const unset = document.createElement('option'); unset.value = '_unset'; unset.textContent = 'Non spécifiée'; sel.appendChild(unset);
-  sel.value = (all.includes(cur) || cur === '_unset') ? cur : '';
+  sel.value = (SKIN_TONES.includes(cur) || cur === '_unset') ? cur : '';
 }
 
 function toggleAgNoPhoto() {
