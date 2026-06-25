@@ -794,7 +794,7 @@ function renderTable() {
 
     // Stocker le nom du personnage dans data-name pour toggleChar et openCastingPanel
     return `
-      <tr class="char-row" data-name="${escHtml(p.name)}" onclick="toggleChar(this.dataset.name)">
+      <tr class="char-row" data-name="${escHtml(p.name)}" onclick="if(!event.target.closest('.tp-trigger'))toggleChar(this.dataset.name)">
         <td class="td-num">${idx + 1}</td>
         <td>
           <div class="char-name-wrap">
