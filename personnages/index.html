@@ -339,6 +339,7 @@ details.casting-import[open] summary::before { transform: rotate(90deg); }
       <button class="sort-btn" data-sort="nom">Nom</button>
     </div>
     <div class="count-label" id="count-label"></div>
+    <button class="sort-btn" onclick="exportShortlistPDF()" title="Exporter le casting en PDF">⬇ PDF Casting</button>
   </div>
 
   <div class="table-wrap">
@@ -397,6 +398,7 @@ details.casting-import[open] summary::before { transform: rotate(90deg); }
         <button class="vt-btn" id="vt-shortlist" onclick="setAgView('shortlist')">★ Shortlists</button>
       </div>
       <div class="ag-count" id="ag-count"></div>
+      <button class="sort-btn" onclick="exportShortlistPDF()" title="Exporter le casting en PDF">⬇ PDF Casting</button>
       <button class="sort-btn" id="ag-select-mode-btn" onclick="toggleAgSelectMode()">Sélectionner</button>
     </div>
     <!-- Rangée 2 : filtres visuels -->
@@ -1417,6 +1419,96 @@ document.addEventListener('click', e => {
   const pop = document.getElementById('talent-preview-pop');
   if (pop.style.display !== 'none' && !pop.contains(e.target)) hideTalentPreview();
 });
+
+// ─── EXPORT PDF CASTING ──────────────────────────────────────────────────────
+function exportShortlistPDF() {
+  const chars = derived.slice().sort((a, b) => b.sceneCount - a.sceneCount || b.lineCount - a.lineCount);
+  let hasData = false;
+  let sectionsHtml = '';
+
+  chars.forEach(char => {
+    const sl = getShortlist(char.name);
+    if (!sl.length) return;
+    hasData = true;
+    const acteur = (persData[char.name] || {}).acteur || '';
+
+    const cardsHtml = sl.map(c => {
+      const t = talentsData.find(x => x.nom === c.nom && x.agence === c.agence)
+              || talentsData.find(x => x.nom === c.nom);
+      if (!t) return '';
+      const isFinal = t.nom === acteur;
+      const tags = [
+        t.genre === 'femme' ? 'F' : t.genre === 'homme' ? 'H' : null,
+        (t.age_min || t.age_max) ? (t.age_min || '?') + '–' + (t.age_max || '?') + ' ans' : null,
+        t.couleur_cheveux || null,
+        t.carrure         || null,
+        t.couleur_peau    || null,
+      ].filter(Boolean);
+      const photoEl = t.photo_url
+        ? `<img class="pdf-photo" src="${t.photo_url}" alt="${t.nom.replace(/"/g,'&quot;')}">`
+        : `<div class="pdf-photo-placeholder">${talentInitials(t.nom)}</div>`;
+      return `<div class="pdf-card${isFinal ? ' pdf-confirmed' : ''}">
+        ${isFinal ? '<div class="pdf-star">★ Confirmé·e</div>' : ''}
+        ${photoEl}
+        <div class="pdf-info">
+          <div class="pdf-name">${t.nom}</div>
+          <div class="pdf-agency">${t.agence}</div>
+          ${tags.length ? `<div class="pdf-tags">${tags.map(x => `<span class="pdf-tag">${x}</span>`).join('')}</div>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+
+    sectionsHtml += `<section class="pdf-section">
+      <div class="pdf-char-header">
+        <span class="pdf-char-name">${char.name}</span>
+        ${acteur ? `<span class="pdf-char-confirmed">★ ${acteur}</span>` : ''}
+        <span class="pdf-char-stats">${sl.length} en shortlist</span>
+      </div>
+      <div class="pdf-grid">${cardsHtml}</div>
+    </section>`;
+  });
+
+  if (!hasData) { showToast('Aucune shortlist à exporter'); return; }
+
+  const projectTitle = _projectName || 'Casting';
+  const win = window.open('', '_blank');
+  if (!win) { showToast('Autorise les fenêtres pop-up pour exporter'); return; }
+  win.document.write(`<!DOCTYPE html><html lang="fr"><head>
+<meta charset="UTF-8">
+<title>${projectTitle} — Casting</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,Helvetica,sans-serif;background:#fff;color:#111;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+h1.pdf-title{font-size:14px;font-weight:500;color:#555;text-align:center;padding:8mm 12mm 4mm;border-bottom:1px solid #ddd;margin-bottom:0}
+.pdf-section{padding:10mm 12mm;page-break-before:always}
+.pdf-section:first-of-type{page-break-before:avoid}
+.pdf-char-header{display:flex;align-items:baseline;gap:8px;margin-bottom:6mm;padding-bottom:3mm;border-bottom:2px solid #111}
+.pdf-char-name{font-size:17px;font-weight:800;letter-spacing:-.3px}
+.pdf-char-confirmed{font-size:11px;background:#ebf4ff;color:#2b6cb0;border-radius:3px;padding:1px 7px;font-weight:600}
+.pdf-char-stats{font-size:10px;color:#999;margin-left:auto}
+.pdf-grid{display:grid;grid-template-columns:1fr 1fr;gap:6mm}
+.pdf-card{border:1px solid #ddd;border-radius:5px;overflow:hidden;position:relative;break-inside:avoid;page-break-inside:avoid}
+.pdf-card.pdf-confirmed{border:2px solid #2b6cb0}
+.pdf-star{position:absolute;top:5px;right:5px;background:#2b6cb0;color:#fff;font-size:9px;font-weight:700;padding:2px 6px;border-radius:3px;letter-spacing:.3px}
+.pdf-photo{width:100%;height:62mm;object-fit:cover;object-position:top center;display:block}
+.pdf-photo-placeholder{width:100%;height:62mm;background:#eee;display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:700;color:#bbb;letter-spacing:-2px}
+.pdf-info{padding:3mm 4mm 4mm}
+.pdf-name{font-size:12px;font-weight:700;margin-bottom:1mm;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pdf-agency{font-size:10px;color:#666;margin-bottom:2mm;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pdf-tags{display:flex;flex-wrap:wrap;gap:2mm}
+.pdf-tag{font-size:9px;border:1px solid #ddd;border-radius:3px;padding:0 3mm;color:#555;background:#f8f8f8;white-space:nowrap}
+@media print{
+  .pdf-section{page-break-before:always;padding:10mm 12mm}
+  .pdf-section:first-of-type{page-break-before:avoid}
+  .pdf-card{break-inside:avoid;page-break-inside:avoid}
+}
+</style></head><body>
+<h1 class="pdf-title">${projectTitle} — Casting</h1>
+${sectionsHtml}
+<script>window.onload=function(){window.print()}<\/script>
+</body></html>`);
+  win.document.close();
+}
 
 // ─── AGENCES TAB ─────────────────────────────────────────────────────────────
 let _agView = 'tuiles';
