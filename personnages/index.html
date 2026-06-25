@@ -245,6 +245,8 @@ details.casting-import[open] summary::before { transform: rotate(90deg); }
 .char-actor.is-final::before { content: '★ '; font-size: 9px; vertical-align: 1px; }
 /* Talent preview popover (onglet Personnages) */
 .talent-preview-pop { position: fixed; background: var(--bg); border: 1px solid var(--border2); border-radius: 7px; box-shadow: 0 6px 24px rgba(0,0,0,.18); padding: 12px; z-index: 500; width: 240px; }
+.tp-close { position: absolute; top: 6px; right: 8px; background: none; border: none; font-size: 18px; line-height: 1; color: var(--text-muted); cursor: pointer; padding: 0 2px; opacity: .6; }
+.tp-close:hover { opacity: 1; color: var(--text); }
 .talent-preview-body { display: flex; gap: 10px; align-items: flex-start; }
 .tp-photo { width: 56px; height: 72px; object-fit: cover; border-radius: 4px; flex-shrink: 0; display: block; }
 .tp-avatar { width: 56px; height: 72px; border-radius: 4px; background: var(--bg3); display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; color: var(--text-muted); flex-shrink: 0; letter-spacing: -1px; }
@@ -497,6 +499,7 @@ details.casting-import[open] summary::before { transform: rotate(90deg); }
 <div class="toast" id="toast"></div>
 
 <div class="talent-preview-pop" id="talent-preview-pop" style="display:none">
+  <button class="tp-close" onclick="hideTalentPreview()" title="Fermer">×</button>
   <div class="talent-preview-body">
     <div id="tp-avatar-wrap"></div>
     <div class="talent-preview-info">
@@ -1348,7 +1351,17 @@ document.getElementById('casting-save-btn').addEventListener('click', async () =
 document.getElementById('casting-export-btn').addEventListener('click', () => {
   document.getElementById('casting-import-area').value = JSON.stringify(talentsData, null, 2);
 });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCastingPanel(); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    const pop = document.getElementById('talent-preview-pop');
+    if (pop && pop.style.display !== 'none') { hideTalentPreview(); return; }
+    closeCastingPanel();
+  }
+});
+// Fermer le popover si l'utilisateur scrolle (le popover fixed dériverait sinon)
+window.addEventListener('scroll', () => {
+  if (document.getElementById('talent-preview-pop').style.display !== 'none') hideTalentPreview();
+}, { passive: true });
 
 // ─── TALENT PREVIEW POPOVER ──────────────────────────────────────────────────
 let _previewTalent = null;
@@ -1370,8 +1383,16 @@ function _tpRenderChars() {
   }).join('');
 }
 
+let _activeTpTrigger = null;
+
 function showTalentPreview(nom, agence, e) {
   e.stopPropagation();
+  // Toggle : cliquer le même élément referme le popover
+  if (_activeTpTrigger === e.target && document.getElementById('talent-preview-pop').style.display !== 'none') {
+    hideTalentPreview();
+    return;
+  }
+  _activeTpTrigger = e.target;
   _previewTalent = talentsData.find(t => t.nom === nom && t.agence === agence)
                 || talentsData.find(t => t.nom === nom);
   if (!_previewTalent) return;
@@ -1407,7 +1428,8 @@ function showTalentPreview(nom, agence, e) {
 
 function hideTalentPreview() {
   document.getElementById('talent-preview-pop').style.display = 'none';
-  _previewTalent = null;
+  _previewTalent  = null;
+  _activeTpTrigger = null;
 }
 
 document.getElementById('talent-preview-pop').addEventListener('click', e => {
