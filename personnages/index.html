@@ -1478,16 +1478,18 @@ function exportShortlistPDF() {
   let hasData = false;
   let sectionsHtml = '';
 
+  const PAGE_SIZE = 6;
+
   chars.forEach(char => {
     const sl = getShortlist(char.name);
     if (!sl.length) return;
     hasData = true;
     const acteur = (persData[char.name] || {}).acteur || '';
 
-    const cardsHtml = sl.map(c => {
+    const cards = sl.map(c => {
       const t = talentsData.find(x => x.nom === c.nom && x.agence === c.agence)
               || talentsData.find(x => x.nom === c.nom);
-      if (!t) return '';
+      if (!t) return null;
       const isFinal = t.nom === acteur;
       const tags = [
         t.genre === 'femme' ? 'F' : t.genre === 'homme' ? 'H' : null,
@@ -1508,16 +1510,22 @@ function exportShortlistPDF() {
           ${tags.length ? `<div class="pdf-tags">${tags.map(x => `<span class="pdf-tag">${x}</span>`).join('')}</div>` : ''}
         </div>
       </div>`;
-    }).join('');
+    }).filter(Boolean);
 
-    sectionsHtml += `<section class="pdf-section">
-      <div class="pdf-char-header">
-        <span class="pdf-char-name">${char.name}</span>
-        ${acteur ? `<span class="pdf-char-confirmed">★ ${acteur}</span>` : ''}
-        <span class="pdf-char-stats">${sl.length} en shortlist</span>
-      </div>
-      <div class="pdf-grid">${cardsHtml}</div>
-    </section>`;
+    // Découper en pages de PAGE_SIZE fiches — une section par page
+    const totalPages = Math.ceil(cards.length / PAGE_SIZE);
+    for (let p = 0; p < totalPages; p++) {
+      const chunk      = cards.slice(p * PAGE_SIZE, (p + 1) * PAGE_SIZE);
+      const pageLabel  = totalPages > 1 ? ` <span class="pdf-char-page">${p + 1} / ${totalPages}</span>` : '';
+      sectionsHtml += `<section class="pdf-section">
+        <div class="pdf-char-header">
+          <span class="pdf-char-name">${char.name}</span>${pageLabel}
+          ${acteur ? `<span class="pdf-char-confirmed">★ ${acteur}</span>` : ''}
+          <span class="pdf-char-stats">${sl.length} en shortlist</span>
+        </div>
+        <div class="pdf-grid">${chunk.join('')}</div>
+      </section>`;
+    }
   });
 
   if (!hasData) { showToast('Aucune shortlist à exporter'); return; }
@@ -1536,6 +1544,7 @@ h1.pdf-title{font-size:14px;font-weight:500;color:#555;text-align:center;padding
 .pdf-section:first-of-type{page-break-before:avoid}
 .pdf-char-header{display:flex;align-items:baseline;gap:8px;margin-bottom:6mm;padding-bottom:3mm;border-bottom:2px solid #111}
 .pdf-char-name{font-size:17px;font-weight:800;letter-spacing:-.3px}
+.pdf-char-page{font-size:11px;font-weight:400;color:#999;margin-left:3px}
 .pdf-char-confirmed{font-size:11px;background:#ebf4ff;color:#2b6cb0;border-radius:3px;padding:1px 7px;font-weight:600}
 .pdf-char-stats{font-size:10px;color:#999;margin-left:auto}
 .pdf-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5mm}
