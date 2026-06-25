@@ -1311,16 +1311,36 @@ document.getElementById('casting-export-btn').addEventListener('click', () => {
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCastingPanel(); });
 
 // ─── TALENT PREVIEW POPOVER ──────────────────────────────────────────────────
+let _previewTalent = null;
+
+function _tpRenderChars() {
+  const chars = derived.slice().sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+  const wrap  = document.getElementById('tp-chars-wrap');
+  const list  = document.getElementById('tp-chars-list');
+  if (!_previewTalent || !chars.length) { wrap.style.display = 'none'; return; }
+  wrap.style.display = '';
+  list.innerHTML = chars.map(p => {
+    const inList  = getShortlist(p.name).some(c => c.nom === _previewTalent.nom);
+    const isActor = (persData[p.name] || {}).acteur === _previewTalent.nom;
+    return `<div class="ag-pop-char-row">
+      <span class="ag-pop-char-name">${escHtml(p.name)}</span>
+      <button class="ag-pop-action-btn${inList ? ' active' : ''}" data-tp-char="${escHtml(p.name)}" data-action="shortlist">${inList ? '✓ Liste' : '+ Liste'}</button>
+      <button class="ag-pop-action-btn${isActor ? ' active' : ''}" data-tp-char="${escHtml(p.name)}" data-action="assign">${isActor ? '★ Rôle' : '☆ Rôle'}</button>
+    </div>`;
+  }).join('');
+}
+
 function showTalentPreview(nom, agence, e) {
   e.stopPropagation();
-  const talent = talentsData.find(t => t.nom === nom && t.agence === agence)
-               || talentsData.find(t => t.nom === nom);
-  if (!talent) return;
+  _previewTalent = talentsData.find(t => t.nom === nom && t.agence === agence)
+                || talentsData.find(t => t.nom === nom);
+  if (!_previewTalent) return;
+  const talent   = _previewTalent;
   const initials = talentInitials(talent.nom);
   document.getElementById('tp-avatar-wrap').innerHTML = talent.photo_url
     ? `<img class="tp-photo" src="${escHtml(talent.photo_url)}" alt="${escHtml(talent.nom)}" loading="lazy" onerror="this.outerHTML='<div class=\\'tp-avatar\\'>${initials}</div>'">`
     : `<div class="tp-avatar">${initials}</div>`;
-  document.getElementById('tp-nom').textContent   = talent.nom;
+  document.getElementById('tp-nom').textContent    = talent.nom;
   document.getElementById('tp-agence').textContent = talent.agence;
   const tags = [];
   if (talent.genre) tags.push(talent.genre === 'femme' ? 'F' : 'H');
@@ -1333,7 +1353,8 @@ function showTalentPreview(nom, agence, e) {
   document.getElementById('tp-links').innerHTML = hasProf
     ? `<a class="btn-source-link" href="${escHtml(talent.source_url)}" target="_blank" rel="noopener">Fiche agence ↗</a>`
     : '';
-  const pop = document.getElementById('talent-preview-pop');
+  _tpRenderChars();
+  const pop  = document.getElementById('talent-preview-pop');
   pop.style.display = 'block';
   const rect = e.target.getBoundingClientRect();
   let top  = rect.bottom + 8;
@@ -1346,7 +1367,24 @@ function showTalentPreview(nom, agence, e) {
 
 function hideTalentPreview() {
   document.getElementById('talent-preview-pop').style.display = 'none';
+  _previewTalent = null;
 }
+
+document.getElementById('talent-preview-pop').addEventListener('click', e => {
+  const btn = e.target.closest('[data-tp-char]');
+  if (!btn || !_previewTalent) return;
+  const charName = btn.dataset.tpChar;
+  const action   = btn.dataset.action;
+  if (action === 'shortlist') {
+    _addTalentToChar(_previewTalent.nom, _previewTalent.agence, charName);
+    btn.classList.add('active'); btn.textContent = '✓ Liste';
+  } else if (action === 'assign') {
+    _assignTalentToChar(_previewTalent.nom, _previewTalent.agence, charName);
+    btn.classList.add('active'); btn.textContent = '★ Rôle';
+    const slBtn = btn.closest('.ag-pop-char-row').querySelector('[data-action="shortlist"]');
+    if (slBtn) { slBtn.classList.add('active'); slBtn.textContent = '✓ Liste'; }
+  }
+});
 
 document.addEventListener('click', e => {
   const pop = document.getElementById('talent-preview-pop');
@@ -1833,6 +1871,10 @@ init();
       <div class="talent-tags" id="tp-tags"></div>
       <div class="tp-links" id="tp-links"></div>
     </div>
+  </div>
+  <div id="tp-chars-wrap" style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border)">
+    <div class="ag-pop-label">Ajouter à la shortlist de…</div>
+    <div id="tp-chars-list"></div>
   </div>
 </div>
 </body>
