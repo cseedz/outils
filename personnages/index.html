@@ -772,7 +772,6 @@ function renderTable() {
     const realName = enrich.nomReel ? `<div class="char-real-name">${escHtml(enrich.nomReel)}</div>` : '';
     const actorStr = enrich.acteur  ? escHtml(enrich.acteur) : '';
     const shortlist = enrich.shortlist || [];
-    const slOthers  = shortlist.filter(c => c.nom !== enrich.acteur);
     const speakingScenes = new Set();
     scenes.forEach(s => { if (s.charLines && s.charLines[p.name]) speakingScenes.add(String(s.sc)); });
     const chips = p.sceneList
@@ -796,7 +795,6 @@ function renderTable() {
         <td class="td-rep">${p.lineCount ? `<span class="badge badge-rep">${p.lineCount} rép.</span>` : ''}</td>
         <td class="td-act">
           ${actorStr ? `<div class="char-actor is-final">${actorStr}</div>` : ''}
-          ${slOthers.length ? `<div class="shortlist-chips">${slOthers.map(c=>`<span class="sl-chip">${escHtml(c.nom)}</span>`).join('')}</div>` : ''}
         </td>
         <td class="td-chev"><span class="char-chevron">›</span></td>
       </tr>
