@@ -1358,10 +1358,6 @@ document.addEventListener('keydown', e => {
     closeCastingPanel();
   }
 });
-// Fermer le popover si l'utilisateur scrolle (le popover fixed dériverait sinon)
-window.addEventListener('scroll', () => {
-  if (document.getElementById('talent-preview-pop').style.display !== 'none') hideTalentPreview();
-}, { passive: true });
 
 // ─── TALENT PREVIEW POPOVER ──────────────────────────────────────────────────
 let _previewTalent = null;
