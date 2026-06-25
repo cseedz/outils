@@ -811,7 +811,7 @@ function renderTable() {
       </tr>
       <tr class="char-expand-row" id="expand-${escHtml(p.name)}">
         <td colspan="6">
-          <div class="char-expand" onclick="event.stopPropagation()">
+          <div class="char-expand" onclick="if(!event.target.closest('.tp-trigger'))event.stopPropagation()">
             <div class="expand-grid">
               <div>
                 <div class="field-label">Nom réel du personnage</div>
