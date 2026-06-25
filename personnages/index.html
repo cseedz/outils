@@ -232,6 +232,12 @@ details.casting-import[open] summary::before { transform: rotate(90deg); }
 .shortlist-chips { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 3px; }
 .sl-chip { font-size: 10px; background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; padding: 1px 7px; color: var(--text-muted); white-space: nowrap; }
 .char-actor.is-final::before { content: '★ '; font-size: 9px; vertical-align: 1px; }
+/* Shortlist inline dans l'onglet Personnages */
+.expand-shortlist { margin-top: 10px; margin-bottom: 10px; }
+.expand-sl-item { display: flex; align-items: center; gap: 6px; padding: 4px 0; border-bottom: 1px solid var(--border); }
+.expand-sl-item:last-child { border-bottom: none; }
+.expand-sl-name { flex: 1; font-size: 12px; font-weight: 600; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.expand-sl-agence { font-size: 10px; color: var(--text-muted); font-weight: 400; }
 
 /* AGE RANGE SLIDER */
 .age-slider-wrap { position: relative; height: 20px; flex: 1; min-width: 120px; max-width: 240px; }
@@ -822,6 +828,17 @@ function renderTable() {
                   onchange="updateFieldFromInput(this)" onblur="updateFieldFromInput(this)">${escHtml(enrich.notes || '')}</textarea>
               </div>
             </div>
+            ${shortlist.length ? `<div class="expand-shortlist">
+              <div class="field-label">Shortlist</div>
+              ${shortlist.map(c => {
+                const isFinal = c.nom === enrich.acteur;
+                return `<div class="expand-sl-item">
+                  <button class="btn-csl-confirm${isFinal ? ' is-final' : ''}" data-action="sl-confirm" data-char="${escHtml(p.name)}" data-nom="${escHtml(c.nom)}">${isFinal ? '★ Confirmé' : 'Confirmer'}</button>
+                  <div class="expand-sl-name">${escHtml(c.nom)} <span class="expand-sl-agence">${escHtml(c.agence)}</span></div>
+                  <button class="btn-csl-remove" data-action="sl-remove" data-char="${escHtml(p.name)}" data-nom="${escHtml(c.nom)}" title="Retirer">×</button>
+                </div>`;
+              }).join('')}
+            </div>` : ''}
             <div class="scenes-lbl">Présent dans</div>
             <div class="scene-chips">${chips}</div>
           </div>
@@ -867,6 +884,15 @@ function updateField(name, field, value) {
   }
   saveData();
 }
+
+// Délégation d'événement pour boutons shortlist inline (onglet Personnages)
+document.getElementById('char-tbody').addEventListener('click', e => {
+  const btn = e.target.closest('[data-action]');
+  if (!btn) return;
+  const { action, char: charName, nom } = btn.dataset;
+  if (action === 'sl-confirm') confirmCastingDirect(charName, nom);
+  if (action === 'sl-remove')  removeFromShortlistDirect(charName, nom);
+});
 
 // ─── SORT / SEARCH ────────────────────────────────────────────────────────────
 document.querySelectorAll('.sort-btn').forEach(btn => {
@@ -1147,6 +1173,27 @@ function removeFromShortlist(nom) {
   renderCastingShortlist();
   renderCastingList();
   renderTable();
+}
+
+function confirmCastingDirect(charName, nom) {
+  const current = (persData[charName] || {}).acteur || '';
+  const next = current === nom ? '' : nom;
+  updateField(charName, 'acteur', next);
+  _syncActeurInput(charName, next);
+  renderTable();
+  if (_assigningChar === charName) { renderCastingShortlist(); }
+  if (next) showToast(nom + ' confirmé·e pour ' + charName);
+}
+
+function removeFromShortlistDirect(charName, nom) {
+  if (!persData[charName]) return;
+  persData[charName].shortlist = (persData[charName].shortlist || []).filter(c => c.nom !== nom);
+  if ((persData[charName].acteur || '') === nom) {
+    persData[charName].acteur = '';
+  }
+  saveData();
+  renderTable();
+  if (_assigningChar === charName) { renderCastingShortlist(); renderCastingList(); }
 }
 
 function confirmCasting(nom) {
