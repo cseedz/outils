@@ -18,8 +18,8 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 body { overscroll-behavior: none; }
 
 /* TOPBAR */
-.topbar { position: fixed; top: 0; left: 0; right: 0; z-index: 100; height: 56px; background: var(--card); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 24px; gap: 12px; }
-.topbar-back { color: var(--muted); font-size: 13px; text-decoration: none; min-width: 44px; min-height: 44px; display: flex; align-items: center; }
+.topbar { position: sticky; top: 0; left: 0; right: 0; z-index: 100; height: 50px; background: var(--bg); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 24px; gap: 12px; }
+.topbar-back { color: var(--muted); font-size: 12px; letter-spacing: .04em; text-decoration: none; padding-right: 12px; border-right: 1px solid var(--border); flex-shrink: 0; white-space: nowrap; min-height: 44px; display: flex; align-items: center; }
 .topbar-back:hover { color: var(--text); }
 .topbar-title { flex: 1; font-size: 16px; font-weight: 700; letter-spacing: -0.3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .topbar-right { min-width: 44px; display: flex; justify-content: flex-end; align-items: center; }
@@ -29,7 +29,7 @@ body { overscroll-behavior: none; }
 .sync-dot.error   { background: var(--red); }
 
 /* CONTENT */
-.content { padding-top: 64px; padding-bottom: calc(24px + var(--safe-b)); min-height: 100%; }
+.content { padding-top: 8px; padding-bottom: calc(24px + var(--safe-b)); min-height: 100%; }
 .section-label { padding: 20px 24px 6px; font-size: 10px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; }
 
 /* SCENE CARD */
@@ -142,7 +142,7 @@ body { overscroll-behavior: none; }
 
 <!-- LIST VIEW -->
 <div class="topbar">
-  <a class="topbar-back" id="back-link">‹ Projet</a>
+  <a class="topbar-back" id="back-link">← Projet</a>
   <div class="topbar-title" id="page-title">Découpage</div>
   <div class="topbar-right"><div class="sync-dot" id="sync-dot"></div></div>
 </div>

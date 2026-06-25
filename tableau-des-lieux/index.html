@@ -24,30 +24,31 @@ body { background: var(--bg); color: var(--text); font-family: 'Inter', -apple-s
 .topbar {
   background: var(--bg2);
   border-bottom: 1px solid var(--border);
-  padding: 14px 24px 0;
+  padding: 0 24px;
+  height: 50px;
+  display: flex; align-items: center; gap: 12px;
   position: sticky; top: 0; z-index: 100;
 }
-.topbar-inner { display: flex; align-items: flex-end; gap: 0; }
-.title-block { padding-bottom: 12px; margin-right: 32px; flex-shrink: 0; }
-.title-block h1 { font-size: 16px; font-weight: 700; letter-spacing: -0.3px; }
-.title-block .version { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
-.tabs { display: flex; gap: 0; }
+.topbar-back { font-size: 12px; color: var(--text-muted); text-decoration: none; letter-spacing: .04em; padding-right: 12px; border-right: 1px solid var(--border); flex-shrink: 0; white-space: nowrap; }
+.topbar-back:hover { color: var(--text); }
+.topbar-title { font-size: 16px; font-weight: 700; letter-spacing: -0.3px; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tab-bar { position: sticky; top: 50px; z-index: 99; background: var(--bg); border-bottom: 2px solid var(--border); padding: 0 24px; height: 36px; display: flex; align-items: flex-end; }
 .tab-btn {
-  background: none; border: none; color: var(--text-muted);
-  padding: 8px 18px 12px; font-size: 13px; font-family: inherit;
-  cursor: pointer; border-bottom: 2px solid transparent;
-  transition: color 0.15s, border-color 0.15s;
+  background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px;
+  padding: 6px 14px 8px; font-size: 12px; font-weight: 600; font-family: inherit;
+  color: var(--text-muted); cursor: pointer;
+  transition: color .12s, border-color .12s;
   white-space: nowrap;
 }
 .tab-btn:hover { color: var(--text); }
-.tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+.tab-btn.active { color: var(--text); border-bottom-color: var(--text); font-weight: 600; }
 
 /* ── CONTROLS BAR ── */
 .controls-bar {
   background: var(--bg2); border-bottom: 1px solid var(--border);
   padding: 10px 24px;
   display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
-  position: sticky; top: var(--controls-top, 65px); z-index: 99;
+  position: sticky; top: var(--controls-top, 86px); z-index: 99;
 }
 .controls-bar.hidden { display: none; }
 .search-wrap { position: relative; min-width: 150px; max-width: 240px; flex: 1; }
@@ -85,7 +86,7 @@ select.filter:focus { border-color: var(--accent); }
 /* ── TABLE ── */
 #panel-tableau.active {
   display: flex; flex-direction: column;
-  height: calc(100vh - var(--thead-top, 109px));
+  height: calc(100vh - var(--thead-top, 135px));
 }
 .table-wrap { overflow: auto; flex: 1; }
 .legend { flex-shrink: 0; }
@@ -376,13 +377,13 @@ input[type="file"].form-input { padding: 6px 8px; font-size: 12px; color: var(--
 .vlieu-tech-btn.act-e { background:#a855f7; border-color:#a855f7; color:#fff; }
 .vlieu-tech-btn.act-f { background:#3b82f6; border-color:#3b82f6; color:#fff; }
 /* Sync Supabase */
-.sync-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; margin-left: auto; margin-right: 3px; align-self: center; transition: background .3s; cursor: default; margin-bottom: 12px; }
+.sync-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; margin-left: auto; margin-right: 3px; transition: background .3s; cursor: default; }
 .sync-dot.idle    { background: var(--text-dim); }
 .sync-dot.syncing { background: #fbbf24; animation: sync-pulse .9s infinite; }
 .sync-dot.synced  { background: var(--accent3); }
 .sync-dot.error   { background: var(--danger); }
 @keyframes sync-pulse { 0%,100%{opacity:1} 50%{opacity:.25} }
-#sync-size { font-size: 9px; color: var(--text-dim); white-space: nowrap; font-variant-numeric: tabular-nums; margin-right: 10px; margin-bottom: 12px; align-self: center; cursor: default; }
+#sync-size { font-size: 9px; color: var(--text-dim); white-space: nowrap; font-variant-numeric: tabular-nums; margin-right: 10px; cursor: default; }
 #sync-size.warn   { color: #f59e0b; }
 #sync-size.danger { color: var(--danger); font-weight: 600; }
 /* Floating location menu */
@@ -627,16 +628,9 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
 .fdx-import-btn {
   background: var(--bg3); border: 1px solid var(--border); cursor: pointer;
   padding: 6px 12px; border-radius: 5px; font-size: 12px; font-family: inherit;
-  color: var(--text); white-space: nowrap; transition: border-color .1s;
-  margin-left: 10px; flex-shrink: 0;
+  color: var(--text); white-space: nowrap; transition: border-color .1s; flex-shrink: 0;
 }
 .fdx-import-btn:hover { border-color: var(--border2); }
-.tdl-back {
-  font-size: 11px; color: var(--text-muted); text-decoration: none;
-  letter-spacing: .04em; padding-left: 16px; border-left: 1px solid var(--border);
-  margin-left: 12px; white-space: nowrap; flex-shrink: 0;
-}
-.tdl-back:hover { color: var(--text); }
 .fdx-modal-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 2000;
   display: flex; align-items: center; justify-content: center; padding: 20px;
@@ -696,7 +690,7 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
 
 /* ── PRINT ── */
 @media print {
-  .topbar { position: static; } .controls-bar { display: none; } .legend { display: none; }
+  .topbar { position: static; } .tab-bar { display: none; } .controls-bar { display: none; } .legend { display: none; }
   body { background: #fff; color: #000; font-size: 10px; }
   #panel-tableau.active { height: auto; display: block; }
   .table-wrap { overflow: visible; }
@@ -730,29 +724,24 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
 
 <!-- TOP BAR -->
 <div class="topbar">
-  <div class="topbar-inner">
-    <div class="title-block">
-      <h1 id="project-title">Tableau des lieux</h1>
-      <div class="version" id="project-version">v1 &middot; 2026-06-15</div>
-    </div>
-    <div class="tabs">
-      <button class="tab-btn active" data-tab="vue-lieux" onclick="switchTab('vue-lieux')">Lieux</button>
-      <button class="tab-btn" data-tab="lieux"    onclick="switchTab('lieux')">Locations</button>
-      <button class="tab-btn" data-tab="recap"    onclick="switchTab('recap')">Récapitulatif</button>
-      <button class="tab-btn" data-tab="outils"   onclick="switchTab('outils')">Outils</button>
-    </div>
-    <div id="sync-dot" class="sync-dot idle" title="Non connecté"></div>
-    <span id="sync-size" title="Taille des données sauvegardées dans Supabase"></span>
-    <input type="file" id="fdx-file-input" accept=".fdx" multiple style="display:none" onchange="onFdxFileSelected(event)">
-    <button class="fdx-import-btn" onclick="triggerFdxUpload()" title="Importer un fichier Final Draft (.fdx)">Importer FDX</button>
-    <a id="back-link" href="/" class="tdl-back">← Projet</a>
-    <script>
-      (function() {
-        var p = new URLSearchParams(location.search).get('p');
-        if (p) document.getElementById('back-link').href = '/projet/?p=' + encodeURIComponent(p);
-      })();
-    </script>
-  </div>
+  <a id="back-link" href="/" class="topbar-back">← Projet</a>
+  <script>
+    (function() {
+      var p = new URLSearchParams(location.search).get('p');
+      if (p) document.getElementById('back-link').href = '/projet/?p=' + encodeURIComponent(p);
+    })();
+  </script>
+  <div class="topbar-title" id="project-title">Tableau des lieux</div>
+  <div id="sync-dot" class="sync-dot idle" title="Non connecté"></div>
+  <span id="sync-size" title="Taille des données sauvegardées dans Supabase"></span>
+  <input type="file" id="fdx-file-input" accept=".fdx" multiple style="display:none" onchange="onFdxFileSelected(event)">
+  <button class="fdx-import-btn" onclick="triggerFdxUpload()" title="Importer un fichier Final Draft (.fdx)">Importer FDX</button>
+</div>
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="vue-lieux" onclick="switchTab('vue-lieux')">Lieux</button>
+  <button class="tab-btn" data-tab="lieux"    onclick="switchTab('lieux')">Locations</button>
+  <button class="tab-btn" data-tab="recap"    onclick="switchTab('recap')">Récapitulatif</button>
+  <button class="tab-btn" data-tab="outils"   onclick="switchTab('outils')">Outils</button>
 </div>
 
 <!-- CONTROLS (tableau only) -->
@@ -3911,11 +3900,14 @@ async function generateCartonsImages() {
 // ─── STICKY HEADER ──────────────────────────────────────────────────────────
 function updateStickyTop() {
   requestAnimationFrame(() => {
-    const topbarH = document.querySelector('.topbar').offsetHeight;
-    document.documentElement.style.setProperty('--controls-top', topbarH + 'px');
-    const controls = document.getElementById('controls-bar');
+    const topbarH  = document.querySelector('.topbar').offsetHeight;
+    const tabBar   = document.querySelector('.tab-bar');
+    const tabBarH  = tabBar ? tabBar.offsetHeight : 0;
+    const stackH   = topbarH + tabBarH;
+    document.documentElement.style.setProperty('--controls-top', stackH + 'px');
+    const controls  = document.getElementById('controls-bar');
     const controlsH = controls && !controls.classList.contains('hidden') ? controls.offsetHeight : 0;
-    document.documentElement.style.setProperty('--thead-top', (topbarH + controlsH) + 'px');
+    document.documentElement.style.setProperty('--thead-top', (stackH + controlsH) + 'px');
   });
 }
 
