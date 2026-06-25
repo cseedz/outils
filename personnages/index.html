@@ -147,6 +147,16 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans
 .ag-link { font-size: 10px; color: var(--text-muted); text-decoration: none; }
 .ag-link:hover { color: var(--text); text-decoration: underline; }
 
+/* AGENCES — VUE SHORTLIST PAR PERSONNAGE */
+.ag-shortlist-view { padding: 16px 24px 40px; }
+.ag-sl-section { margin-bottom: 30px; }
+.ag-sl-header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; padding-bottom: 7px; border-bottom: 2px solid var(--border); }
+.ag-sl-char-name { font-size: 15px; font-weight: 700; }
+.ag-sl-stats { font-size: 11px; color: var(--text-muted); }
+.ag-sl-cards { display: flex; flex-wrap: wrap; gap: 10px; }
+.ag-shortlist-view .ag-tile { width: 112px; }
+.ag-sl-badge { position: absolute; top: 5px; right: 5px; background: var(--accent); color: #fff; border-radius: 3px; font-size: 10px; font-weight: 700; padding: 1px 5px; pointer-events: none; }
+.ag-sl-confirmed { border-color: var(--accent) !important; box-shadow: inset 0 0 0 1px var(--accent); }
 /* AGENCES GRID — LISTE */
 .agences-liste { padding: 0 24px 40px; }
 .ag-list-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--border); cursor: pointer; }
@@ -384,6 +394,7 @@ details.casting-import[open] summary::before { transform: rotate(90deg); }
       <div class="view-toggle">
         <button class="vt-btn active" id="vt-tuiles" onclick="setAgView('tuiles')">⊞ Tuiles</button>
         <button class="vt-btn" id="vt-liste" onclick="setAgView('liste')">≡ Liste</button>
+        <button class="vt-btn" id="vt-shortlist" onclick="setAgView('shortlist')">★ Shortlists</button>
       </div>
       <div class="ag-count" id="ag-count"></div>
       <button class="sort-btn" id="ag-select-mode-btn" onclick="toggleAgSelectMode()">Sélectionner</button>
@@ -1427,6 +1438,7 @@ function setAgView(view) {
   _agView = view;
   document.getElementById('vt-tuiles').classList.toggle('active', view === 'tuiles');
   document.getElementById('vt-liste').classList.toggle('active', view === 'liste');
+  document.getElementById('vt-shortlist').classList.toggle('active', view === 'shortlist');
   renderAgencesGrid();
 }
 
@@ -1649,6 +1661,7 @@ function renderAgListRow(t) {
 }
 
 function renderAgencesGrid() {
+  if (_agView === 'shortlist') { renderAgShortlistView(); return; }
   let list      = filterAgencesTalents();
   if (_agSort === 'az') list = [...list].sort((a,b) => _lastName(a.nom).localeCompare(_lastName(b.nom), 'fr'));
   if (_agSort === 'za') list = [...list].sort((a,b) => _lastName(b.nom).localeCompare(_lastName(a.nom), 'fr'));
@@ -1667,6 +1680,78 @@ function renderAgencesGrid() {
     grid.className = 'agences-liste';
     grid.innerHTML = list.map(renderAgListRow).join('');
   }
+}
+
+function renderAgShortlistView() {
+  const grid    = document.getElementById('agences-grid');
+  const countEl = document.getElementById('ag-count');
+  grid.className = 'ag-shortlist-view';
+
+  // Ensemble des talents passant les filtres actuels
+  const filteredSet = new Set(filterAgencesTalents().map(t => t.nom + '\x00' + t.agence));
+
+  // Personnages triés par importance (scènes décroissantes)
+  const chars = derived.slice().sort((a, b) => b.sceneCount - a.sceneCount || b.lineCount - a.lineCount);
+
+  let totalTalents = 0;
+  let html = '';
+
+  chars.forEach(char => {
+    const sl     = getShortlist(char.name);
+    if (!sl.length) return;
+    const acteur = (persData[char.name] || {}).acteur || '';
+
+    // Garder uniquement les talents qui passent les filtres
+    const filtered = sl.map(c => {
+      const key  = c.nom + '\x00' + c.agence;
+      const byKey = talentsData.find(t => t.nom === c.nom && t.agence === c.agence);
+      if (byKey && filteredSet.has(key)) return byKey;
+      const byNom = talentsData.find(t => t.nom === c.nom);
+      if (byNom && filteredSet.has(byNom.nom + '\x00' + byNom.agence)) return byNom;
+      return null;
+    }).filter(Boolean);
+
+    if (!filtered.length) return;
+    totalTalents += filtered.length;
+
+    const confirmedLabel = acteur ? ` · ★ ${acteur}` : '';
+    const stats = `${sl.length} en liste${confirmedLabel}`;
+
+    html += `<div class="ag-sl-section">
+      <div class="ag-sl-header">
+        <span class="ag-sl-char-name">${escHtml(char.name)}</span>
+        <span class="ag-sl-stats">${escHtml(stats)}</span>
+      </div>
+      <div class="ag-sl-cards">
+        ${filtered.map(t => {
+          const isFinal  = t.nom === acteur;
+          const isSel    = _agSelectMode && _agSelected.has(t.nom + '\x00' + t.agence);
+          const initials = talentInitials(t.nom);
+          const photoHtml = t.photo_url
+            ? `<img class="ag-tile-photo" src="${escHtml(t.photo_url)}" alt="${escHtml(t.nom)}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+              + `<div class="ag-tile-placeholder" style="display:none">${initials}</div>`
+            : `<div class="ag-tile-placeholder">${initials}</div>`;
+          return `<div class="ag-tile${isFinal ? ' ag-sl-confirmed' : ''}${isSel ? ' ag-selected' : ''}" data-nom="${escHtml(t.nom)}" data-agence="${escHtml(t.agence)}" style="position:relative">
+            ${isSel ? '<div class="ag-check checked">✓</div>' : (isFinal ? '<div class="ag-sl-badge">★</div>' : '')}
+            ${photoHtml}
+            <div class="ag-tile-body">
+              <div class="ag-tile-name">${escHtml(t.nom)}</div>
+              <div class="ag-tile-agency">${escHtml(t.agence)}</div>
+              <div class="ag-tile-tags">${_agTags(t)}</div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  });
+
+  if (!html) {
+    grid.innerHTML = '<div class="ag-empty">Aucune shortlist dans ce projet.<br>Ajoutez des talents depuis l\'onglet Personnages.</div>';
+    countEl.textContent = '';
+    return;
+  }
+  grid.innerHTML = html;
+  countEl.textContent = totalTalents + ' talent' + (totalTalents > 1 ? 's' : '') + ' en shortlist';
 }
 
 // ─── POPOVER TALENT (onglet Agences) ─────────────────────────────────────────
