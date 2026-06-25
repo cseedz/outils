@@ -516,6 +516,7 @@ details.casting-import[open] summary::before { transform: rotate(90deg); }
 </div>
 
 <div class="ag-popover" id="ag-popover">
+  <button class="tp-close" onclick="closeAgTalentPopover()" title="Fermer">×</button>
   <div class="ag-pop-header" id="ag-pop-name"></div>
   <div class="ag-pop-agency" id="ag-pop-agency"></div>
   <div class="ag-pop-label">Ajouter à la shortlist de…</div>
@@ -1355,6 +1356,8 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     const pop = document.getElementById('talent-preview-pop');
     if (pop && pop.style.display !== 'none') { hideTalentPreview(); return; }
+    const agPop = document.getElementById('ag-popover');
+    if (agPop && agPop.style.display !== 'none') { closeAgTalentPopover(); return; }
     closeCastingPanel();
   }
 });
@@ -2026,6 +2029,11 @@ document.getElementById('agences-grid').addEventListener('click', e => {
   }
   const talent = talentsData.find(t => t.nom === nom && t.agence === agence);
   if (!talent) return;
+  // Toggle : re-cliquer la même tuile ferme le popover
+  if (_agPopTalent && _agPopTalent.nom === nom && _agPopTalent.agence === agence
+      && document.getElementById('ag-popover').style.display !== 'none') {
+    closeAgTalentPopover(); return;
+  }
   openAgTalentPopover(talent, card.getBoundingClientRect());
 });
 
