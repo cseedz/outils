@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1/Sortable.min.js"></script>
 <title>Personnages</title>
 <style>
 :root {
@@ -251,6 +252,12 @@ details.casting-import[open] summary::before { transform: rotate(90deg); }
 .tp-links { margin-top: 7px; }
 .tp-trigger { cursor: pointer; }
 .tp-trigger:hover { text-decoration: underline; }
+/* Drag & drop */
+.sortable-ghost  { opacity: .35; background: var(--bg3); }
+.drag-handle { cursor: grab; color: var(--border2); font-size: 13px; padding: 0 2px; flex-shrink: 0; user-select: none; line-height: 1; }
+.drag-handle:active { cursor: grabbing; }
+.ag-sl-cards .ag-tile { cursor: grab; }
+.ag-sl-cards .ag-tile:active { cursor: grabbing; }
 /* Shortlist inline dans l'onglet Personnages */
 .expand-shortlist { margin-top: 10px; margin-bottom: 10px; }
 .expand-sl-item { display: flex; align-items: center; gap: 6px; padding: 4px 0; border-bottom: 1px solid var(--border); }
@@ -866,11 +873,12 @@ function renderTable() {
                   onchange="updateFieldFromInput(this)" onblur="updateFieldFromInput(this)">${escHtml(enrich.notes || '')}</textarea>
               </div>
             </div>
-            ${shortlist.length ? `<div class="expand-shortlist">
+            ${shortlist.length ? `<div class="expand-shortlist" data-char="${escHtml(p.name)}">
               <div class="field-label">Shortlist</div>
               ${shortlist.map(c => {
                 const isFinal = c.nom === enrich.acteur;
-                return `<div class="expand-sl-item">
+                return `<div class="expand-sl-item" data-nom="${escHtml(c.nom)}" data-agence="${escHtml(c.agence)}">
+                  <span class="drag-handle" title="Réordonner">⠿</span>
                   <button class="btn-csl-confirm${isFinal ? ' is-final' : ''}" data-action="sl-confirm" data-char="${escHtml(p.name)}" data-nom="${escHtml(c.nom)}">${isFinal ? '★ Confirmé' : 'Confirmer'}</button>
                   <div class="expand-sl-name tp-trigger" data-nom="${escHtml(c.nom)}" data-agence="${escHtml(c.agence)}">${escHtml(c.nom)} <span class="expand-sl-agence">${escHtml(c.agence)}</span></div>
                   <button class="btn-csl-remove" data-action="sl-remove" data-char="${escHtml(p.name)}" data-nom="${escHtml(c.nom)}" title="Retirer">×</button>
@@ -892,7 +900,10 @@ function toggleChar(name) {
   const row = rows[0];
   const expandRow = document.getElementById('expand-' + name);
   const isOpen = row.classList.toggle('open');
-  if (expandRow) expandRow.style.display = isOpen ? 'table-row' : 'none';
+  if (expandRow) {
+    expandRow.style.display = isOpen ? 'table-row' : 'none';
+    if (isOpen) _initExpandSortable(name);
+  }
 }
 
 function updateFieldFromInput(el) {
@@ -1420,6 +1431,47 @@ document.addEventListener('click', e => {
   if (pop.style.display !== 'none' && !pop.contains(e.target)) hideTalentPreview();
 });
 
+// ─── DRAG & DROP SHORTLIST ───────────────────────────────────────────────────
+function _saveShortlistOrder(container, charName, itemSelector, nomAttr, agenceAttr) {
+  const newOrder = [...container.querySelectorAll(itemSelector)].map(el => ({
+    nom: el.dataset[nomAttr] || el.dataset.nom,
+    agence: el.dataset[agenceAttr] || el.dataset.agence,
+  }));
+  if (!persData[charName]) persData[charName] = {};
+  persData[charName].shortlist = newOrder;
+  saveData();
+}
+
+function _initExpandSortable(charName) {
+  if (typeof Sortable === 'undefined') return;
+  const container = document.querySelector(`.expand-shortlist[data-char="${CSS.escape(charName)}"]`);
+  if (!container || container._sortable) return;
+  container._sortable = Sortable.create(container, {
+    handle: '.drag-handle',
+    animation: 150,
+    ghostClass: 'sortable-ghost',
+    filter: 'button,.btn-csl-confirm,.btn-csl-remove',
+    preventOnFilter: false,
+    onEnd() { _saveShortlistOrder(container, charName, '.expand-sl-item', 'nom', 'agence'); },
+  });
+}
+
+function _initAgSlSortables() {
+  if (typeof Sortable === 'undefined') return;
+  document.querySelectorAll('.ag-sl-cards[data-char]').forEach(container => {
+    if (container._sortable) return;
+    const charName = container.dataset.char;
+    container._sortable = Sortable.create(container, {
+      animation: 150,
+      ghostClass: 'sortable-ghost',
+      onEnd() {
+        _saveShortlistOrder(container, charName, '.ag-tile', 'nom', 'agence');
+        renderTable();
+      },
+    });
+  });
+}
+
 // ─── EXPORT PDF CASTING ──────────────────────────────────────────────────────
 function exportShortlistPDF() {
   const chars = derived.slice().sort((a, b) => b.sceneCount - a.sceneCount || b.lineCount - a.lineCount);
@@ -1814,7 +1866,7 @@ function renderAgShortlistView() {
         <span class="ag-sl-char-name">${escHtml(char.name)}</span>
         <span class="ag-sl-stats">${escHtml(stats)}</span>
       </div>
-      <div class="ag-sl-cards">
+      <div class="ag-sl-cards" data-char="${escHtml(char.name)}">
         ${filtered.map(t => {
           const isFinal  = t.nom === acteur;
           const isSel    = _agSelectMode && _agSelected.has(t.nom + '\x00' + t.agence);
@@ -1844,6 +1896,7 @@ function renderAgShortlistView() {
   }
   grid.innerHTML = html;
   countEl.textContent = totalTalents + ' talent' + (totalTalents > 1 ? 's' : '') + ' en shortlist';
+  _initAgSlSortables();
 }
 
 // ─── POPOVER TALENT (onglet Agences) ─────────────────────────────────────────
