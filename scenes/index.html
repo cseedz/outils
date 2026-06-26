@@ -161,6 +161,48 @@
     .duree-col { width: 58px; }
     .notes-col { min-width: 140px; }
 
+    /* Personnages */
+    .personnages-col { min-width: 140px; padding: 4px 6px; }
+    .char-chips { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; min-height: 26px; }
+    .char-chip {
+      display: inline-flex; align-items: center; gap: 2px;
+      background: rgba(79,124,255,.09); border: 1px solid rgba(79,124,255,.25); border-radius: 20px;
+      padding: 1px 5px 1px 8px; font-size: 10px; color: #2a4a9a; white-space: nowrap; line-height: 1.4;
+    }
+    .char-chip-x {
+      background: none; border: none; cursor: pointer; color: rgba(79,124,255,.4);
+      font-size: 12px; padding: 0 2px; line-height: 1; border-radius: 50%;
+    }
+    .char-chip-x:hover { color: var(--danger); }
+    .char-add-btn {
+      background: none; border: 1px dashed var(--border2); border-radius: 20px;
+      cursor: pointer; font-size: 11px; color: var(--text-muted); padding: 1px 8px;
+      white-space: nowrap; font-family: inherit;
+    }
+    .char-add-btn:hover { border-color: rgba(79,124,255,.4); color: #2a4a9a; }
+
+    /* Char popover */
+    .char-pop {
+      position: fixed; background: var(--bg); border: 1px solid var(--border);
+      border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,.12);
+      z-index: 400; padding: 8px; width: 230px;
+    }
+    .char-pop-input {
+      width: 100%; border: 1px solid var(--border); border-radius: 5px;
+      padding: 6px 8px; font-size: 12px; font-family: inherit; outline: none;
+      background: var(--bg3); color: var(--text); margin-bottom: 5px;
+    }
+    .char-pop-input:focus { border-color: var(--border2); }
+    .char-pop-list { max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; }
+    .char-pop-item {
+      padding: 5px 8px; border-radius: 4px; cursor: pointer;
+      font-size: 12px; display: flex; align-items: center; justify-content: space-between; gap: 6px;
+    }
+    .char-pop-item:hover { background: var(--bg2); }
+    .char-pop-item.present { color: rgba(79,124,255,.7); }
+    .char-pop-item.add-new { color: #1a5a7a; font-style: italic; }
+    .char-pop-empty { font-size: 11px; color: var(--text-muted); padding: 8px 4px; text-align: center; }
+
     /* Actions */
     .actions-col { width: 60px; white-space: nowrap; padding: 0 6px; text-align: center; }
     .btn-icon {
@@ -255,6 +297,7 @@
         <th class="page-col" title="Page scénario">Pge</th>
         <th class="duree-col">Durée</th>
         <th class="notes-col">Notes</th>
+        <th class="personnages-col">Personnages</th>
         <th class="actions-col">Act.</th>
       </tr>
     </thead>
@@ -307,11 +350,13 @@ if (!projectId) location.href = '/';
 let sb = null;
 try { sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e) {}
 
-let scenesRaw     = [];
-let fdxVersions   = [];
-let fdxImportMeta = {};
-let totalEpisodes = 0;
+let scenesRaw        = [];
+let fdxVersions      = [];
+let fdxImportMeta    = {};
+let totalEpisodes    = 0;
 let _saveScenesTimer = null;
+let knownPersonnages = [];
+let _charPopSc       = null;
 
 function enc(s) { return encodeURIComponent(s || ''); }
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -378,7 +423,8 @@ function matchesFilters(s) {
   if (fjn && s.jn      !== fjn) return false;
   if (fep && String(s.ep || '') !== fep) return false;
   if (q) {
-    const txt = [s.sc, s.lieu, s.sous_lieu, s.jn, s.int_ext, s.notes].join(' ').toLowerCase();
+    const chars = (s.charPresent || []).join(' ').toLowerCase();
+    const txt = [s.sc, s.lieu, s.sous_lieu, s.jn, s.int_ext, s.notes, chars].join(' ').toLowerCase();
     if (!txt.includes(q)) return false;
   }
   return true;
@@ -466,6 +512,7 @@ function buildTable() {
       <td class="page-col"><input type="text" class="cell-input muted" value="${esc(s.page||'')}" data-sc="${esc(String(s.sc))}" data-f="page" placeholder="—" onchange="onCellEdit(this)" onblur="onCellEdit(this)"></td>
       <td class="duree-col"><input type="text" class="cell-input muted" value="${esc(s.duree||'')}" data-sc="${esc(String(s.sc))}" data-f="duree" placeholder="—" onchange="onCellEdit(this)" onblur="onCellEdit(this)"></td>
       <td class="notes-col"><input type="text" class="cell-input" value="${esc(s.notes||'')}" data-sc="${esc(String(s.sc))}" data-f="notes" placeholder="" onchange="onCellEdit(this)" onblur="onCellEdit(this)"></td>
+      <td class="personnages-col"><div class="char-chips">${renderCharChips(s)}</div></td>
       <td class="actions-col">
         <button class="btn-icon${s.struck?' struck-active':''}" title="Biffer / Débiffer" onclick="toggleStruck('${esc(String(s.sc))}')">~~</button>
         <button class="btn-icon del" title="Supprimer" onclick="deleteScene('${esc(String(s.sc))}')">✕</button>
@@ -549,6 +596,119 @@ function toggleStruck(scId) {
     if (btn) btn.classList.toggle('struck-active', !!scene.struck);
   }
   scheduleSave();
+}
+
+// ─── PERSONNAGES PAR SCÈNE ───────────────────────────────────────────────────
+async function loadPersonnages() {
+  if (!sb) return;
+  try {
+    const { data: row } = await sb.from('project_data').select('data').eq('key', projectId + '_personnages').maybeSingle();
+    knownPersonnages = (row?.data?.personnages || [])
+      .map(p => (p.name || p.nom || '').toUpperCase()).filter(Boolean)
+      .sort((a,b) => a.localeCompare(b,'fr'));
+  } catch(e) {}
+}
+
+function renderCharChips(s) {
+  const chips = (s.charPresent || []).map(name =>
+    `<span class="char-chip" data-sc="${esc(String(s.sc))}" data-name="${esc(name)}">${esc(name)}<button class="char-chip-x" title="Retirer">×</button></span>`
+  ).join('');
+  return chips + `<button class="char-add-btn" data-sc="${esc(String(s.sc))}" title="Ajouter un personnage">+</button>`;
+}
+
+function openCharPop(btn, sc) {
+  closeCharPop();
+  _charPopSc = sc;
+  const scene = scenesRaw.find(s => String(s.sc) === sc);
+  if (!scene) return;
+  const present = new Set(scene.charPresent || []);
+  const allNames = [...new Set([...knownPersonnages, ...present])].sort((a,b) => a.localeCompare(b,'fr'));
+
+  const pop = document.createElement('div');
+  pop.id = 'char-pop'; pop.className = 'char-pop';
+  pop.innerHTML = `<input class="char-pop-input" id="char-pop-input" type="text" placeholder="Nom du personnage…" autocomplete="off">
+    <div class="char-pop-list" id="char-pop-list"></div>`;
+  document.body.appendChild(pop);
+
+  const rect = btn.getBoundingClientRect();
+  const pw = 230, ph = 290;
+  let left = rect.left, top = rect.bottom + 6;
+  if (left + pw > window.innerWidth - 10) left = window.innerWidth - pw - 10;
+  if (left < 10) left = 10;
+  if (top + ph > window.innerHeight - 10) top = rect.top - ph - 6;
+  if (top < 10) top = 10;
+  pop.style.left = left + 'px'; pop.style.top = top + 'px';
+
+  const input = document.getElementById('char-pop-input');
+  const list  = document.getElementById('char-pop-list');
+
+  function renderList(q) {
+    const filtered = q
+      ? allNames.filter(n => n.toLowerCase().includes(q.toLowerCase()))
+      : allNames;
+    if (!filtered.length && !q) {
+      list.innerHTML = `<div class="char-pop-empty">Tapez un nom pour l'ajouter.</div>`; return;
+    }
+    list.innerHTML = filtered.map(name => {
+      const p = present.has(name);
+      return `<div class="char-pop-item${p?' present':''}" data-name="${esc(name)}">
+        <span>${esc(name)}</span>${p?'<span style="font-size:10px;">✓</span>':''}
+      </div>`;
+    }).join('');
+    if (q && !filtered.some(n => n.toUpperCase() === q.toUpperCase())) {
+      list.insertAdjacentHTML('beforeend',
+        `<div class="char-pop-item add-new" data-name="${esc(q.toUpperCase())}">+ Ajouter « ${esc(q.toUpperCase())} »</div>`);
+    }
+  }
+
+  renderList('');
+  input.focus();
+
+  list.addEventListener('click', e => {
+    const item = e.target.closest('.char-pop-item');
+    if (!item || !item.dataset.name) return;
+    toggleChar(sc, item.dataset.name);
+    if (item.classList.contains('add-new')) { input.value = ''; renderList(''); return; }
+    closeCharPop();
+  });
+
+  input.addEventListener('input', () => renderList(input.value.trim()));
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { closeCharPop(); return; }
+    if (e.key === 'Enter' && input.value.trim()) {
+      toggleChar(sc, input.value.trim().toUpperCase());
+      input.value = ''; renderList('');
+    }
+  });
+}
+
+function closeCharPop() {
+  document.getElementById('char-pop')?.remove();
+  _charPopSc = null;
+}
+
+function toggleChar(sc, name) {
+  const scene = scenesRaw.find(s => String(s.sc) === sc);
+  if (!scene) return;
+  if (!scene.charPresent) scene.charPresent = [];
+  const idx = scene.charPresent.indexOf(name);
+  if (idx >= 0) scene.charPresent.splice(idx, 1);
+  else { scene.charPresent.push(name); scene.charPresent.sort((a,b) => a.localeCompare(b,'fr')); }
+  _refreshCharCell(sc, scene);
+  scheduleSave();
+}
+
+function removeChar(sc, name) {
+  const scene = scenesRaw.find(s => String(s.sc) === sc);
+  if (!scene) return;
+  scene.charPresent = (scene.charPresent || []).filter(n => n !== name);
+  _refreshCharCell(sc, scene);
+  scheduleSave();
+}
+
+function _refreshCharCell(sc, scene) {
+  const tr = document.querySelector(`#tbody tr[data-sc="${CSS.escape(String(sc))}"]`);
+  if (tr) { const cell = tr.querySelector('.personnages-col .char-chips'); if (cell) cell.innerHTML = renderCharChips(scene); }
 }
 
 // ─── LIEU RENAME ──────────────────────────────────────────────────────────────
@@ -688,8 +848,26 @@ function subscribeToScenes() {
     .subscribe();
 }
 
-// ─── CLICK OUTSIDE MODAL ──────────────────────────────────────────────────────
+// ─── DELEGATION CLICS TBODY ───────────────────────────────────────────────────
+document.getElementById('tbody').addEventListener('click', e => {
+  const chipX = e.target.closest('.char-chip-x');
+  if (chipX) {
+    e.stopPropagation();
+    const chip = chipX.closest('.char-chip');
+    if (chip) removeChar(chip.dataset.sc, chip.dataset.name);
+    return;
+  }
+  const addBtn = e.target.closest('.char-add-btn');
+  if (addBtn) {
+    e.stopPropagation();
+    openCharPop(addBtn, addBtn.dataset.sc);
+    return;
+  }
+});
+
+// ─── CLICK OUTSIDE ────────────────────────────────────────────────────────────
 document.addEventListener('click', e => {
+  if (!e.target.closest('#char-pop') && !e.target.closest('.char-add-btn')) closeCharPop();
   if (!e.target.closest('.modal') && !e.target.closest('#btn-rename-lieu')) {
     document.getElementById('rename-modal').classList.remove('active');
   }
@@ -701,7 +879,7 @@ async function init() {
   document.getElementById('topbar-title').textContent = projectName + ' — Table des scènes';
   document.getElementById('back-link').href = '/projet/?p=' + enc(projectId) + '&n=' + enc(projectName);
 
-  await loadScenesData();
+  await Promise.all([loadScenesData(), loadPersonnages()]);
   if (totalEpisodes > 0) document.body.classList.add('is-series');
   buildTable();
   subscribeToScenes();
