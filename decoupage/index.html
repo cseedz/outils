@@ -136,6 +136,33 @@ body { overscroll-behavior: none; }
 /* TOAST */
 .toast { position: fixed; bottom: calc(24px + var(--safe-b)); left: 50%; transform: translateX(-50%) translateY(20px); background: rgba(0,0,0,.82); color: #fff; font-size: 14px; font-weight: 500; padding: 10px 20px; border-radius: 20px; opacity: 0; transition: opacity 200ms, transform 200ms; pointer-events: none; z-index: 500; white-space: nowrap; }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ── SCENE TABS (Plans / Lining) ── */
+.scene-tab-bar { display: flex; border-bottom: 1px solid var(--border); }
+.scene-tab { flex: 1; min-height: 36px; background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; font-size: 12px; font-weight: 600; font-family: inherit; color: var(--muted); cursor: pointer; transition: color .1s, border-color .1s; }
+.scene-tab.active { color: var(--text); border-bottom-color: var(--text); }
+.scene-tab:hover:not(.active) { color: var(--text); }
+
+/* ── LINING PANEL ── */
+.lining-panel { display: flex; flex-direction: row; max-height: 65vh; overflow-y: auto; border-bottom: 1px solid var(--border); }
+.lining-script { flex: 1; padding: 14px 16px 20px; font-family: 'Courier New', Courier, monospace; font-size: 12px; line-height: 1.75; border-right: 1px solid var(--border); min-width: 0; }
+.ls-heading { font-family: inherit; font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border); padding-bottom: 6px; margin-bottom: 10px; }
+.ls-char { font-weight: 700; margin-top: 8px; }
+.ls-paren { color: var(--muted); }
+.ls-line { }
+.ls-gap { height: 6px; }
+.ls-empty { color: var(--muted); font-style: italic; font-size: 11px; }
+.lining-col { width: 176px; flex-shrink: 0; position: relative; background: var(--bg); }
+.lining-col svg { display: block; }
+
+/* ── LINING TOOLBAR ── */
+.lining-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 8px 14px; background: var(--bg); border-top: 1px solid var(--border); }
+.li-plan-chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px 4px 6px; border-radius: 20px; border: 2px solid transparent; font-size: 11px; font-weight: 700; font-family: inherit; background: none; cursor: pointer; transition: border-color .1s; }
+.li-plan-chip.selected { border-color: currentColor; background: rgba(0,0,0,.04); }
+.chip-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.li-add-plan { font-size: 11px; font-family: inherit; color: var(--muted); background: none; border: 1px dashed var(--border2); border-radius: 20px; padding: 3px 10px; cursor: pointer; }
+.li-add-plan:hover { color: var(--text); }
+.li-hint { font-size: 10px; color: var(--text-dim); margin-left: auto; white-space: nowrap; }
 </style>
 </head>
 <body>
@@ -371,7 +398,7 @@ function renderList() {
   container.innerHTML = html;
 }
 
-function renderPlansHTML(sc) {
+function renderPlansListHTML(sc) {
   const plans = getPlans(sc);
   let html = '';
   plans.forEach(p => {
@@ -390,6 +417,17 @@ function renderPlansHTML(sc) {
   });
   html += `<div class="add-plan-btn" onclick="promptAddPlan('${sc}')">＋ Ajouter un plan</div>`;
   return html;
+}
+
+function renderPlansHTML(sc) {
+  const esc = s => String(s).replace(/'/g,"\\'");
+  return `
+    <div class="scene-tab-bar" id="tab-bar-${sc}">
+      <button class="scene-tab active" data-tab="plans"  onclick="switchSceneTab('${esc(sc)}','plans')">Plans</button>
+      <button class="scene-tab"        data-tab="lining" onclick="switchSceneTab('${esc(sc)}','lining')">Lining</button>
+    </div>
+    <div id="tab-plans-${sc}">${renderPlansListHTML(sc)}</div>
+    <div id="tab-lining-${sc}" style="display:none;">${renderLiPanelHTML(sc)}</div>`;
 }
 
 function refreshSceneCard(sc) {
@@ -607,6 +645,269 @@ function subscribeToScenes() {
     })
     .subscribe();
 }
+
+// ─── LINING ──────────────────────────────────────────────────────────────────
+const LI_COLORS = ['#4f7cff','#e0524f','#2db866','#d97b2a','#9b59b6','#00aec7','#d45f90','#30b0a0'];
+function planColor(num) { return LI_COLORS[(num - 1) % LI_COLORS.length]; }
+
+let _liActivePlanId = null;
+let _liDrag = null;
+
+function getLinings(sc) {
+  if (!decData[sc]) decData[sc] = { plans: [] };
+  if (!decData[sc].linings) decData[sc].linings = [];
+  return decData[sc].linings;
+}
+
+function switchSceneTab(sc, tab) {
+  const plEl = document.getElementById('tab-plans-' + sc);
+  const liEl = document.getElementById('tab-lining-' + sc);
+  const bar  = document.getElementById('tab-bar-' + sc);
+  if (!plEl || !liEl || !bar) return;
+  bar.querySelectorAll('.scene-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  plEl.style.display = tab === 'plans'  ? '' : 'none';
+  liEl.style.display = tab === 'lining' ? '' : 'none';
+  if (tab === 'lining') requestAnimationFrame(() => initLiningPanel(sc));
+}
+
+function renderLiPanelHTML(sc) {
+  const meta = sceneMeta(sc);
+  const heading = meta
+    ? [(meta.int_ext && meta.int_ext !== '—' ? meta.int_ext : ''), meta.lieu,
+       meta.sous_lieu ? '/ ' + meta.sous_lieu : '',
+       (meta.jn && meta.jn !== '—' ? '— ' + meta.jn : '')].filter(Boolean).join(' ')
+    : 'Scène ' + sc;
+  const lines = (meta?.text || '').split('\n');
+  let scriptHtml = '<div class="ls-heading">' + escHtml(heading) + '</div>';
+  if (!lines[0]) scriptHtml += '<div class="ls-empty">Texte non disponible — importez un FDX depuis la page Projet.</div>';
+  lines.forEach(line => {
+    const t = line.trim();
+    if (!t) { scriptHtml += '<div class="ls-gap"></div>'; return; }
+    if (/^[A-ZÀÂÉÈÊÎÏÔÙÛÜ][A-ZÀÂÉÈÊÎÏÔÙÛÜ0-9 \-'\.]+\s*:$/.test(t))
+      scriptHtml += '<div class="ls-char">' + escHtml(t) + '</div>';
+    else if (/^\(.*\)$/.test(t))
+      scriptHtml += '<div class="ls-paren">' + escHtml(t) + '</div>';
+    else
+      scriptHtml += '<div class="ls-line">' + escHtml(t) + '</div>';
+  });
+  const esc = s => String(s).replace(/'/g,"\\'");
+  return `<div class="lining-panel" id="li-panel-${sc}">
+    <div class="lining-script" id="li-script-${sc}">${scriptHtml}</div>
+    <div class="lining-col" id="li-col-${sc}">
+      <svg id="li-svg-${sc}" xmlns="http://www.w3.org/2000/svg" style="cursor:crosshair;"></svg>
+    </div>
+  </div>
+  <div class="lining-toolbar" id="li-tb-${sc}">${renderLiToolbarInner(sc)}</div>`;
+}
+
+function renderLiToolbarInner(sc) {
+  const plans = getPlans(sc);
+  const esc = s => String(s).replace(/'/g,"\\'");
+  if (!plans.length) {
+    return `<span style="font-size:11px;color:var(--muted)">Aucun plan — </span>
+      <button class="li-add-plan" onclick="switchSceneTab('${esc(sc)}','plans')">← Retour aux plans</button>
+      <span class="li-hint">Créez des plans, puis revenez lier.</span>`;
+  }
+  let html = plans.map(p => {
+    const color = planColor(p.num);
+    const sel   = _liActivePlanId === p.id ? ' selected' : '';
+    return `<button class="li-plan-chip${sel}" style="color:${color}" onclick="selectLiPlan('${esc(p.id)}','${esc(sc)}')">
+      <span class="chip-dot" style="background:${color}"></span> PL${pad(p.num)}
+    </button>`;
+  }).join('');
+  html += `<button class="li-add-plan" onclick="switchSceneTab('${esc(sc)}','plans')">＋ Plan</button>`;
+  html += `<span class="li-hint">Sélec. plan · clic-glisser pour liner · clic = ˷/droite · clic droit = ✕</span>`;
+  return html;
+}
+
+function selectLiPlan(planId, sc) {
+  _liActivePlanId = planId;
+  const tb = document.getElementById('li-tb-' + sc);
+  if (tb) tb.innerHTML = renderLiToolbarInner(sc);
+}
+
+function initLiningPanel(sc) {
+  const scriptEl = document.getElementById('li-script-' + sc);
+  const svgEl    = document.getElementById('li-svg-'    + sc);
+  const colEl    = document.getElementById('li-col-'    + sc);
+  if (!scriptEl || !svgEl) return;
+
+  const plans = getPlans(sc);
+  if (plans.length && !plans.find(p => p.id === _liActivePlanId)) {
+    _liActivePlanId = plans[0].id;
+    const tb = document.getElementById('li-tb-' + sc);
+    if (tb) tb.innerHTML = renderLiToolbarInner(sc);
+  }
+
+  const h = Math.max(scriptEl.offsetHeight, 280);
+  const w = colEl.offsetWidth || 176;
+  svgEl.setAttribute('height', h); svgEl.setAttribute('width', w);
+  svgEl.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
+  svgEl.style.height = h + 'px';
+
+  if (svgEl._liInit) { drawLinings(sc, svgEl, h, w); return; }
+  svgEl._liInit = true;
+
+  svgEl.addEventListener('mousedown', e => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const svgH     = parseFloat(svgEl.getAttribute('height'));
+    const pct      = getSvgYPct(svgEl, e, svgH);
+    const handleEl = e.target.closest('[data-handle]');
+    const groupEl  = e.target.closest('[data-li-id]');
+    if (handleEl && groupEl) {
+      const li = getLinings(sc).find(l => l.id === groupEl.dataset.liId);
+      if (li) _liDrag = { mode:'resize', sc, liId:li.id, handle:handleEl.dataset.handle, svgH };
+    } else if (groupEl) {
+      const li = getLinings(sc).find(l => l.id === groupEl.dataset.liId);
+      if (li) _liDrag = { mode:'move', sc, liId:li.id, startPct:pct, origStart:li.startPct, origEnd:li.endPct, svgH };
+    } else {
+      if (!_liActivePlanId) { showToast('Sélectionne un plan'); return; }
+      _liDrag = { mode:'draw', sc, startPct:pct, svgH };
+    }
+    document.body.style.cursor = _liDrag.mode === 'resize' ? 'ns-resize' : 'grabbing';
+    document.body.style.userSelect = 'none';
+  });
+
+  svgEl.addEventListener('click', e => {
+    if (_liDrag) return;
+    const g = e.target.closest('[data-li-id]');
+    if (!g) return;
+    const li = getLinings(sc).find(l => l.id === g.dataset.liId);
+    if (!li) return;
+    li.type = li.type === 'offcam' ? 'oncam' : 'offcam';
+    drawLinings(sc, svgEl, parseFloat(svgEl.getAttribute('height')), parseFloat(svgEl.getAttribute('width')));
+    saveDecData();
+  });
+
+  svgEl.addEventListener('contextmenu', e => {
+    e.preventDefault();
+    const g = e.target.closest('[data-li-id]');
+    if (!g) return;
+    if (confirm('Supprimer ce lining ?')) {
+      decData[sc].linings = getLinings(sc).filter(l => l.id !== g.dataset.liId);
+      drawLinings(sc, svgEl, parseFloat(svgEl.getAttribute('height')), parseFloat(svgEl.getAttribute('width')));
+      saveDecData();
+    }
+  });
+
+  drawLinings(sc, svgEl, h, w);
+}
+
+function getSvgYPct(svgEl, e, svgH) {
+  const r = svgEl.getBoundingClientRect();
+  return Math.max(0, Math.min(1, (e.clientY - r.top) / svgH));
+}
+
+function zigzagPath(x, y1, y2) {
+  const amp = 5, step = 10;
+  if (y2 - y1 < 4) return 'M'+x+' '+y1+'L'+x+' '+y2;
+  let d = 'M'+x+' '+y1, y = y1, dir = 1;
+  while (y + step < y2) {
+    d += ' L'+(x+dir*amp)+' '+(y+step/2)+' L'+x+' '+(y+step);
+    y += step; dir *= -1;
+  }
+  return d + (y < y2 ? ' L'+x+' '+y2 : '');
+}
+
+function assignCol(linings, s, e) {
+  for (let c = 0; c < 8; c++) if (!linings.some(l => l.col===c && l.startPct<e && l.endPct>s)) return c;
+  return 0;
+}
+
+function drawLinings(sc, svgEl, h, w) {
+  svgEl.querySelectorAll('[data-li-id]').forEach(el => el.remove());
+  const linings = getLinings(sc);
+  const plans   = getPlans(sc);
+  const nCols   = Math.max(1, linings.reduce((m, l) => Math.max(m, (l.col||0)+1), 1));
+  const colW    = Math.max(20, (w - 8) / nCols);
+  const ns      = 'http://www.w3.org/2000/svg';
+
+  linings.forEach(li => {
+    const plan  = plans.find(p => p.id === li.planId);
+    const color = plan ? planColor(plan.num) : '#999';
+    const label = plan ? 'PL'+pad(plan.num) : '?';
+    const x  = 4 + (li.col||0)*colW + colW/2;
+    const y1 = li.startPct * h, y2 = li.endPct * h;
+
+    const g = document.createElementNS(ns,'g'); g.dataset.liId = li.id; g.style.cursor='grab';
+
+    const hit = document.createElementNS(ns,'rect');
+    hit.setAttribute('x',x-10); hit.setAttribute('y',y1);
+    hit.setAttribute('width',20); hit.setAttribute('height',Math.max(8,y2-y1));
+    hit.setAttribute('fill','transparent');
+
+    const path = document.createElementNS(ns,'path');
+    path.setAttribute('d', li.type==='offcam' ? zigzagPath(x,y1,y2) : 'M'+x+' '+y1+' L'+x+' '+y2);
+    path.setAttribute('stroke',color); path.setAttribute('stroke-width','2.5');
+    path.setAttribute('fill','none');  path.setAttribute('stroke-linecap','round');
+
+    const mkTick = y => { const t=document.createElementNS(ns,'line'); t.setAttribute('x1',x-7); t.setAttribute('x2',x+7); t.setAttribute('y1',y); t.setAttribute('y2',y); t.setAttribute('stroke',color); t.setAttribute('stroke-width','2'); return t; };
+
+    const txt = document.createElementNS(ns,'text');
+    txt.setAttribute('x',x+10); txt.setAttribute('y',y1+10);
+    txt.setAttribute('fill',color); txt.setAttribute('font-size','9');
+    txt.setAttribute('font-weight','700'); txt.setAttribute('font-family','Inter,sans-serif');
+    txt.textContent = label + (li.type==='offcam' ? ' ˷' : '');
+
+    const mkH = (y,h) => { const c=document.createElementNS(ns,'circle'); c.setAttribute('cx',x); c.setAttribute('cy',y); c.setAttribute('r',5); c.setAttribute('fill',color); c.style.cursor='ns-resize'; c.dataset.handle=h; return c; };
+
+    g.append(hit,path,mkTick(y1),mkTick(y2),txt,mkH(y1,'top'),mkH(y2,'bot'));
+    svgEl.appendChild(g);
+  });
+}
+
+document.addEventListener('mousemove', e => {
+  if (!_liDrag) return;
+  const { mode, sc, svgH } = _liDrag;
+  const svgEl = document.getElementById('li-svg-'+sc);
+  if (!svgEl) { _liDrag=null; return; }
+  const pct = getSvgYPct(svgEl, e, svgH);
+  const svgW = parseFloat(svgEl.getAttribute('width')||176);
+
+  if (mode==='move') {
+    const li = getLinings(sc).find(l=>l.id===_liDrag.liId); if (!li) return;
+    const span=_liDrag.origEnd-_liDrag.origStart, d=pct-_liDrag.startPct;
+    li.startPct=Math.max(0,Math.min(1-span,_liDrag.origStart+d)); li.endPct=li.startPct+span;
+    drawLinings(sc,svgEl,svgH,svgW);
+  } else if (mode==='resize') {
+    const li = getLinings(sc).find(l=>l.id===_liDrag.liId); if (!li) return;
+    if (_liDrag.handle==='top') li.startPct=Math.max(0,Math.min(li.endPct-0.02,pct));
+    else                        li.endPct  =Math.min(1,Math.max(li.startPct+0.02,pct));
+    drawLinings(sc,svgEl,svgH,svgW);
+  } else if (mode==='draw') {
+    let prev = svgEl.querySelector('#li-prev');
+    if (!prev) {
+      prev = document.createElementNS('http://www.w3.org/2000/svg','line');
+      prev.setAttribute('id','li-prev');
+      const plan = getPlans(sc).find(p=>p.id===_liActivePlanId);
+      prev.setAttribute('stroke', plan ? planColor(plan.num) : '#aaa');
+      prev.setAttribute('stroke-width','2.5'); prev.setAttribute('stroke-dasharray','5 4');
+      prev.setAttribute('stroke-linecap','round'); svgEl.appendChild(prev);
+    }
+    const x=svgW/2, y1=Math.min(_liDrag.startPct,pct)*svgH, y2=Math.max(_liDrag.startPct,pct)*svgH;
+    prev.setAttribute('x1',x);prev.setAttribute('y1',y1);prev.setAttribute('x2',x);prev.setAttribute('y2',y2);
+  }
+});
+
+document.addEventListener('mouseup', e => {
+  if (!_liDrag) return;
+  const {mode,sc,svgH}=_liDrag;
+  const svgEl=document.getElementById('li-svg-'+sc);
+  document.body.style.cursor=''; document.body.style.userSelect='';
+  if (mode==='draw' && svgEl) {
+    const pct=getSvgYPct(svgEl,e,svgH);
+    const y1=Math.min(_liDrag.startPct,pct), y2=Math.max(_liDrag.startPct,pct);
+    svgEl.querySelector('#li-prev')?.remove();
+    if (y2-y1>0.015 && _liActivePlanId) {
+      const li=getLinings(sc);
+      li.push({id:Date.now().toString(),planId:_liActivePlanId,startPct:y1,endPct:y2,type:'oncam',col:assignCol(li,y1,y2)});
+      drawLinings(sc,svgEl,svgH,parseFloat(svgEl.getAttribute('width')||176));
+      saveDecData();
+    }
+  } else if ((mode==='move'||mode==='resize') && svgEl) { saveDecData(); }
+  _liDrag=null;
+});
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 function escHtml(s) {
