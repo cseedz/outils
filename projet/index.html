@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Projet — Outils</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="/src/fdx-parser.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -93,6 +94,50 @@
     .tool-dropdown { position: absolute; left: 0; top: calc(100% + 6px); background: #fff; border: 1px solid var(--border); border-radius: 4px; box-shadow: 0 4px 18px rgba(0,0,0,.1); z-index: 200; min-width: 200px; overflow: hidden; }
     .tool-dropdown button { display: block; width: 100%; text-align: left; background: none; border: none; cursor: pointer; font-family: inherit; padding: 10px 14px; font-size: 12px; color: var(--text); }
     .tool-dropdown button:hover { background: var(--bg3); }
+    /* ── FDX ADVANCED IMPORT ── */
+    .fdx-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 2000; display: flex; align-items: center; justify-content: center; padding: 20px; }
+    .fdx-modal { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; width: 100%; max-width: 620px; padding: 28px; box-shadow: 0 8px 40px rgba(0,0,0,0.18); max-height: 85vh; overflow-y: auto; }
+    .fdx-modal-hd { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+    .fdx-modal-hd h2 { font-size: 16px; font-weight: 700; }
+    .fdx-modal-sub { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+    .fdx-modal-close { background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 16px; padding: 0; }
+    .fdx-modal-close:hover { color: var(--text); }
+    .fdx-opts-section { margin-bottom: 20px; }
+    .fdx-opts-section:last-of-type { margin-bottom: 0; }
+    .fdx-opts-label { font-size: 12px; font-weight: 700; margin-bottom: 10px; color: var(--text); }
+    .fdx-opts-choices { display: flex; flex-direction: column; gap: 7px; }
+    .fdx-opts-choice { display: flex; align-items: flex-start; gap: 9px; cursor: pointer; }
+    .fdx-opts-choice input[type=radio] { margin-top: 2px; flex-shrink: 0; accent-color: var(--text); }
+    .fdx-opts-choice-body { display: flex; flex-direction: column; gap: 2px; }
+    .fdx-opts-choice-title { font-size: 12px; color: var(--text); }
+    .fdx-opts-choice-ex { font-size: 11px; color: var(--text-muted); font-family: monospace; }
+    .fdx-errors { background: #fff8e1; border: 1px solid #e8c840; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; }
+    .fdx-err-hd { font-size: 12px; font-weight: 700; color: #7a5c00; margin-bottom: 6px; }
+    .fdx-err-item { font-size: 11px; color: #7a5c00; margin-top: 3px; font-family: monospace; }
+    .fdx-diff-wrap { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+    .fdx-diff-section { border-radius: 8px; padding: 12px 16px; }
+    .fdx-added    { background: #f0faf4; border: 1px solid #a8d8bc; }
+    .fdx-removed  { background: #fff5f5; border: 1px solid #e0b0b0; }
+    .fdx-modified { background: #fffbf0; border: 1px solid #e0d080; }
+    .fdx-no-diff  { font-size: 12px; color: var(--text-muted); padding: 8px 0; }
+    .fdx-diff-hd  { font-size: 12px; font-weight: 700; margin-bottom: 8px; }
+    .fdx-added .fdx-diff-hd   { color: #2a7045; }
+    .fdx-removed .fdx-diff-hd { color: #cc3333; }
+    .fdx-modified .fdx-diff-hd{ color: #7a5c00; }
+    .fdx-diff-note { font-weight: 400; color: var(--text-muted); font-size: 11px; }
+    .fdx-diff-items { display: flex; flex-wrap: wrap; gap: 4px; }
+    .fdx-sc-chip { font-size: 11px; background: rgba(255,255,255,0.7); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; font-family: monospace; }
+    .fdx-diff-mod-row { font-size: 12px; margin-top: 5px; line-height: 1.5; }
+    .fdx-diff-change { color: var(--text-muted); font-size: 11px; }
+    .fdx-modal-actions { display: flex; justify-content: space-between; align-items: center; padding-top: 16px; border-top: 1px solid var(--border); gap: 8px; flex-wrap: wrap; }
+    .fdx-btn { background: var(--bg3); border: 1px solid var(--border); color: var(--text); padding: 7px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; font-family: inherit; transition: border-color .1s; }
+    .fdx-btn:hover { border-color: var(--border2); }
+    .fdx-btn-primary { background: var(--text); border-color: var(--text); color: var(--bg); }
+    .fdx-btn-primary:hover { opacity: .85; }
+    .fdx-btn-danger { border-color: #e0b0b0; color: #cc3333; }
+    .fdx-btn-danger:hover { background: #fff0f0; }
+    .fdx-toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(20px); background: rgba(0,0,0,.82); color: #fff; font-size: 13px; font-weight: 500; padding: 10px 20px; border-radius: 20px; opacity: 0; transition: opacity 200ms, transform 200ms; pointer-events: none; z-index: 3000; white-space: nowrap; }
+    .fdx-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
   </style>
 </head>
 <body>
@@ -328,66 +373,229 @@ function renderScenarioSection() {
     ${versionsHtml}`;
 }
 
-// ── FDX IMPORT ──
+// ── FDX IMPORT AVANCÉ ──
+let _pendingFiles = [], _pendingImport = null;
+
+function _fdxShowToast(msg) {
+  let t = document.getElementById('fdx-toast-el');
+  if (!t) { t = document.createElement('div'); t.id = 'fdx-toast-el'; t.className = 'fdx-toast'; document.body.appendChild(t); }
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._tid);
+  t._tid = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
 document.getElementById('btn-import-fdx').onclick = () => document.getElementById('fdx-file-input').click();
-document.getElementById('fdx-file-input').onchange = async evt => {
+document.getElementById('fdx-file-input').onchange = function(evt) { onFdxFileSelected(evt); };
+
+function onFdxFileSelected(evt) {
   const files = Array.from(evt.target.files);
-  if (!files.length) return;
   evt.target.value = '';
+  if (!files.length) return;
+  Promise.all(files.map(f => new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = e => res({ name: f.name, content: e.target.result });
+    r.onerror = () => rej(new Error(`Impossible de lire ${f.name}`));
+    r.readAsText(f);
+  }))).then(fileContents => {
+    fileContents.sort((a, b) => a.name.localeCompare(b.name));
+    _pendingFiles = fileContents;
+    const detected = _detectFdxOptions(fileContents[0].content);
+    if (detected.suggestDash || detected.hasCompactNums || (detected.isSeries && !totalEpisodes)) {
+      _showFdxOptionsDialog(detected);
+    } else {
+      _runBatchParse({});
+    }
+  }).catch(err => _fdxShowToast('Erreur lecture FDX : ' + err.message));
+}
 
-  // fdx-parser.js is loaded by /scenes/ page; here we do a minimal parse
-  // Load fdx-parser if not already loaded
-  if (typeof parseFDXToScenes === 'undefined') {
-    await new Promise((resolve, reject) => {
-      const s = document.createElement('script');
-      s.src = '/src/fdx-parser.js';
-      s.onload = resolve; s.onerror = reject;
-      document.head.appendChild(s);
-    });
+function _showFdxOptionsDialog(detected) {
+  const existing = document.getElementById('fdx-opts-overlay');
+  if (existing) existing.remove();
+  let sepSection = '', serieSection = '', nbEpSection = '';
+  if (detected.suggestDash) {
+    sepSection = `<div class="fdx-opts-section">
+      <div class="fdx-opts-label">Séparateur de sous-lieu détecté</div>
+      <div class="fdx-opts-choices">
+        <label class="fdx-opts-choice"><input type="radio" name="fdx-sep" value="dash" checked>
+          <div class="fdx-opts-choice-body"><span class="fdx-opts-choice-title">Tiret / cadratin</span><span class="fdx-opts-choice-ex">INT. MAISON — SALON — JOUR</span></div></label>
+        <label class="fdx-opts-choice"><input type="radio" name="fdx-sep" value="slash">
+          <div class="fdx-opts-choice-body"><span class="fdx-opts-choice-title">Barre oblique</span><span class="fdx-opts-choice-ex">INT. MAISON / SALON — JOUR</span></div></label>
+        <label class="fdx-opts-choice"><input type="radio" name="fdx-sep" value="paren">
+          <div class="fdx-opts-choice-body"><span class="fdx-opts-choice-title">Parenthèse</span><span class="fdx-opts-choice-ex">INT. MAISON (SALON) — JOUR</span></div></label>
+      </div></div>`;
   }
+  if (detected.hasCompactNums) {
+    serieSection = `<div class="fdx-opts-section">
+      <div class="fdx-opts-label">Numérotation des scènes — série détectée</div>
+      <div class="fdx-opts-choices">
+        <label class="fdx-opts-choice"><input type="radio" name="fdx-serie" value="compact" checked>
+          <div class="fdx-opts-choice-body"><span class="fdx-opts-choice-title">Format compact</span><span class="fdx-opts-choice-ex">103 = épisode 1, scène 03</span></div></label>
+        <label class="fdx-opts-choice"><input type="radio" name="fdx-serie" value="dot">
+          <div class="fdx-opts-choice-body"><span class="fdx-opts-choice-title">Format ep.scène</span><span class="fdx-opts-choice-ex">1.03 — numéroter tel quel</span></div></label>
+      </div></div>`;
+  }
+  if (detected.isSeries && !totalEpisodes) {
+    nbEpSection = `<div class="fdx-opts-section">
+      <div class="fdx-opts-label">Nombre total d'épisodes de la série</div>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:8px;">
+        <input id="fdx-total-eps" type="number" min="1" max="500" placeholder="ex. 13"
+          style="width:76px;padding:6px 10px;border-radius:6px;border:1px solid var(--border2);background:var(--bg);color:var(--text);font-family:inherit;font-size:13px;outline:none;">
+        <span style="font-size:11px;color:var(--text-muted);line-height:1.4;">Calibre le strip de position dans les cartons.</span>
+      </div></div>`;
+  }
+  const ov = document.createElement('div');
+  ov.id = 'fdx-opts-overlay';
+  ov.className = 'fdx-modal-overlay';
+  ov.innerHTML = `<div class="fdx-modal" style="max-width:460px;">
+    <div class="fdx-modal-hd">
+      <div><h2>Paramètres d'import</h2>
+        <div class="fdx-modal-sub">${_pendingFiles.length === 1 ? _pendingFiles[0].name : `${_pendingFiles.length} fichiers sélectionnés`}</div></div>
+      <button class="fdx-modal-close" onclick="document.getElementById('fdx-opts-overlay').remove()">✕</button>
+    </div>
+    ${sepSection}${serieSection}${nbEpSection}
+    <div class="fdx-modal-actions" style="margin-top:20px;">
+      <button class="fdx-btn fdx-btn-danger" onclick="document.getElementById('fdx-opts-overlay').remove()">Annuler</button>
+      <button class="fdx-btn fdx-btn-primary" onclick="_applyFdxOptions()">Continuer →</button>
+    </div></div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+}
 
-  const loaded = await Promise.all(files.map(f => f.text().then(t => ({ name: f.name, content: t }))));
-  let allScenes = [], allErrors = [];
-  for (const { name, content } of loaded) {
+function _applyFdxOptions() {
+  const opts = {};
+  const sepEl = document.querySelector('input[name="fdx-sep"]:checked');
+  if (sepEl) opts.sep = sepEl.value;
+  const serieEl = document.querySelector('input[name="fdx-serie"]:checked');
+  if (serieEl && serieEl.value === 'compact') opts.serieFormat = 'compact';
+  const epEl = document.getElementById('fdx-total-eps');
+  if (epEl && epEl.value) { const n = parseInt(epEl.value); if (n > 0) totalEpisodes = n; }
+  document.getElementById('fdx-opts-overlay')?.remove();
+  _runBatchParse(opts);
+}
+
+function _runBatchParse(opts) {
+  try {
+    let allNewScenes = [], allErrors = [];
+    for (const { name, content } of _pendingFiles) {
+      const { scenes: ns, errors } = parseFDXToScenes(content, opts);
+      allNewScenes = [...allNewScenes, ...ns];
+      allErrors = [...allErrors, ...errors.map(e => _pendingFiles.length > 1 ? `[${name}] ${e}` : e)];
+    }
+    const scMap = new Map();
+    allNewScenes.forEach(s => scMap.set(s.sc, s));
+    const newScenes = [...scMap.values()].sort(_scSort);
+    if (!newScenes.length) { _fdxShowToast('Aucune scène trouvée dans ces fichiers FDX'); return; }
+    const currentBase = scenesRaw;
+    const newEps = new Set(newScenes.map(s => parseEp(s.sc).ep));
+    const relevantBase = currentBase.filter(s => newEps.has(parseEp(s.sc).ep));
+    const diff = diffScenes(relevantBase, newScenes);
+    const isNewEpisode = relevantBase.length === 0 && currentBase.length > 0;
+    const filename = _pendingFiles.length === 1 ? _pendingFiles[0].name : `${_pendingFiles.length} fichiers FDX`;
+    _pendingImport = { newScenes, diff, filename, errors: allErrors, newEps, isNewEpisode };
+    _showImportDialog();
+  } catch(err) { _fdxShowToast('Erreur FDX : ' + err.message); }
+}
+
+function _showImportDialog() {
+  const { newScenes, diff, filename, errors, isNewEpisode } = _pendingImport;
+  const { added, removed, modified, unchanged } = diff;
+  let errHtml = '';
+  if (errors.length) {
+    errHtml = `<div class="fdx-errors"><div class="fdx-err-hd">⚠ ${errors.length} erreur${errors.length>1?'s':''} d'intégration</div>
+      ${errors.map(e=>`<div class="fdx-err-item">${e}</div>`).join('')}</div>`;
+  }
+  let diffHtml = '';
+  if (added.length)    diffHtml += `<div class="fdx-diff-section fdx-added"><div class="fdx-diff-hd">+ ${added.length} scène${added.length>1?'s':''} ajoutée${added.length>1?'s':''}</div><div class="fdx-diff-items">${added.map(s=>`<span class="fdx-sc-chip">${s.sc}</span>`).join('')}</div></div>`;
+  if (removed.length)  diffHtml += `<div class="fdx-diff-section fdx-removed"><div class="fdx-diff-hd">− ${removed.length} scène${removed.length>1?'s':''} supprimée${removed.length>1?'s':''} <span class="fdx-diff-note">(conservées biffées)</span></div><div class="fdx-diff-items">${removed.map(s=>`<span class="fdx-sc-chip">${s.sc}</span>`).join('')}</div></div>`;
+  if (modified.length) diffHtml += `<div class="fdx-diff-section fdx-modified"><div class="fdx-diff-hd">↻ ${modified.length} scène${modified.length>1?'s':''} modifiée${modified.length>1?'s':''}</div><div class="fdx-diff-items">${modified.map(m=>{
+    const ch=[];
+    if(m.old.lieu!==m.new.lieu) ch.push(`lieu: ${m.old.lieu} → ${m.new.lieu}`);
+    if(m.old.sous_lieu!==m.new.sous_lieu) ch.push(`sous-lieu: ${m.old.sous_lieu||'—'} → ${m.new.sous_lieu||'—'}`);
+    if(m.old.jn!==m.new.jn) ch.push(`${m.old.jn} → ${m.new.jn}`);
+    if(m.old.int_ext!==m.new.int_ext) ch.push(`${m.old.int_ext} → ${m.new.int_ext}`);
+    if(m.old.page!==m.new.page) ch.push(`p.${m.old.page} → p.${m.new.page}`);
+    return `<div class="fdx-diff-mod-row"><strong>${m.new.sc}</strong> <span class="fdx-diff-change">${ch.join(' · ')}</span></div>`;
+  }).join('')}</div></div>`;
+  if (!added.length && !removed.length && !modified.length)
+    diffHtml = `<div class="fdx-no-diff">Aucun changement — ${unchanged.length} scènes identiques.</div>`;
+  const episodeNote = isNewEpisode
+    ? `<div class="fdx-errors" style="background:#f0f8ff;border-color:#a0c8e8;"><div class="fdx-err-hd" style="color:#1a4a70;">Nouvel épisode détecté</div><div style="font-size:11px;color:#1a4a70;">Les scènes des épisodes existants seront conservées intactes.</div></div>`
+    : '';
+  const el = document.createElement('div');
+  el.className = 'fdx-modal-overlay'; el.id = 'fdx-modal-overlay';
+  el.onclick = (e) => { if(e.target===el) closeImportDialog(); };
+  el.innerHTML = `<div class="fdx-modal">
+    <div class="fdx-modal-hd">
+      <div><h2>Importer FDX</h2><div class="fdx-modal-sub">${filename} · ${newScenes.length} scènes</div></div>
+      <button class="fdx-modal-close" onclick="closeImportDialog()">✕</button>
+    </div>
+    ${episodeNote}${errHtml}
+    <div class="fdx-diff-wrap">${diffHtml}</div>
+    <div class="fdx-modal-actions">
+      <button class="fdx-btn fdx-btn-danger" onclick="closeImportDialog()">Annuler</button>
+      <div style="display:flex;gap:8px;">
+        <button class="fdx-btn" onclick="applyImport('overwrite')" title="Remplace tout et réinitialise les annotations">Écraser tout</button>
+        <button class="fdx-btn fdx-btn-primary" onclick="applyImport('merge')">Merger — préserver les annotations</button>
+      </div>
+    </div></div>`;
+  document.body.appendChild(el);
+}
+
+function closeImportDialog() {
+  const el = document.getElementById('fdx-modal-overlay');
+  if (el) el.remove();
+  _pendingImport = null;
+}
+
+async function applyImport(mode) {
+  if (!_pendingImport) return;
+  const { newScenes, filename, newEps } = _pendingImport;
+  const today = new Date().toISOString().split('T')[0];
+  const newEntries = [];
+  for (const ep of newEps) {
+    const epPrev = scenesRaw.filter(s => parseEp(s.sc).ep === ep);
+    const epNew  = newScenes.filter(s => parseEp(s.sc).ep === ep);
+    let epLabel  = filename.replace(/\.fdx$/i,'');
+    if (_pendingFiles.length > 1) {
+      const epFile = _pendingFiles.find(f => {
+        const base = f.name.replace(/\.fdx$/i,'').toLowerCase();
+        return base.includes(`ep${String(ep).padStart(2,'0')}`) || base.includes(`ep${ep}`) || base.endsWith(`0${ep}`) || base.endsWith(`_${ep}`);
+      });
+      epLabel = epFile ? epFile.name.replace(/\.fdx$/i,'') : _pendingFiles.map(f => f.name.replace(/\.fdx$/i,'')).join(', ');
+    }
+    if (epPrev.length) {
+      newEntries.push({ id: Date.now() + ep, date: today, label: epLabel, ep,
+        scene_count: epNew.length, prev_scene_count: epPrev.length,
+        scenes_raw: JSON.parse(JSON.stringify(epPrev)) });
+    }
+    fdxImportMeta[ep] = { label: epLabel, date: today, scene_count: epNew.length };
+  }
+  if (newEntries.length) fdxVersions = [...newEntries, ...fdxVersions].slice(0, 60);
+
+  // Merge raw scenes (toujours : on conserve les épisodes non touchés)
+  const keptBase = scenesRaw.filter(s => !newEps.has(parseEp(s.sc).ep));
+  scenesRaw = [...keptBase, ...newScenes].sort(_scSort);
+
+  // Écraser tout : effacer aussi les annotations TdL des épisodes importés
+  if (mode === 'overwrite' && sb) {
     try {
-      const opts = _detectFdxOptions(content);
-      const parseOpts = { sep: opts.suggestDash ? 'dash' : 'slash', serieFormat: opts.hasCompactNums ? 'compact' : 'dot' };
-      const { scenes, errors } = parseFDXToScenes(content, parseOpts);
-      allScenes = [...allScenes, ...scenes];
-      allErrors = [...allErrors, ...errors];
-    } catch(e) { alert('Erreur FDX dans « ' + name + ' » : ' + e.message); return; }
+      const TDL_KEY = projectId + '_tdl';
+      const { data: tdlRow } = await sb.from('project_data').select('data').eq('key', TDL_KEY).maybeSingle();
+      if (tdlRow?.data?.scenes) {
+        const tdlData = tdlRow.data;
+        const keptScenes  = tdlData.scenes.filter(s => !newEps.has(parseEp(s.sc).ep));
+        const freshScenes = newScenes.map(ns => ({ ...ns, ep:'', steadicam:false, rails:false, epaule:false, fixe:false, lieu_tournage_id:'', notes:'', struck:false }));
+        tdlData.scenes = [...keptScenes, ...freshScenes].sort(_scSort);
+        await sb.from('project_data').upsert({ key: TDL_KEY, data: tdlData, updated_at: new Date().toISOString() });
+      }
+    } catch(e) { console.warn('Overwrite TdL annotations:', e); }
   }
-  const scMap = new Map();
-  allScenes.forEach(s => scMap.set(s.sc, s));
-  const newScenes = [...scMap.values()].sort(_scSort);
-  if (!newScenes.length) { alert('Aucune scène trouvée.'); return; }
 
-  const filename = files.length === 1 ? files[0].name : files.length + ' fichiers FDX';
-  let msg = `${newScenes.length} scènes trouvées dans « ${filename} ».`;
-  if (scenesRaw.length) msg += `\n\n${scenesRaw.length} scènes existantes seront remplacées.\nPour un import avec diff, utiliser le Tableau des lieux.`;
-  if (!confirm(msg + '\n\nConfirmer l\'import ?')) return;
-
-  if (scenesRaw.length) {
-    fdxVersions = [...fdxVersions, {
-      id: Date.now().toString(),
-      date: new Date().toISOString(),
-      label: 'Version précédente',
-      ep: null,
-      scene_count: scenesRaw.length,
-      prev_scene_count: 0
-    }].slice(-20);
-  }
-  scenesRaw = newScenes;
-  const eps = new Set(newScenes.map(s => (typeof parseEp === 'function' ? parseEp(s.sc).ep : 0)).filter(e => e > 0));
-  totalEpisodes = eps.size;
-  fdxImportMeta = {};
-  const now = new Date().toISOString();
-  const label = filename.replace(/\.fdx$/i, '');
-  fdxImportMeta['0'] = { label, date: now, scene_count: newScenes.length };
-
+  closeImportDialog();
   await saveScenesData();
   renderScenarioSection();
-};
+  _fdxShowToast(`FDX importé — ${newScenes.length} scènes`);
+}
 
 // ── OUTILS ──
 function renderTools() {
