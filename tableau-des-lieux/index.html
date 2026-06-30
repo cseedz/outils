@@ -299,6 +299,8 @@ input[type="file"].form-input { padding: 6px 8px; font-size: 12px; color: var(--
 #photo-lightbox .lb-nav[hidden] { display: none; }
 #photo-lightbox .lb-counter { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); color: rgba(255,255,255,.7); font-size: 12px; font-weight: 600; letter-spacing: .05em; }
 #photo-lightbox .lb-caption { position: absolute; bottom: 36px; left: 50%; transform: translateX(-50%); color: rgba(255,255,255,.85); font-size: 12px; max-width: 80vw; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#photo-lightbox .lb-delete { position: absolute; top: 16px; right: 64px; background: rgba(180,30,30,.75); border: none; color: #fff; font-size: 15px; padding: 5px 10px; cursor: pointer; border-radius: 6px; line-height: 1; opacity: .85; }
+#photo-lightbox .lb-delete:hover { background: rgba(210,40,40,.95); opacity: 1; }
 .lieu-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 .lieu-info { flex: 1; min-width: 0; }
 .lieu-name { font-weight: 600; font-size: 13px; }
@@ -825,6 +827,28 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
 .sl-item-btn.deconfirm { background: none; color: #2db866; border-color: #2db866; }
 .sl-item-btn.remove { color: #e0524f; border-color: transparent; background: none; }
 .sl-confirmed-badge { font-size: 9px; font-weight: 700; background: #2db866; color: #fff; border-radius: 10px; padding: 1px 7px; text-transform: uppercase; letter-spacing: .04em; }
+.sl-source-group { border: 1px solid var(--border); border-radius: 8px; margin-bottom: 6px; overflow: hidden; }
+.sl-source-group.confirmed { border-color: #2db866; background: rgba(45,184,102,.04); }
+.sl-source-header { display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; background: var(--bg2); gap: 6px; }
+.sl-source-info { display: flex; align-items: center; gap: 7px; min-width: 0; flex: 1; }
+.sl-source-nom { font-size: 11px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sl-source-cat { font-size: 9px; color: var(--text-dim); background: var(--bg3); padding: 1px 6px; border-radius: 9px; white-space: nowrap; flex-shrink: 0; }
+.sl-source-ct { font-size: 9px; color: var(--text-muted); flex-shrink: 0; }
+.sl-source-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.sl-source-photos { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px 8px; }
+.sl-photo-thumb { position: relative; width: 52px; height: 52px; border-radius: 5px; overflow: hidden; cursor: pointer; flex-shrink: 0; }
+.sl-photo-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.sl-photo-del { position: absolute; top: 2px; right: 2px; background: rgba(0,0,0,.65); color: #fff; border: none; border-radius: 50%; width: 14px; height: 14px; font-size: 8px; cursor: pointer; display: none; align-items: center; justify-content: center; padding: 0; line-height: 1; }
+.sl-photo-thumb:hover .sl-photo-del { display: flex; }
+.pph-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 5px; padding: 10px; }
+.pph-cell { position: relative; aspect-ratio: 1; border-radius: 6px; overflow: hidden; cursor: pointer; border: 2px solid transparent; transition: border-color .1s; }
+.pph-cell.selected { border-color: var(--accent); }
+.pph-cell img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pph-check { position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; background: var(--accent); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 10px; opacity: 0; transition: opacity .1s; pointer-events: none; }
+.pph-cell.selected .pph-check { opacity: 1; }
+.pph-step2-back { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.pph-step2-back button { font-size: 11px; font-family: inherit; background: none; border: 1px solid var(--border); border-radius: 5px; padding: 3px 9px; cursor: pointer; color: var(--text-muted); }
+.pph-step2-back button:hover { color: var(--text); }
 </style>
 </head>
 <body>
@@ -1052,6 +1076,30 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
   </div>
 </div>
 
+<!-- MODAL: Photo picker pour lieux fictifs -->
+<div class="bk-picker-overlay" id="photo-picker-overlay" style="display:none;" onclick="if(event.target===this)closePhotoPicker()">
+  <div class="bk-picker" style="width:min(700px,96vw);">
+    <div class="bk-picker-head">
+      <h3 id="pph-title">Ajouter des photos</h3>
+      <div id="pph-step1-ctrl" class="bk-picker-filters">
+        <input class="bk-picker-search" type="text" id="pph-search" placeholder="Rechercher…" oninput="_renderPphStep1()">
+        <select class="bk-picker-cat" id="pph-cat" onchange="_renderPphStep1()">
+          <option value="">Toutes catégories</option>
+        </select>
+      </div>
+      <div id="pph-step2-ctrl" style="display:none;" class="pph-step2-back">
+        <button onclick="_pphBack()">← Retour</button>
+        <span id="pph-loc-name" style="font-size:13px;font-weight:700;"></span>
+      </div>
+    </div>
+    <div class="bk-picker-list" id="pph-body"></div>
+    <div class="bk-picker-foot" style="justify-content:space-between;">
+      <button class="btn" onclick="closePhotoPicker()">Fermer</button>
+      <button class="btn" id="pph-confirm-btn" style="display:none;" onclick="_pphConfirm()">Ajouter (0)</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: Picker banque pour shortlist -->
 <div class="bk-picker-overlay" id="bk-picker-overlay" style="display:none;" onclick="if(event.target===this)closeBanquePicker()">
   <div class="bk-picker">
@@ -1091,6 +1139,7 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
   <button class="lb-nav lb-prev" id="lb-prev" onclick="lbNav(-1)">&#8249;</button>
   <img id="photo-lightbox-img" src="" alt="" onclick="closeLightbox()">
   <button class="lb-nav lb-next" id="lb-next" onclick="lbNav(1)">&#8250;</button>
+  <button class="lb-delete" id="lb-delete" onclick="lbDelete()" hidden title="Supprimer cette photo">🗑</button>
   <div class="lb-caption" id="lb-caption"></div>
   <div class="lb-counter" id="lb-counter"></div>
 </div>
@@ -1498,7 +1547,7 @@ function save() {
     lieuColorOverrides, sousLieuColorOverrides, activePaletteKey,
     lieuPalettesCustom: JSON.parse(JSON.stringify(PALETTES)),
     imported_scenes_raw, fdxVersions, fdxImportMeta, totalEpisodes,
-    locationShortlists, locationConfirmations
+    locationShortlists, locationConfirmations, lieuFictifPhotos
   };
   clearTimeout(_saveDebounce);
   _saveDebounce = setTimeout(() => syncToSupabase(_data), 600);
@@ -1570,6 +1619,7 @@ function applyData(d) {
   if (d.lieuTournageFloorplans) lieuTournageFloorplans = d.lieuTournageFloorplans;
   if (d.locationShortlists)    locationShortlists    = d.locationShortlists;
   if (d.locationConfirmations) locationConfirmations = d.locationConfirmations;
+  if (d.lieuFictifPhotos)      lieuFictifPhotos      = d.lieuFictifPhotos;
   _migratePhotoDicts();
 }
 
@@ -1730,8 +1780,9 @@ let _bkEditPhotos    = [];
 let _bkRemovedPhotos = [];
 let _bkPickerLieu    = null;
 let _bkPickerMode    = 'shortlist'; // 'shortlist' | 'project'
-let locationShortlists   = {};  // { [lieuKey]: [bankId, ...] }
+let locationShortlists   = {};  // { [lieuKey]: [bankId, ...] } — legacy, conservé pour migration
 let locationConfirmations= {};  // { [lieuKey]: bankId }
+let lieuFictifPhotos     = {};  // { [lieuKey]: [{url, locationId, locationNom, categorie}] }
 
 async function loadBanque() {
   if (!sb) return;
@@ -1799,7 +1850,7 @@ function renderBanque() {
           const n = l.photos?.length||0;
           const id = esc(l.id);
           return `<div class="bk-row" onclick="bkRowClick(event,'${id}')">
-            <div class="bk-row-thumb">${ph?`<img src="${esc(ph)}" loading="lazy">`:'📷'}</div>
+            <div class="bk-row-thumb">${ph?`<img src="${esc(cdnUrl(ph))}" loading="lazy">`:'📷'}</div>
             <div class="bk-row-info">
               <div class="bk-row-nom">${esc(l.nom)}</div>
               ${l.adresse?`<div class="bk-row-addr">${esc(l.adresse)}</div>`:''}
@@ -1823,7 +1874,7 @@ function bkRowClick(event, locationId) {
 function openBanqueModal(id) {
   _bkEditId = id||null;
   const loc = id ? bankLocations.find(l=>l.id===id) : null;
-  _bkEditPhotos = [...(loc?.photos||[])]; _bkRemovedPhotos = [];
+  _bkEditPhotos = sortPhotoUrls(loc?.photos||[]); _bkRemovedPhotos = [];
   _populateCatSelects();
   document.getElementById('bk-modal-title').textContent = id ? 'Modifier la location' : 'Ajouter une location';
   document.getElementById('bk-modal-nom').value     = loc?.nom      ||'';
@@ -1846,7 +1897,7 @@ function _renderBkEditPhotos() {
   const wrap = document.getElementById('bk-modal-photos');
   wrap.innerHTML = _bkEditPhotos.map((url,i)=>`
     <div class="bk-modal-thumb">
-      <img src="${esc(url)}" loading="lazy">
+      <img src="${esc(cdnUrl(url))}" loading="lazy">
       <button class="bk-modal-thumb-del" onclick="removeBkEditPhoto(${i})">✕</button>
     </div>`).join('') +
     `<label class="bk-modal-add-photo" title="Ajouter photos">+<input type="file" accept="image/*" multiple style="display:none" onchange="handleBkPhotoInput(this)"></label>`;
@@ -1895,12 +1946,15 @@ function deleteBanqueLocation(id) {
   if (!confirm(`Supprimer "${loc?.nom||'cette location'}" de la banque ?\n\nSes photos seront supprimées définitivement de Cloudinary.`)) return;
   loc?.photos?.forEach(url => _deleteFromCloudinary(url));
   bankLocations = bankLocations.filter(l=>l.id!==id);
-  // Nettoyer shortlists
+  // Nettoyer shortlists (legacy) et lieuFictifPhotos
   Object.keys(locationShortlists).forEach(k => {
     locationShortlists[k] = locationShortlists[k].filter(bid=>bid!==id);
   });
   Object.keys(locationConfirmations).forEach(k => {
     if (locationConfirmations[k]===id) delete locationConfirmations[k];
+  });
+  Object.keys(lieuFictifPhotos).forEach(k => {
+    lieuFictifPhotos[k] = lieuFictifPhotos[k].filter(p => p.locationId !== id);
   });
   saveBanque(); save(); renderBanque(); renderBatchAssign();
 }
@@ -2015,7 +2069,7 @@ function renderBanquePicker() {
             ? `onclick="addLieuFromBank('${id}')"`
             : `onclick="addToShortlist('${esc(_bkPickerLieu)}','${id}')"`;
           return `<div class="bk-picker-row${already?' already':''}" ${clickAttr}>
-            <div class="bk-picker-row-thumb">${ph?`<img src="${esc(ph)}">`:'📷'}</div>
+            <div class="bk-picker-row-thumb">${ph?`<img src="${esc(cdnUrl(ph))}">`:'📷'}</div>
             <div class="bk-picker-row-info">
               <div class="bk-picker-row-nom">${esc(l.nom)}</div>
               ${l.adresse?`<div class="bk-picker-row-addr">${esc(l.adresse)}</div>`:''}
@@ -2039,15 +2093,15 @@ function removeFromShortlist(lieuKey, bankId) {
   save(); renderBatchAssign();
 }
 
-function confirmerLocation(lieuKey, bankId) {
-  locationConfirmations[lieuKey] = bankId;
+function confirmerLocation(lieuKey, locationId) {
+  locationConfirmations[lieuKey] = locationId;
   // Auto-ajouter au projet si pas déjà là
-  if (!lieusTournage.find(l=>l.bankId===bankId)) {
-    const loc = bankLocations.find(l=>l.id===bankId);
+  if (!lieusTournage.find(l=>l.bankId===locationId)) {
+    const loc = bankLocations.find(l=>l.id===locationId);
     if (loc) {
       const autoColor = COLORS[lieusTournage.length % COLORS.length];
       const id = 'l_' + Date.now();
-      lieusTournage.push({ id, nom: loc.nom, adresse: loc.adresse||'', notes: loc.notes||'', couleur: autoColor, bankId });
+      lieusTournage.push({ id, nom: loc.nom, adresse: loc.adresse||'', notes: loc.notes||'', couleur: autoColor, bankId: locationId });
       if (loc.photos?.length) lieuTournagePhotos[id] = loc.photos.map(url => ({ url, sl: '' }));
       buildTable(); renderLieuList(); renderVueLieux(); refreshAllLieuDropdowns(); refreshLieuTournageFilter();
       if (loc.adresse) geocodeLieuAddress(id);
@@ -2062,38 +2116,203 @@ function deconfirmerLocation(lieuKey) {
 }
 
 function buildShortlistSection(lieuKey) {
-  const sl  = locationShortlists[lieuKey]||[];
-  const conf= locationConfirmations[lieuKey]||null;
-  const lk  = esc(lieuKey);
-  let inner = '';
-  if (sl.length) {
-    inner = sl.map(bid => {
-      const loc = bankLocations.find(l=>l.id===bid);
-      if (!loc) return '';
-      const isConf = conf===bid;
-      const ph = loc.photos?.[0];
-      return `<div class="sl-item${isConf?' confirmed':''}">
-        <div class="sl-item-thumb">${ph?`<img src="${esc(ph)}" loading="lazy">`:'📷'}</div>
-        <div class="sl-item-info">
-          <div class="sl-item-nom">${esc(loc.nom)}</div>
-          ${loc.categorie?`<div class="sl-item-cat">${esc(loc.categorie)}</div>`:''}
+  const photos = lieuFictifPhotos[lieuKey] || [];
+  const conf   = locationConfirmations[lieuKey] || null;
+  const lk     = esc(lieuKey);
+
+  // Grouper les photos par locationId
+  const groups = {};
+  photos.forEach(p => {
+    if (!groups[p.locationId]) groups[p.locationId] = { nom: p.locationNom, categorie: p.categorie, photos: [] };
+    groups[p.locationId].photos.push(p);
+  });
+
+  const groupsHtml = Object.entries(groups).map(([locId, g]) => {
+    const isConf = conf === locId;
+    const lid = esc(locId);
+    const photoStrip = g.photos.map(p =>
+      `<div class="sl-photo-thumb" onclick="openLightbox('${esc(p.url)}')">
+        <img src="${esc(cdnUrl(p.url))}" loading="lazy">
+        <button class="sl-photo-del" onclick="event.stopPropagation();removeLieuFictifPhoto('${lk}','${esc(p.url)}')">✕</button>
+      </div>`
+    ).join('');
+    return `<div class="sl-source-group${isConf?' confirmed':''}">
+      <div class="sl-source-header">
+        <div class="sl-source-info">
+          <span class="sl-source-nom">${esc(g.nom)}</span>
+          ${g.categorie?`<span class="sl-source-cat">${esc(g.categorie)}</span>`:''}
+          <span class="sl-source-ct">${g.photos.length} photo${g.photos.length>1?'s':''}</span>
         </div>
-        <div class="sl-item-actions">
+        <div class="sl-source-actions">
           ${isConf
             ? `<span class="sl-confirmed-badge">Confirmée</span><button class="sl-item-btn deconfirm" onclick="deconfirmerLocation('${lk}')">Annuler</button>`
-            : `<button class="sl-item-btn confirm" onclick="confirmerLocation('${lk}','${esc(bid)}')">Confirmer</button>`}
-          <button class="sl-item-btn remove" onclick="removeFromShortlist('${lk}','${esc(bid)}')">✕</button>
+            : `<button class="sl-item-btn confirm" onclick="confirmerLocation('${lk}','${lid}')">Confirmer</button>`}
+          <button class="sl-item-btn remove" onclick="removeLieuFictifSource('${lk}','${lid}')">✕</button>
         </div>
-      </div>`;
-    }).join('');
-  }
+      </div>
+      <div class="sl-source-photos">${photoStrip}</div>
+    </div>`;
+  }).join('');
+
   return `<div class="sl-section">
     <div class="sl-title">
-      <span>Shortlist</span>
-      <button class="sl-add-btn" onclick="openBanquePicker('${lk}')">＋ Depuis la banque</button>
+      <span>Photos de repérage</span>
+      <button class="sl-add-btn" onclick="openPhotoPickerForLieu('${lk}')">＋ Ajouter photos</button>
     </div>
-    ${sl.length?`<div class="sl-items">${inner}</div>`:''}
+    ${photos.length ? `<div class="sl-items">${groupsHtml}</div>` : ''}
   </div>`;
+}
+
+// ── Photo picker pour lieux fictifs ──────────────────────────────────────────
+let _pphLieuKey  = null;
+let _pphLocId    = null;   // locationId actif en step 2
+let _pphSelected = new Set();  // urls sélectionnées en step 2
+
+function openPhotoPickerForLieu(lieuKey) {
+  _pphLieuKey = lieuKey;
+  _pphLocId   = null;
+  _pphSelected = new Set();
+  const parts = lieuKey.split('\x01');
+  const label = parts[1] ? parts[0] + ' / ' + parts[1] : parts[0];
+  document.getElementById('pph-title').textContent = 'Photos pour : ' + label;
+  _populateCatSelects();
+  // Copier les options de catégorie dans le select du pph
+  const srcCat = document.getElementById('bk-picker-cat');
+  const dstCat = document.getElementById('pph-cat');
+  dstCat.innerHTML = srcCat.innerHTML;
+  document.getElementById('pph-search').value = '';
+  document.getElementById('pph-step1-ctrl').style.display = '';
+  document.getElementById('pph-step2-ctrl').style.display = 'none';
+  document.getElementById('pph-confirm-btn').style.display = 'none';
+  _renderPphStep1();
+  document.getElementById('photo-picker-overlay').style.display = '';
+  setTimeout(() => document.getElementById('pph-search').focus(), 80);
+}
+
+function _renderPphStep1() {
+  const q   = (document.getElementById('pph-search')?.value || '').toLowerCase();
+  const cat = document.getElementById('pph-cat')?.value || '';
+  const body = document.getElementById('pph-body');
+  const filtered = bankLocations.filter(l =>
+    l.photos?.length &&
+    (!cat || l.categorie === cat) &&
+    (!q || l.nom.toLowerCase().includes(q) || (l.adresse||'').toLowerCase().includes(q))
+  );
+  if (!filtered.length) {
+    body.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:32px 0;">Aucune location avec photos.</div>';
+    return;
+  }
+  const groups = {};
+  filtered.forEach(l => {
+    const c = l.categorie || 'Sans catégorie';
+    if (!groups[c]) groups[c] = [];
+    groups[c].push(l);
+  });
+  const existing = new Set((lieuFictifPhotos[_pphLieuKey]||[]).map(p=>p.locationId));
+  body.innerHTML = Object.entries(groups).sort(([a],[b])=>a.localeCompare(b)).map(([catName, locs]) => `
+    <div class="bk-picker-section open">
+      <div class="bk-picker-section-header" onclick="this.closest('.bk-picker-section').classList.toggle('open')">
+        <span class="bk-picker-section-arrow">▶</span>
+        <span class="bk-picker-section-title">${esc(catName)}</span>
+        <span class="bk-picker-section-count">${locs.length}</span>
+      </div>
+      <div class="bk-picker-section-body">
+        ${locs.map(l => {
+          const ph = l.photos?.[0];
+          const hasPhotos = (lieuFictifPhotos[_pphLieuKey]||[]).filter(p=>p.locationId===l.id).length;
+          return `<div class="bk-picker-row" onclick="_pphGoStep2('${esc(l.id)}')">
+            <div class="bk-picker-row-thumb">${ph?`<img src="${esc(cdnUrl(ph))}">`:'📷'}</div>
+            <div class="bk-picker-row-info">
+              <div class="bk-picker-row-nom">${esc(l.nom)}</div>
+              <div class="bk-picker-row-addr">${l.photos.length} photo${l.photos.length>1?'s':''}</div>
+            </div>
+            ${hasPhotos?`<span class="bk-picker-row-status">${hasPhotos} sél.</span>`:''}
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`).join('');
+}
+
+function _pphGoStep2(locationId) {
+  const loc = bankLocations.find(l => l.id === locationId);
+  if (!loc?.photos?.length) return;
+  _pphLocId = locationId;
+  _pphSelected = new Set(
+    (lieuFictifPhotos[_pphLieuKey]||[]).filter(p=>p.locationId===locationId).map(p=>p.url)
+  );
+  document.getElementById('pph-step1-ctrl').style.display = 'none';
+  document.getElementById('pph-step2-ctrl').style.display = '';
+  document.getElementById('pph-loc-name').textContent = loc.nom;
+  _renderPphStep2();
+}
+
+function _renderPphStep2() {
+  const loc = bankLocations.find(l => l.id === _pphLocId);
+  if (!loc) return;
+  const sorted = sortPhotoUrls(loc.photos);
+  document.getElementById('pph-body').innerHTML =
+    `<div class="pph-grid">${sorted.map(url => {
+      const sel = _pphSelected.has(url);
+      return `<div class="pph-cell${sel?' selected':''}" onclick="_pphToggle('${esc(url)}')">
+        <img src="${esc(cdnUrl(url))}" loading="lazy">
+        <div class="pph-check">✓</div>
+      </div>`;
+    }).join('')}</div>`;
+  _pphUpdateBtn();
+}
+
+function _pphToggle(url) {
+  if (_pphSelected.has(url)) _pphSelected.delete(url);
+  else _pphSelected.add(url);
+  _renderPphStep2();
+}
+
+function _pphUpdateBtn() {
+  const btn = document.getElementById('pph-confirm-btn');
+  const n = _pphSelected.size;
+  btn.style.display = n ? '' : 'none';
+  btn.textContent = `Ajouter ${n} photo${n>1?'s':''}`;
+}
+
+function _pphBack() {
+  _pphLocId = null;
+  _pphSelected = new Set();
+  document.getElementById('pph-step1-ctrl').style.display = '';
+  document.getElementById('pph-step2-ctrl').style.display = 'none';
+  document.getElementById('pph-confirm-btn').style.display = 'none';
+  _renderPphStep1();
+}
+
+function _pphConfirm() {
+  const loc = bankLocations.find(l => l.id === _pphLocId);
+  if (!loc || !_pphSelected.size) return;
+  if (!lieuFictifPhotos[_pphLieuKey]) lieuFictifPhotos[_pphLieuKey] = [];
+  // Retirer les photos existantes de cette location pour éviter les doublons
+  lieuFictifPhotos[_pphLieuKey] = lieuFictifPhotos[_pphLieuKey].filter(p => p.locationId !== _pphLocId);
+  // Ajouter les nouvelles sélections
+  _pphSelected.forEach(url => {
+    lieuFictifPhotos[_pphLieuKey].push({ url, locationId: loc.id, locationNom: loc.nom, categorie: loc.categorie||'' });
+  });
+  save(); renderBatchAssign();
+  closePhotoPicker();
+}
+
+function closePhotoPicker() {
+  document.getElementById('photo-picker-overlay').style.display = 'none';
+  _pphLieuKey = null; _pphLocId = null; _pphSelected = new Set();
+}
+
+function removeLieuFictifPhoto(lieuKey, url) {
+  if (!lieuFictifPhotos[lieuKey]) return;
+  lieuFictifPhotos[lieuKey] = lieuFictifPhotos[lieuKey].filter(p => p.url !== url);
+  save(); renderBatchAssign();
+}
+
+function removeLieuFictifSource(lieuKey, locationId) {
+  if (!lieuFictifPhotos[lieuKey]) return;
+  lieuFictifPhotos[lieuKey] = lieuFictifPhotos[lieuKey].filter(p => p.locationId !== locationId);
+  if (locationConfirmations[lieuKey] === locationId) delete locationConfirmations[lieuKey];
+  save(); renderBatchAssign();
 }
 
 // ─── TABS ───────────────────────────────────────────────────────────────────
@@ -2475,8 +2694,8 @@ function deleteLieuPhoto(id, type, url) {
 
 function buildVlieuThumbs(ltIds) {
   const toUrl = p => typeof p === 'object' ? p.url : p;
-  const lieux = ltIds.flatMap(id => (lieuTournagePhotos[id] || []).map(toUrl));
-  const inspi  = ltIds.flatMap(id => (lieuTournageInspi[id]  || []).map(toUrl));
+  const lieux = sortPhotoUrls(ltIds.flatMap(id => (lieuTournagePhotos[id] || []).map(toUrl)));
+  const inspi  = sortPhotoUrls(ltIds.flatMap(id => (lieuTournageInspi[id]  || []).map(toUrl)));
   if (!lieux.length && !inspi.length) return '';
 
   const buildRow = (photos, label) => {
@@ -2486,7 +2705,7 @@ function buildVlieuThumbs(ltIds) {
     const extra = photos.length - MAX;
     return `<div class="vlieu-thumbs-row">
       <span class="vlieu-thumbs-label">${label}</span>
-      ${visible.map(url => `<div class="vlieu-thumb" onclick="openLightbox('${url}')"><img src="${url}" loading="lazy"></div>`).join('')}
+      ${visible.map(url => `<div class="vlieu-thumb" onclick="openLightbox('${url}')"><img src="${cdnUrl(url)}" loading="lazy"></div>`).join('')}
       ${extra > 0 ? `<div class="vlieu-thumb-more" onclick="openLightbox('${photos[MAX]}')">+${extra}</div>` : ''}
     </div>`;
   };
@@ -2500,26 +2719,71 @@ function buildVlieuThumbs(ltIds) {
 let _lbUrls = [];
 let _lbIdx = 0;
 let _lbCaption = '';
+let _lbDeleteFn = null;
+
+function sortPhotoUrls(urls) {
+  return [...urls].sort((a, b) => {
+    const fa = a.split('/').pop().split('?')[0];
+    const fb = b.split('/').pop().split('?')[0];
+    return fa.localeCompare(fb, undefined, {numeric: true, sensitivity: 'base'});
+  });
+}
+
+function cdnUrl(url) {
+  if (!url || !url.includes('cloudinary.com')) return url;
+  return url.replace('/upload/', '/upload/f_auto,q_auto/');
+}
 
 function openLightbox(url, caption) {
   _lbUrls = [url]; _lbIdx = 0; _lbCaption = caption||'';
+  _lbDeleteFn = null;
   _lbShow();
 }
 
 function openBkGallery(locationId, startIdx) {
   const loc = bankLocations.find(l=>l.id===locationId);
   if (!loc?.photos?.length) return;
-  _lbUrls = loc.photos; _lbIdx = startIdx||0; _lbCaption = loc.nom;
+  _lbUrls = sortPhotoUrls(loc.photos); _lbIdx = startIdx||0; _lbCaption = loc.nom;
+  _lbDeleteFn = (url) => {
+    _deleteFromCloudinary(url);
+    loc.photos = loc.photos.filter(u => u !== url);
+    saveBanque();
+    renderBanque();
+  };
+  _lbShow();
+}
+
+function openLieuGallery(lieuId, type, startIdx) {
+  const dictMap = { lieux: lieuTournagePhotos, inspi: lieuTournageInspi, floorplans: lieuTournageFloorplans };
+  const dict = dictMap[type] || lieuTournagePhotos;
+  const urls = sortPhotoUrls((dict[lieuId] || []).map(p => typeof p === 'object' ? p.url : p));
+  if (!urls.length) return;
+  _lbUrls = urls;
+  _lbIdx = Math.min(startIdx || 0, urls.length - 1);
+  _lbCaption = '';
+  _lbDeleteFn = (url) => { deleteLieuPhoto(lieuId, type, url); };
+  _lbShow();
+}
+
+function lbDelete() {
+  if (!_lbDeleteFn) return;
+  if (!confirm('Supprimer cette photo définitivement ?')) return;
+  const url = _lbUrls[_lbIdx];
+  _lbDeleteFn(url);
+  _lbUrls.splice(_lbIdx, 1);
+  if (!_lbUrls.length) { closeLightbox(); return; }
+  _lbIdx = Math.min(_lbIdx, _lbUrls.length - 1);
   _lbShow();
 }
 
 function _lbShow() {
   const lb = document.getElementById('photo-lightbox');
-  document.getElementById('photo-lightbox-img').src = _lbUrls[_lbIdx];
+  document.getElementById('photo-lightbox-img').src = cdnUrl(_lbUrls[_lbIdx]);
   document.getElementById('lb-caption').textContent = _lbCaption;
   document.getElementById('lb-counter').textContent = _lbUrls.length > 1 ? `${_lbIdx+1} / ${_lbUrls.length}` : '';
   document.getElementById('lb-prev').hidden = _lbUrls.length <= 1;
   document.getElementById('lb-next').hidden = _lbUrls.length <= 1;
+  document.getElementById('lb-delete').hidden = !_lbDeleteFn;
   lb.classList.add('open');
 }
 
@@ -2766,11 +3030,13 @@ function renderLieuList() {
     const usage = scenes.filter(s => s.lieu_tournage_id === l.id).length;
     const sls = getSousLieuxForTournage(l.id);
     const buildPhotoRow = (type, dict, label) => {
-      const photos = (dict[l.id] || []).map(p => typeof p === 'string' ? {url: p, sl: ''} : p);
-      const thumbs = photos.map(p =>
+      const rawPhotos = (dict[l.id] || []).map(p => typeof p === 'string' ? {url: p, sl: ''} : p);
+      const sortedUrls = sortPhotoUrls(rawPhotos.map(p => p.url));
+      const photos = sortedUrls.map(url => rawPhotos.find(p => p.url === url) || {url, sl: ''});
+      const thumbs = photos.map((p, i) =>
         `<div class="photo-thumb-wrap">
-          <div class="lieu-photo-thumb" onclick="openLightbox('${esc(p.url)}')">
-            <img src="${esc(p.url)}" loading="lazy">
+          <div class="lieu-photo-thumb" onclick="openLieuGallery('${l.id}','${type}',${i})">
+            <img src="${esc(cdnUrl(p.url))}" loading="lazy">
             <button class="lieu-photo-del" data-lid="${l.id}" data-type="${type}" data-url="${esc(p.url)}" onclick="event.stopPropagation();deleteLieuPhoto(this.dataset.lid,this.dataset.type,this.dataset.url)">✕</button>
           </div>
           <select class="photo-sl-sel" onchange="setPhotoSousLieu('${l.id}','${type}','${esc(p.url)}',this.value)">
@@ -2797,7 +3063,7 @@ function renderLieuList() {
     const bankPhotoCount = bankLoc?.photos?.length||0;
     return `<div class="lieu-card" id="lc_${l.id}">
       ${bankThumb ? `<div class="lieu-card-bank-thumb" onclick="switchTab('banque');filterBanque()">
-        <img src="${esc(bankThumb)}" loading="lazy">
+        <img src="${esc(cdnUrl(bankThumb))}" loading="lazy">
         ${bankPhotoCount>1?`<span class="lieu-card-bank-thumb-count">${bankPhotoCount} photos</span>`:''}
       </div>` : ''}
       <div class="lieu-card-main">
@@ -4152,7 +4418,7 @@ function _openLocPDFWindow(locs, opts) {
         pc = catDefs.map(({label, dict}) => {
           const photos = (dict[l.id] || []).map(p => typeof p==='object'?p:{url:p,sl:''});
           if (!photos.length) return '';
-          const imgs = photos.map(p => `<div class="ph-cell"><img src="${eh(p.url)}" onerror="this.parentNode.style.display='none'"></div>`).join('');
+          const imgs = photos.map(p => `<div class="ph-cell"><img src="${eh(cdnUrl(p.url))}" onerror="this.parentNode.style.display='none'"></div>`).join('');
           return `<div class="ph-group"><div class="ph-label">${label}</div><div class="ph-grid cols-${opts.photoCols}">${imgs}</div></div>`;
         }).filter(Boolean).join('');
       } else {
@@ -4163,7 +4429,7 @@ function _openLocPDFWindow(locs, opts) {
           const cats = catDefs.map(({label}) => {
             const photos = groups[k][label]||[];
             if (!photos.length) return '';
-            const imgs = photos.map(p => `<div class="ph-cell"><img src="${eh(p.url)}" onerror="this.parentNode.style.display='none'"></div>`).join('');
+            const imgs = photos.map(p => `<div class="ph-cell"><img src="${eh(cdnUrl(p.url))}" onerror="this.parentNode.style.display='none'"></div>`).join('');
             return `<div class="ph-cat"><div class="ph-cat-label">${label}</div><div class="ph-grid cols-${opts.photoCols}">${imgs}</div></div>`;
           }).filter(Boolean).join('');
           return cats ? `<div class="ph-group"><div class="ph-label">${k ? eh(k) : 'Général'}</div>${cats}</div>` : '';
