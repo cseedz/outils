@@ -736,13 +736,14 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
 .banque-list { display: flex; flex-direction: column; padding: 12px 24px 40px; overflow-y: auto; flex: 1; gap: 6px; }
 .banque-empty { text-align: center; color: var(--text-muted); padding: 48px 0; font-size: 13px; }
 /* Catégorie section */
-.bk-section { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
-.bk-section-header { display: flex; align-items: center; gap: 8px; padding: 9px 14px; background: var(--bg2); cursor: pointer; user-select: none; list-style: none; }
-.bk-section-header::-webkit-details-marker { display: none; }
-.bk-section-arrow { font-size: 10px; color: var(--text-muted); transition: transform .15s; }
-details.bk-section[open] .bk-section-arrow { transform: rotate(90deg); }
+.bk-section { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; flex-shrink: 0; }
+.bk-section-header { display: flex; align-items: center; gap: 8px; padding: 9px 14px; background: var(--bg2); cursor: pointer; user-select: none; }
+.bk-section-arrow { font-size: 10px; color: var(--text-muted); transition: transform .15s; flex-shrink: 0; }
+.bk-section.open .bk-section-arrow { transform: rotate(90deg); }
 .bk-section-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--text); flex: 1; }
-.bk-section-count { font-size: 11px; color: var(--text-muted); font-weight: 500; }
+.bk-section-count { font-size: 11px; color: var(--text-muted); font-weight: 500; flex-shrink: 0; }
+.bk-section-body { display: none; }
+.bk-section.open .bk-section-body { display: block; }
 /* Location row */
 .bk-row { display: flex; align-items: center; gap: 12px; padding: 8px 14px; border-top: 1px solid var(--border); background: var(--bg); cursor: pointer; transition: background .1s; }
 .bk-row:hover { background: var(--bg2); }
@@ -1771,30 +1772,32 @@ function renderBanque() {
   });
   const isFiltering = !!(q || cat);
   grid.innerHTML = Object.entries(groups).sort(([a],[b])=>a.localeCompare(b)).map(([catName, locs]) => `
-    <details class="bk-section" ${isFiltering ? 'open' : 'open'}>
-      <summary class="bk-section-header">
+    <div class="bk-section open">
+      <div class="bk-section-header" onclick="this.closest('.bk-section').classList.toggle('open')">
         <span class="bk-section-arrow">▶</span>
         <span class="bk-section-title">${esc(catName)}</span>
         <span class="bk-section-count">${locs.length} location${locs.length>1?'s':''}</span>
-      </summary>
-      ${locs.map(l => {
-        const ph = l.photos?.[0];
-        const n = l.photos?.length||0;
-        const id = esc(l.id);
-        return `<div class="bk-row" onclick="bkRowClick(event,'${id}')">
-          <div class="bk-row-thumb">${ph?`<img src="${esc(ph)}" loading="lazy">`:'📷'}</div>
-          <div class="bk-row-info">
-            <div class="bk-row-nom">${esc(l.nom)}</div>
-            ${l.adresse?`<div class="bk-row-addr">${esc(l.adresse)}</div>`:''}
-          </div>
-          ${n?`<span class="bk-row-badge">📷 ${n}</span>`:''}
-          <div class="bk-row-actions" onclick="event.stopPropagation()">
-            <button class="bk-card-btn" onclick="openBanqueModal('${id}')">Modifier</button>
-            <button class="bk-card-btn danger" onclick="deleteBanqueLocation('${id}')">✕</button>
-          </div>
-        </div>`;
-      }).join('')}
-    </details>`).join('');
+      </div>
+      <div class="bk-section-body">
+        ${locs.map(l => {
+          const ph = l.photos?.[0];
+          const n = l.photos?.length||0;
+          const id = esc(l.id);
+          return `<div class="bk-row" onclick="bkRowClick(event,'${id}')">
+            <div class="bk-row-thumb">${ph?`<img src="${esc(ph)}" loading="lazy">`:'📷'}</div>
+            <div class="bk-row-info">
+              <div class="bk-row-nom">${esc(l.nom)}</div>
+              ${l.adresse?`<div class="bk-row-addr">${esc(l.adresse)}</div>`:''}
+            </div>
+            ${n?`<span class="bk-row-badge">📷 ${n}</span>`:''}
+            <div class="bk-row-actions" onclick="event.stopPropagation()">
+              <button class="bk-card-btn" onclick="openBanqueModal('${id}')">Modifier</button>
+              <button class="bk-card-btn danger" onclick="deleteBanqueLocation('${id}')">✕</button>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`).join('');
 }
 
 function bkRowClick(event, locationId) {
