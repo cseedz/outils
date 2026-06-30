@@ -1929,13 +1929,14 @@ function addLieuFromBank(bankId) {
   const autoColor = COLORS[lieusTournage.length % COLORS.length];
   const id = 'l_' + Date.now();
   lieusTournage.push({ id, nom: loc.nom, adresse: loc.adresse||'', notes: loc.notes||'', couleur: autoColor, bankId });
+  if (loc.photos?.length) lieuTournagePhotos[id] = loc.photos.map(url => ({ url, sl: '' }));
   save();
   buildTable();
   renderLieuList();
   renderVueLieux();
   refreshAllLieuDropdowns();
   refreshLieuTournageFilter();
-  showToast(loc.nom + ' ajouté au projet');
+  showToast(loc.nom + ' ajouté au projet (' + (loc.photos?.length||0) + ' photos importées)');
   closeBanquePicker();
   if (loc.adresse) geocodeLieuAddress(id);
 }
@@ -2027,9 +2028,10 @@ function confirmerLocation(lieuKey, bankId) {
       const autoColor = COLORS[lieusTournage.length % COLORS.length];
       const id = 'l_' + Date.now();
       lieusTournage.push({ id, nom: loc.nom, adresse: loc.adresse||'', notes: loc.notes||'', couleur: autoColor, bankId });
+      if (loc.photos?.length) lieuTournagePhotos[id] = loc.photos.map(url => ({ url, sl: '' }));
       buildTable(); renderLieuList(); renderVueLieux(); refreshAllLieuDropdowns(); refreshLieuTournageFilter();
       if (loc.adresse) geocodeLieuAddress(id);
-      showToast(loc.nom + ' confirmée et ajoutée au projet');
+      showToast(loc.nom + ' confirmée et ajoutée au projet (' + (loc.photos?.length||0) + ' photos)');
     }
   }
   save(); renderBatchAssign();
@@ -2420,7 +2422,9 @@ function deleteLieuPhoto(id, type, url) {
   save();
   renderLieuList();
   renderVueLieux();
-  _deleteFromCloudinary(url);
+  // Ne pas supprimer de Cloudinary si la photo appartient à la banque globale
+  const isInBank = bankLocations.some(l => l.photos?.includes(url));
+  if (!isInBank) _deleteFromCloudinary(url);
 }
 
 function buildVlieuThumbs(ltIds) {
