@@ -2119,6 +2119,8 @@ function buildShortlistSection(lieuKey) {
   const photos = lieuFictifPhotos[lieuKey] || [];
   const conf   = locationConfirmations[lieuKey] || null;
   const lk     = esc(lieuKey);
+  const parts  = lieuKey.split('\x01');
+  const sousLieuLabel = parts[1] ? `<span style="opacity:.55;font-weight:400;margin-left:4px;">└ ${esc(parts[1])}</span>` : '';
 
   // Grouper les photos par locationId
   const groups = {};
@@ -2156,7 +2158,7 @@ function buildShortlistSection(lieuKey) {
 
   return `<div class="sl-section">
     <div class="sl-title">
-      <span>Photos de repérage</span>
+      <span>Photos de repérage${sousLieuLabel}</span>
       <button class="sl-add-btn" onclick="openPhotoPickerForLieu('${lk}')">＋ Ajouter photos</button>
     </div>
     ${photos.length ? `<div class="sl-items">${groupsHtml}</div>` : ''}
