@@ -733,18 +733,26 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
 .banque-bar { display: flex; align-items: center; gap: 8px; padding: 10px 24px; background: var(--bg2); border-bottom: 1px solid var(--border); flex-shrink: 0; flex-wrap: wrap; }
 .banque-search { flex: 1; min-width: 160px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; font-family: inherit; background: var(--bg); color: var(--text); }
 .banque-cat-sel { padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; font-family: inherit; background: var(--bg); color: var(--text); }
-.banque-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; padding: 18px 24px 40px; overflow-y: auto; flex: 1; }
-.banque-empty { grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 48px 0; font-size: 13px; }
-.bk-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; }
-.bk-card:hover { box-shadow: 0 2px 10px rgba(0,0,0,.12); }
-.bk-card-photos { position: relative; aspect-ratio: 4/3; overflow: hidden; background: var(--bg3); display: flex; align-items: center; justify-content: center; font-size: 32px; }
-.bk-card-photos img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.bk-photo-count { position: absolute; bottom: 6px; right: 6px; background: rgba(0,0,0,.55); color: #fff; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 10px; }
-.bk-card-body { padding: 10px 12px 12px; flex: 1; display: flex; flex-direction: column; }
-.bk-card-nom { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.bk-card-cat { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); margin-bottom: 4px; }
-.bk-card-addr { font-size: 11px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.bk-card-actions { display: flex; gap: 6px; margin-top: auto; padding-top: 8px; }
+.banque-list { display: flex; flex-direction: column; padding: 12px 24px 40px; overflow-y: auto; flex: 1; gap: 6px; }
+.banque-empty { text-align: center; color: var(--text-muted); padding: 48px 0; font-size: 13px; }
+/* Catégorie section */
+.bk-section { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.bk-section-header { display: flex; align-items: center; gap: 8px; padding: 9px 14px; background: var(--bg2); cursor: pointer; user-select: none; list-style: none; }
+.bk-section-header::-webkit-details-marker { display: none; }
+.bk-section-arrow { font-size: 10px; color: var(--text-muted); transition: transform .15s; }
+details.bk-section[open] .bk-section-arrow { transform: rotate(90deg); }
+.bk-section-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--text); flex: 1; }
+.bk-section-count { font-size: 11px; color: var(--text-muted); font-weight: 500; }
+/* Location row */
+.bk-row { display: flex; align-items: center; gap: 12px; padding: 8px 14px; border-top: 1px solid var(--border); background: var(--bg); cursor: pointer; transition: background .1s; }
+.bk-row:hover { background: var(--bg2); }
+.bk-row-thumb { width: 58px; height: 44px; border-radius: 6px; overflow: hidden; background: var(--bg3); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+.bk-row-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.bk-row-info { flex: 1; min-width: 0; }
+.bk-row-nom { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bk-row-addr { font-size: 11px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+.bk-row-badge { font-size: 10px; font-weight: 600; background: var(--bg3); color: var(--text-muted); padding: 2px 7px; border-radius: 10px; flex-shrink: 0; white-space: nowrap; }
+.bk-row-actions { display: flex; gap: 4px; flex-shrink: 0; }
 .bk-card-btn { font-size: 11px; font-family: inherit; padding: 3px 8px; border-radius: 5px; border: 1px solid var(--border); background: var(--bg); color: var(--text); cursor: pointer; }
 .bk-card-btn:hover { background: var(--bg3); }
 .bk-card-btn.danger { color: #e0524f; border-color: transparent; background: none; }
@@ -990,7 +998,7 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
     </select>
     <button class="btn btn-success" onclick="openBanqueModal()">＋ Ajouter</button>
   </div>
-  <div class="banque-grid" id="banque-grid">
+  <div class="banque-list" id="banque-grid">
     <div class="banque-empty">Chargement…</div>
   </div>
 </div>
@@ -1754,25 +1762,44 @@ function renderBanque() {
     grid.innerHTML = `<div class="banque-empty">${bankLocations.length?'Aucun résultat.':'Banque vide — cliquez ＋ Ajouter pour commencer.'}</div>`;
     return;
   }
-  grid.innerHTML = filtered.map(l => {
-    const ph = l.photos?.[0];
-    const hasPhotos = l.photos?.length > 0;
-    return `<div class="bk-card">
-      <div class="bk-card-photos" style="${hasPhotos?'cursor:zoom-in;':''}" ${hasPhotos?`onclick="openBkGallery('${esc(l.id)}',0)"`:''}>
-        ${ph?`<img src="${esc(ph)}" loading="lazy">`:'📷'}
-        ${l.photos?.length>1?`<span class="bk-photo-count">+${l.photos.length-1} photos</span>`:''}
-      </div>
-      <div class="bk-card-body">
-        <div class="bk-card-nom">${esc(l.nom)}</div>
-        ${l.categorie?`<div class="bk-card-cat">${esc(l.categorie)}</div>`:''}
-        ${l.adresse?`<div class="bk-card-addr">${esc(l.adresse)}</div>`:''}
-        <div class="bk-card-actions">
-          <button class="bk-card-btn" onclick="openBanqueModal('${esc(l.id)}')">Modifier</button>
-          <button class="bk-card-btn danger" onclick="deleteBanqueLocation('${esc(l.id)}')">Supprimer</button>
-        </div>
-      </div>
-    </div>`;
-  }).join('');
+  // Grouper par catégorie
+  const groups = {};
+  filtered.forEach(l => {
+    const cat = l.categorie || 'Sans catégorie';
+    if (!groups[cat]) groups[cat] = [];
+    groups[cat].push(l);
+  });
+  const isFiltering = !!(q || cat);
+  grid.innerHTML = Object.entries(groups).sort(([a],[b])=>a.localeCompare(b)).map(([catName, locs]) => `
+    <details class="bk-section" ${isFiltering ? 'open' : 'open'}>
+      <summary class="bk-section-header">
+        <span class="bk-section-arrow">▶</span>
+        <span class="bk-section-title">${esc(catName)}</span>
+        <span class="bk-section-count">${locs.length} location${locs.length>1?'s':''}</span>
+      </summary>
+      ${locs.map(l => {
+        const ph = l.photos?.[0];
+        const n = l.photos?.length||0;
+        const id = esc(l.id);
+        return `<div class="bk-row" onclick="bkRowClick(event,'${id}')">
+          <div class="bk-row-thumb">${ph?`<img src="${esc(ph)}" loading="lazy">`:'📷'}</div>
+          <div class="bk-row-info">
+            <div class="bk-row-nom">${esc(l.nom)}</div>
+            ${l.adresse?`<div class="bk-row-addr">${esc(l.adresse)}</div>`:''}
+          </div>
+          ${n?`<span class="bk-row-badge">📷 ${n}</span>`:''}
+          <div class="bk-row-actions" onclick="event.stopPropagation()">
+            <button class="bk-card-btn" onclick="openBanqueModal('${id}')">Modifier</button>
+            <button class="bk-card-btn danger" onclick="deleteBanqueLocation('${id}')">✕</button>
+          </div>
+        </div>`;
+      }).join('')}
+    </details>`).join('');
+}
+
+function bkRowClick(event, locationId) {
+  const loc = bankLocations.find(l => l.id === locationId);
+  if (loc?.photos?.length) openBkGallery(locationId, 0);
 }
 
 function openBanqueModal(id) {
