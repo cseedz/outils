@@ -710,6 +710,84 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
   body.print-card .stat-table td { color: #000 !important; border-color: #ccc !important; }
   body.print-card h3 { color: #333 !important; }
 }
+
+/* ── BANQUE DE LOCATIONS ───────────────────────────────────────────────────── */
+#panel-banque { display: none; }
+#panel-banque.active { display: flex; flex-direction: column; height: calc(100vh - 86px); overflow: hidden; }
+.banque-bar { display: flex; align-items: center; gap: 8px; padding: 10px 24px; background: var(--bg2); border-bottom: 1px solid var(--border); flex-shrink: 0; flex-wrap: wrap; }
+.banque-search { flex: 1; min-width: 160px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; font-family: inherit; background: var(--bg); color: var(--text); }
+.banque-cat-sel { padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; font-family: inherit; background: var(--bg); color: var(--text); }
+.banque-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; padding: 18px 24px 40px; overflow-y: auto; flex: 1; }
+.banque-empty { grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 48px 0; font-size: 13px; }
+.bk-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; }
+.bk-card:hover { box-shadow: 0 2px 10px rgba(0,0,0,.12); }
+.bk-card-photos { position: relative; aspect-ratio: 4/3; overflow: hidden; background: var(--bg3); display: flex; align-items: center; justify-content: center; font-size: 32px; }
+.bk-card-photos img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.bk-photo-count { position: absolute; bottom: 6px; right: 6px; background: rgba(0,0,0,.55); color: #fff; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 10px; }
+.bk-card-body { padding: 10px 12px 12px; flex: 1; display: flex; flex-direction: column; }
+.bk-card-nom { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bk-card-cat { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); margin-bottom: 4px; }
+.bk-card-addr { font-size: 11px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bk-card-actions { display: flex; gap: 6px; margin-top: auto; padding-top: 8px; }
+.bk-card-btn { font-size: 11px; font-family: inherit; padding: 3px 8px; border-radius: 5px; border: 1px solid var(--border); background: var(--bg); color: var(--text); cursor: pointer; }
+.bk-card-btn:hover { background: var(--bg3); }
+.bk-card-btn.danger { color: #e0524f; border-color: transparent; background: none; }
+
+/* Modal banque add/edit */
+.bk-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 300; display: flex; align-items: center; justify-content: center; }
+.bk-modal { background: var(--bg); border-radius: 14px; width: min(520px, 95vw); max-height: 88vh; overflow-y: auto; padding: 24px; box-shadow: 0 8px 40px rgba(0,0,0,.25); }
+.bk-modal h3 { margin: 0 0 18px; font-size: 16px; }
+.bk-modal-photos { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
+.bk-modal-thumb { position: relative; width: 76px; height: 76px; border-radius: 7px; overflow: hidden; flex-shrink: 0; }
+.bk-modal-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.bk-modal-thumb-del { position: absolute; top: 2px; right: 2px; width: 18px; height: 18px; border-radius: 50%; background: rgba(0,0,0,.65); color: #fff; border: none; font-size: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; }
+.bk-modal-add-photo { width: 76px; height: 76px; border: 2px dashed var(--border2); border-radius: 7px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-muted); font-size: 24px; flex-shrink: 0; }
+.bk-modal-add-photo:hover { border-color: var(--text-muted); }
+.bk-modal-row { margin-bottom: 13px; }
+.bk-modal-label { font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 5px; }
+.bk-modal-input { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 7px; font-size: 13px; font-family: inherit; background: var(--bg2); color: var(--text); box-sizing: border-box; resize: vertical; }
+.bk-modal-actions { display: flex; align-items: center; gap: 8px; justify-content: flex-end; margin-top: 22px; }
+.bk-modal-saving { font-size: 11px; color: var(--text-muted); margin-right: auto; }
+
+/* Picker modal */
+.bk-picker-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 300; display: flex; align-items: center; justify-content: center; }
+.bk-picker { background: var(--bg); border-radius: 14px; width: min(640px, 96vw); max-height: 82vh; display: flex; flex-direction: column; box-shadow: 0 8px 40px rgba(0,0,0,.25); overflow: hidden; }
+.bk-picker-head { padding: 18px 20px 12px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.bk-picker-head h3 { margin: 0 0 12px; font-size: 15px; }
+.bk-picker-filters { display: flex; gap: 8px; }
+.bk-picker-search { flex: 1; padding: 7px 10px; border: 1px solid var(--border); border-radius: 7px; font-size: 13px; font-family: inherit; background: var(--bg2); color: var(--text); }
+.bk-picker-cat { padding: 7px 10px; border: 1px solid var(--border); border-radius: 7px; font-size: 12px; font-family: inherit; background: var(--bg2); color: var(--text); }
+.bk-picker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 10px; padding: 14px 20px 14px; overflow-y: auto; flex: 1; }
+.bk-picker-card { border: 2px solid transparent; border-radius: 9px; overflow: hidden; cursor: pointer; background: var(--bg2); transition: border-color .12s; }
+.bk-picker-card:hover:not(.already) { border-color: var(--text-muted); }
+.bk-picker-card.already { border-color: #2db866; opacity: .7; cursor: default; }
+.bk-picker-card-img { width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block; background: var(--bg3); }
+.bk-picker-card-img-empty { aspect-ratio: 4/3; background: var(--bg3); display: flex; align-items: center; justify-content: center; font-size: 24px; }
+.bk-picker-card-info { padding: 6px 8px 8px; }
+.bk-picker-card-nom { font-size: 11px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bk-picker-card-cat { font-size: 9px; color: var(--text-muted); }
+.bk-picker-foot { padding: 12px 20px; border-top: 1px solid var(--border); flex-shrink: 0; display: flex; justify-content: flex-end; }
+
+/* Shortlist dans batch assign */
+.sl-section { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border2); }
+.sl-title { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); margin-bottom: 6px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.sl-add-btn { font-size: 10px; font-family: inherit; background: none; border: 1px dashed var(--border2); border-radius: 12px; padding: 2px 9px; color: var(--text-muted); cursor: pointer; white-space: nowrap; }
+.sl-add-btn:hover { color: var(--text); border-color: var(--text-muted); }
+.sl-items { display: flex; flex-direction: column; gap: 5px; margin-top: 6px; }
+.sl-item { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 7px; border: 1px solid var(--border); background: var(--bg); }
+.sl-item.confirmed { border-color: #2db866; background: rgba(45,184,102,.06); }
+.sl-item-thumb { width: 34px; height: 34px; border-radius: 5px; overflow: hidden; flex-shrink: 0; background: var(--bg3); display: flex; align-items: center; justify-content: center; font-size: 14px; }
+.sl-item-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.sl-item-info { flex: 1; min-width: 0; }
+.sl-item-nom { font-size: 12px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sl-item-cat { font-size: 10px; color: var(--text-muted); }
+.sl-item-actions { display: flex; gap: 4px; flex-shrink: 0; align-items: center; }
+.sl-item-btn { font-size: 10px; font-family: inherit; padding: 3px 8px; border-radius: 5px; border: 1px solid var(--border); background: var(--bg); cursor: pointer; white-space: nowrap; }
+.sl-item-btn:hover { background: var(--bg2); }
+.sl-item-btn.confirm { background: #2db866; color: #fff; border-color: #2db866; }
+.sl-item-btn.deconfirm { background: none; color: #2db866; border-color: #2db866; }
+.sl-item-btn.remove { color: #e0524f; border-color: transparent; background: none; }
+.sl-confirmed-badge { font-size: 9px; font-weight: 700; background: #2db866; color: #fff; border-radius: 10px; padding: 1px 7px; text-transform: uppercase; letter-spacing: .04em; }
 </style>
 </head>
 <body>
@@ -730,6 +808,7 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
 <div class="tab-bar">
   <button class="tab-btn active" data-tab="vue-lieux" onclick="switchTab('vue-lieux')">Lieux</button>
   <button class="tab-btn" data-tab="lieux"    onclick="switchTab('lieux')">Locations</button>
+  <button class="tab-btn" data-tab="banque"   onclick="switchTab('banque')">Banque</button>
   <button class="tab-btn" data-tab="recap"    onclick="switchTab('recap')">Récapitulatif</button>
   <button class="tab-btn" data-tab="outils"   onclick="switchTab('outils')">Outils</button>
 </div>
@@ -896,6 +975,75 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
         <p class="subtitle">Couleur et assignation de location par lieu. Les overrides individuels du tableau restent prioritaires.</p>
         <div id="batch-content"></div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- PANEL: BANQUE DE LOCATIONS -->
+<div class="panel" id="panel-banque">
+  <div class="banque-bar">
+    <input class="banque-search" type="text" id="banque-search" placeholder="Rechercher une location…" oninput="filterBanque()">
+    <select class="banque-cat-sel" id="banque-cat" onchange="filterBanque()">
+      <option value="">Toutes catégories</option>
+    </select>
+    <button class="btn btn-success" onclick="openBanqueModal()">＋ Ajouter</button>
+  </div>
+  <div class="banque-grid" id="banque-grid">
+    <div class="banque-empty">Chargement…</div>
+  </div>
+</div>
+
+<!-- MODAL: Banque add/edit -->
+<div class="bk-modal-overlay" id="bk-modal-overlay" style="display:none;" onclick="if(event.target===this)closeBanqueModal()">
+  <div class="bk-modal">
+    <h3 id="bk-modal-title">Ajouter une location</h3>
+    <div class="bk-modal-row">
+      <div class="bk-modal-label">Photos</div>
+      <div class="bk-modal-photos" id="bk-modal-photos"></div>
+    </div>
+    <div class="bk-modal-row">
+      <div class="bk-modal-label">Nom *</div>
+      <input class="bk-modal-input" type="text" id="bk-modal-nom" placeholder="ex. École secondaire Georges Vanier">
+    </div>
+    <div class="bk-modal-row">
+      <div class="bk-modal-label">Catégorie</div>
+      <select class="bk-modal-input" id="bk-modal-cat"></select>
+    </div>
+    <div class="bk-modal-row">
+      <div class="bk-modal-label">Adresse</div>
+      <input class="bk-modal-input" type="text" id="bk-modal-addr" placeholder="ex. 123 boul. des Mille-Îles, Laval">
+    </div>
+    <div class="bk-modal-row">
+      <div class="bk-modal-label">Contact</div>
+      <input class="bk-modal-input" type="text" id="bk-modal-contact" placeholder="ex. Marie Tremblay, 514-555-1234">
+    </div>
+    <div class="bk-modal-row">
+      <div class="bk-modal-label">Notes</div>
+      <textarea class="bk-modal-input" id="bk-modal-notes" rows="2" placeholder="Disponibilité, conditions, particularités…"></textarea>
+    </div>
+    <div class="bk-modal-actions">
+      <span class="bk-modal-saving" id="bk-modal-saving">Sauvegarde en cours…</span>
+      <button class="btn btn-cancel" onclick="closeBanqueModal()">Annuler</button>
+      <button class="btn btn-success" onclick="confirmBanqueModal()">Sauvegarder</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Picker banque pour shortlist -->
+<div class="bk-picker-overlay" id="bk-picker-overlay" style="display:none;" onclick="if(event.target===this)closeBanquePicker()">
+  <div class="bk-picker">
+    <div class="bk-picker-head">
+      <h3 id="bk-picker-title">Shortlister une location</h3>
+      <div class="bk-picker-filters">
+        <input class="bk-picker-search" type="text" id="bk-picker-search" placeholder="Rechercher…" oninput="renderBanquePicker()">
+        <select class="bk-picker-cat" id="bk-picker-cat" onchange="renderBanquePicker()">
+          <option value="">Toutes catégories</option>
+        </select>
+      </div>
+    </div>
+    <div class="bk-picker-grid" id="bk-picker-grid"></div>
+    <div class="bk-picker-foot">
+      <button class="btn" onclick="closeBanquePicker()">Fermer</button>
     </div>
   </div>
 </div>
@@ -1319,7 +1467,8 @@ function save() {
     lieuTournagePhotos, lieuTournageInspi, lieuTournageFloorplans,
     lieuColorOverrides, sousLieuColorOverrides, activePaletteKey,
     lieuPalettesCustom: JSON.parse(JSON.stringify(PALETTES)),
-    imported_scenes_raw, fdxVersions, fdxImportMeta, totalEpisodes
+    imported_scenes_raw, fdxVersions, fdxImportMeta, totalEpisodes,
+    locationShortlists, locationConfirmations
   };
   clearTimeout(_saveDebounce);
   _saveDebounce = setTimeout(() => syncToSupabase(_data), 600);
@@ -1389,6 +1538,8 @@ function applyData(d) {
   if (d.lieuTournagePhotos)     lieuTournagePhotos     = d.lieuTournagePhotos;
   if (d.lieuTournageInspi)      lieuTournageInspi      = d.lieuTournageInspi;
   if (d.lieuTournageFloorplans) lieuTournageFloorplans = d.lieuTournageFloorplans;
+  if (d.locationShortlists)    locationShortlists    = d.locationShortlists;
+  if (d.locationConfirmations) locationConfirmations = d.locationConfirmations;
   _migratePhotoDicts();
 }
 
@@ -1530,10 +1681,262 @@ async function loadFromSupabase() {
       }
     }
     setSyncStatus('synced');
+    loadBanque(); // banque globale chargée en parallèle (non bloquante)
   } catch(e) {
     setSyncStatus('error');
     console.warn('Supabase load error:', e);
   }
+}
+
+// ─── BANQUE DE LOCATIONS ─────────────────────────────────────────────────────
+const BANK_KEY  = '_global_locations_bank';
+const BANK_CATS = ['Appartements','Arénas','Cabanes à sucre','Camps','Casse-croûte','Chalets','Condos','Cours à scrap','Domaines','Écoles','Églises','Forêts','Hôtel','Maisons','Parcs','Rues / Extérieur'];
+
+let bankLocations    = [];
+let _bankSaveDebounce= null;
+let _bankFilter      = { cat: '', q: '' };
+let _bkEditId        = null;
+let _bkEditPhotos    = [];
+let _bkPickerLieu    = null;
+let locationShortlists   = {};  // { [lieuKey]: [bankId, ...] }
+let locationConfirmations= {};  // { [lieuKey]: bankId }
+
+async function loadBanque() {
+  if (!sb) return;
+  try {
+    const { data } = await sb.from('project_data').select('data').eq('key', BANK_KEY).maybeSingle();
+    bankLocations = data?.data?.locations || [];
+  } catch(e) { console.warn('loadBanque:', e); }
+}
+
+function saveBanque() {
+  if (!sb) return;
+  clearTimeout(_bankSaveDebounce);
+  _bankSaveDebounce = setTimeout(async () => {
+    try {
+      await sb.from('project_data').upsert({ key: BANK_KEY, data: { locations: bankLocations }, updated_at: new Date().toISOString() });
+    } catch(e) { console.warn('saveBanque:', e); }
+  }, 800);
+}
+
+function _populateCatSelects() {
+  const optAll  = '<option value="">Toutes catégories</option>' + BANK_CATS.map(c=>`<option value="${c}">${esc(c)}</option>`).join('');
+  const optNone = '<option value="">— Non classé —</option>'   + BANK_CATS.map(c=>`<option value="${c}">${esc(c)}</option>`).join('');
+  ['banque-cat','bk-picker-cat'].forEach(id => { const el=document.getElementById(id); if(el) el.innerHTML=optAll; });
+  const mc = document.getElementById('bk-modal-cat'); if(mc) mc.innerHTML=optNone;
+}
+
+function filterBanque() {
+  _bankFilter.q   = (document.getElementById('banque-search')?.value||'').toLowerCase();
+  _bankFilter.cat = document.getElementById('banque-cat')?.value||'';
+  renderBanque();
+}
+
+function renderBanque() {
+  const grid = document.getElementById('banque-grid'); if(!grid) return;
+  const { q, cat } = _bankFilter;
+  const filtered = bankLocations.filter(l =>
+    (!cat || l.categorie===cat) &&
+    (!q || l.nom.toLowerCase().includes(q) || (l.adresse||'').toLowerCase().includes(q))
+  );
+  if (!filtered.length) {
+    grid.innerHTML = `<div class="banque-empty">${bankLocations.length?'Aucun résultat.':'Banque vide — cliquez ＋ Ajouter pour commencer.'}</div>`;
+    return;
+  }
+  grid.innerHTML = filtered.map(l => {
+    const ph = l.photos?.[0];
+    return `<div class="bk-card">
+      <div class="bk-card-photos">${ph?`<img src="${esc(ph)}" loading="lazy">`:'📷'}${l.photos?.length>1?`<span class="bk-photo-count">+${l.photos.length-1}</span>`:''}</div>
+      <div class="bk-card-body">
+        <div class="bk-card-nom">${esc(l.nom)}</div>
+        ${l.categorie?`<div class="bk-card-cat">${esc(l.categorie)}</div>`:''}
+        ${l.adresse?`<div class="bk-card-addr">${esc(l.adresse)}</div>`:''}
+        <div class="bk-card-actions">
+          <button class="bk-card-btn" onclick="openBanqueModal('${esc(l.id)}')">Modifier</button>
+          <button class="bk-card-btn danger" onclick="deleteBanqueLocation('${esc(l.id)}')">Supprimer</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openBanqueModal(id) {
+  _bkEditId = id||null;
+  const loc = id ? bankLocations.find(l=>l.id===id) : null;
+  _bkEditPhotos = [...(loc?.photos||[])];
+  _populateCatSelects();
+  document.getElementById('bk-modal-title').textContent = id ? 'Modifier la location' : 'Ajouter une location';
+  document.getElementById('bk-modal-nom').value     = loc?.nom      ||'';
+  document.getElementById('bk-modal-cat').value     = loc?.categorie||'';
+  document.getElementById('bk-modal-addr').value    = loc?.adresse  ||'';
+  document.getElementById('bk-modal-contact').value = loc?.contact  ||'';
+  document.getElementById('bk-modal-notes').value   = loc?.notes    ||'';
+  document.getElementById('bk-modal-saving').textContent = '';
+  _renderBkEditPhotos();
+  document.getElementById('bk-modal-overlay').style.display='';
+  setTimeout(()=>document.getElementById('bk-modal-nom').focus(),80);
+}
+
+function closeBanqueModal() {
+  document.getElementById('bk-modal-overlay').style.display='none';
+  _bkEditId=null; _bkEditPhotos=[];
+}
+
+function _renderBkEditPhotos() {
+  const wrap = document.getElementById('bk-modal-photos');
+  wrap.innerHTML = _bkEditPhotos.map((url,i)=>`
+    <div class="bk-modal-thumb">
+      <img src="${esc(url)}" loading="lazy">
+      <button class="bk-modal-thumb-del" onclick="removeBkEditPhoto(${i})">✕</button>
+    </div>`).join('') +
+    `<label class="bk-modal-add-photo" title="Ajouter photos">+<input type="file" accept="image/*" multiple style="display:none" onchange="handleBkPhotoInput(this)"></label>`;
+}
+
+function removeBkEditPhoto(idx) {
+  _bkEditPhotos.splice(idx,1); _renderBkEditPhotos();
+}
+
+async function handleBkPhotoInput(input) {
+  const files = Array.from(input.files); if(!files.length) return;
+  const savingEl = document.getElementById('bk-modal-saving');
+  savingEl.textContent = 'Upload en cours…';
+  for (const file of files) {
+    try { _bkEditPhotos.push(await uploadToCloudinary(file)); }
+    catch(e) { showToast('Erreur upload'); }
+  }
+  savingEl.textContent = ''; input.value=''; _renderBkEditPhotos();
+}
+
+function confirmBanqueModal() {
+  const nom = document.getElementById('bk-modal-nom').value.trim();
+  if (!nom) { showToast('Le nom est obligatoire'); return; }
+  const data = {
+    nom, categorie: document.getElementById('bk-modal-cat').value,
+    adresse: document.getElementById('bk-modal-addr').value.trim(),
+    contact: document.getElementById('bk-modal-contact').value.trim(),
+    notes:   document.getElementById('bk-modal-notes').value.trim(),
+    photos:  [..._bkEditPhotos]
+  };
+  if (_bkEditId) {
+    const loc = bankLocations.find(l=>l.id===_bkEditId);
+    if (loc) Object.assign(loc, data);
+  } else {
+    bankLocations.push({ id: Date.now().toString(), ...data });
+  }
+  closeBanqueModal(); saveBanque(); renderBanque();
+}
+
+function deleteBanqueLocation(id) {
+  if (!confirm('Supprimer cette location de la banque ?')) return;
+  bankLocations = bankLocations.filter(l=>l.id!==id);
+  // Nettoyer shortlists
+  Object.keys(locationShortlists).forEach(k => {
+    locationShortlists[k] = locationShortlists[k].filter(bid=>bid!==id);
+  });
+  Object.keys(locationConfirmations).forEach(k => {
+    if (locationConfirmations[k]===id) delete locationConfirmations[k];
+  });
+  saveBanque(); save(); renderBanque(); renderBatchAssign();
+}
+
+// ── Picker (shortlist) ───────────────────────────────────────────────────────
+function openBanquePicker(lieuKey) {
+  _bkPickerLieu = lieuKey;
+  const parts = lieuKey.split('\x01');
+  const label = parts[1] ? parts[0] + ' / ' + parts[1] : parts[0];
+  document.getElementById('bk-picker-title').textContent = 'Shortlister pour ' + label;
+  document.getElementById('bk-picker-search').value = '';
+  _populateCatSelects();
+  document.getElementById('bk-picker-cat').value = '';
+  renderBanquePicker();
+  document.getElementById('bk-picker-overlay').style.display='';
+  setTimeout(()=>document.getElementById('bk-picker-search').focus(),80);
+}
+
+function closeBanquePicker() {
+  document.getElementById('bk-picker-overlay').style.display='none';
+  _bkPickerLieu=null;
+}
+
+function renderBanquePicker() {
+  const grid = document.getElementById('bk-picker-grid'); if(!grid) return;
+  const q   = (document.getElementById('bk-picker-search')?.value||'').toLowerCase();
+  const cat = document.getElementById('bk-picker-cat')?.value||'';
+  const sl  = locationShortlists[_bkPickerLieu]||[];
+  const filtered = bankLocations.filter(l =>
+    (!cat||l.categorie===cat) && (!q||l.nom.toLowerCase().includes(q)||(l.adresse||'').toLowerCase().includes(q))
+  );
+  if (!filtered.length) {
+    grid.innerHTML='<div style="grid-column:1/-1;text-align:center;color:var(--text-muted);padding:32px 0;">Banque vide — ajoutez des locations dans l\'onglet Banque.</div>';
+    return;
+  }
+  grid.innerHTML = filtered.map(l => {
+    const already = sl.includes(l.id);
+    const ph = l.photos?.[0];
+    return `<div class="bk-picker-card${already?' already':''}" ${already?'':` onclick="addToShortlist('${esc(_bkPickerLieu)}','${esc(l.id)}')"`}>
+      ${ph?`<img class="bk-picker-card-img" src="${esc(ph)}" loading="lazy">`:'<div class="bk-picker-card-img-empty">📷</div>'}
+      <div class="bk-picker-card-info">
+        <div class="bk-picker-card-nom">${esc(l.nom)}</div>
+        ${l.categorie?`<div class="bk-picker-card-cat">${esc(l.categorie)}</div>`:''}
+        ${already?'<div style="font-size:9px;color:#2db866;font-weight:700;margin-top:2px;">✓ Shortlistée</div>':''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function addToShortlist(lieuKey, bankId) {
+  if (!locationShortlists[lieuKey]) locationShortlists[lieuKey]=[];
+  if (!locationShortlists[lieuKey].includes(bankId)) { locationShortlists[lieuKey].push(bankId); save(); }
+  renderBanquePicker(); renderBatchAssign();
+}
+
+function removeFromShortlist(lieuKey, bankId) {
+  locationShortlists[lieuKey]=(locationShortlists[lieuKey]||[]).filter(id=>id!==bankId);
+  if (locationConfirmations[lieuKey]===bankId) delete locationConfirmations[lieuKey];
+  save(); renderBatchAssign();
+}
+
+function confirmerLocation(lieuKey, bankId) {
+  locationConfirmations[lieuKey]=bankId; save(); renderBatchAssign();
+}
+
+function deconfirmerLocation(lieuKey) {
+  delete locationConfirmations[lieuKey]; save(); renderBatchAssign();
+}
+
+function buildShortlistSection(lieuKey) {
+  const sl  = locationShortlists[lieuKey]||[];
+  const conf= locationConfirmations[lieuKey]||null;
+  const lk  = esc(lieuKey);
+  let inner = '';
+  if (sl.length) {
+    inner = sl.map(bid => {
+      const loc = bankLocations.find(l=>l.id===bid);
+      if (!loc) return '';
+      const isConf = conf===bid;
+      const ph = loc.photos?.[0];
+      return `<div class="sl-item${isConf?' confirmed':''}">
+        <div class="sl-item-thumb">${ph?`<img src="${esc(ph)}" loading="lazy">`:'📷'}</div>
+        <div class="sl-item-info">
+          <div class="sl-item-nom">${esc(loc.nom)}</div>
+          ${loc.categorie?`<div class="sl-item-cat">${esc(loc.categorie)}</div>`:''}
+        </div>
+        <div class="sl-item-actions">
+          ${isConf
+            ? `<span class="sl-confirmed-badge">Confirmée</span><button class="sl-item-btn deconfirm" onclick="deconfirmerLocation('${lk}')">Annuler</button>`
+            : `<button class="sl-item-btn confirm" onclick="confirmerLocation('${lk}','${esc(bid)}')">Confirmer</button>`}
+          <button class="sl-item-btn remove" onclick="removeFromShortlist('${lk}','${esc(bid)}')">✕</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  return `<div class="sl-section">
+    <div class="sl-title">
+      <span>Shortlist</span>
+      <button class="sl-add-btn" onclick="openBanquePicker('${lk}')">＋ Depuis la banque</button>
+    </div>
+    ${sl.length?`<div class="sl-items">${inner}</div>`:''}
+  </div>`;
 }
 
 // ─── TABS ───────────────────────────────────────────────────────────────────
@@ -1542,12 +1945,14 @@ function switchTab(tab) {
   document.getElementById('panel-vue-lieux').classList.toggle('active', tab==='vue-lieux');
   document.getElementById('panel-tableau').classList.toggle('active', tab==='tableau');
   document.getElementById('panel-lieux').classList.toggle('active', tab==='lieux');
+  document.getElementById('panel-banque').classList.toggle('active', tab==='banque');
   document.getElementById('panel-recap').classList.toggle('active', tab==='recap');
   document.getElementById('panel-outils').classList.toggle('active', tab==='outils');
   document.getElementById('panel-versions').classList.toggle('active', tab==='versions');
   document.getElementById('controls-bar').classList.toggle('hidden', tab!=='tableau');
   if (tab === 'vue-lieux') renderVueLieux();
   if (tab === 'lieux') renderLieuList();
+  if (tab === 'banque') { _populateCatSelects(); renderBanque(); }
   if (tab === 'recap') renderRecap();
   if (tab === 'outils') renderOutils();
   if (tab === 'versions') renderVersions();
@@ -2288,6 +2693,7 @@ function renderBatchAssign() {
       const slPages = slSc.reduce((a, s) => a + parseDuree(s.duree), 0);
       const slIds = [...new Set(slSc.map(s => s.lieu_tournage_id || ''))];
       const slUniform = slIds.length === 1 ? slIds[0] : '';
+      const slKey = sl ? lieu + '\x01' + sl : '';
       return `<div class="batch-row batch-row-sub">
         <div class="batch-row-label"><span class="batch-sublieu">${esc(sl || '(sans sous-lieu)')}</span></div>
         <div class="batch-stats">${slSc.length} sc · ${fmtPages(slPages)}</div>
@@ -2296,7 +2702,8 @@ function renderBatchAssign() {
           onchange="batchAssign(this)">
           ${batchOptions(slUniform)}
         </select>
-      </div>`;
+      </div>
+      ${slKey ? buildShortlistSection(slKey) : ''}`;
     }).join('') : '';
 
     return `<div class="batch-group">
@@ -2310,6 +2717,7 @@ function renderBatchAssign() {
           ${batchOptions(uniformId)}
         </select>
       </div>
+      ${buildShortlistSection(lieu)}
       ${subRows}
     </div>`;
   }).join('');
