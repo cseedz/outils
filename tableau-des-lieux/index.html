@@ -1917,7 +1917,7 @@ function openBanquePicker(lieuKey) {
   setTimeout(()=>document.getElementById('bk-picker-search').focus(),80);
 }
 
-function openLieuPicker() {
+async function openLieuPicker() {
   _bkPickerMode = 'project';
   _bkPickerLieu = null;
   document.getElementById('bk-picker-title').textContent = 'Ajouter une location au projet';
@@ -1927,6 +1927,14 @@ function openLieuPicker() {
   renderBanquePicker();
   document.getElementById('bk-picker-overlay').style.display='';
   setTimeout(()=>document.getElementById('bk-picker-search').focus(),80);
+  // Refresh bank data silently — may be stale since page load
+  if (sb) {
+    try {
+      const { data } = await sb.from('project_data').select('data').eq('key', BANK_KEY).maybeSingle();
+      const fresh = data?.data?.locations || [];
+      if (fresh.length) { bankLocations = fresh; _populateCatSelects(); renderBanquePicker(); }
+    } catch(e) { /* ignore */ }
+  }
 }
 
 function addLieuFromBank(bankId) {
@@ -1936,14 +1944,16 @@ function addLieuFromBank(bankId) {
   const autoColor = COLORS[lieusTournage.length % COLORS.length];
   const id = 'l_' + Date.now();
   lieusTournage.push({ id, nom: loc.nom, adresse: loc.adresse||'', notes: loc.notes||'', couleur: autoColor, bankId });
-  if (loc.photos?.length) lieuTournagePhotos[id] = loc.photos.map(url => ({ url, sl: '' }));
+  const photoCount = loc.photos?.length || 0;
+  if (photoCount) lieuTournagePhotos[id] = loc.photos.map(url => ({ url, sl: '' }));
   save();
   buildTable();
   renderLieuList();
   renderVueLieux();
   refreshAllLieuDropdowns();
   refreshLieuTournageFilter();
-  showToast(loc.nom + ' ajouté au projet (' + (loc.photos?.length||0) + ' photos importées)');
+  const photoMsg = photoCount ? ` — ${photoCount} photo${photoCount>1?'s':''} importée${photoCount>1?'s':''}` : ' — aucune photo (vérifiez la banque)';
+  showToast(loc.nom + ' ajouté au projet' + photoMsg);
   closeBanquePicker();
   if (loc.adresse) geocodeLieuAddress(id);
 }
