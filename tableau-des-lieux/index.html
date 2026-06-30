@@ -1749,8 +1749,10 @@ function saveBanque() {
 }
 
 function _populateCatSelects() {
-  const optAll  = '<option value="">Toutes catégories</option>' + BANK_CATS.map(c=>`<option value="${c}">${esc(c)}</option>`).join('');
-  const optNone = '<option value="">— Non classé —</option>'   + BANK_CATS.map(c=>`<option value="${c}">${esc(c)}</option>`).join('');
+  const liveCats = [...new Set(bankLocations.map(l=>l.categorie||'').filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+  const cats = liveCats.length ? liveCats : BANK_CATS;
+  const optAll  = '<option value="">Toutes catégories</option>' + cats.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  const optNone = '<option value="">— Non classé —</option>'   + cats.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
   ['banque-cat','bk-picker-cat'].forEach(id => { const el=document.getElementById(id); if(el) el.innerHTML=optAll; });
   const mc = document.getElementById('bk-modal-cat'); if(mc) mc.innerHTML=optNone;
 }
