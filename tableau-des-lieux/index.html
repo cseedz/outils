@@ -220,11 +220,18 @@ input.notes-input::placeholder { color: var(--text-dim); }
 .lieux-col h2 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
 .lieux-col .subtitle { color: var(--text-muted); font-size: 12px; margin-bottom: 24px; }
 .batch-section h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; color: var(--text); }
-.add-lieu-form {
+.add-lieu-bar { display: flex; gap: 8px; align-items: center; padding: 14px 0 10px; }
+.add-lieu-manuel {
   background: var(--bg2); border: 1px solid var(--border); border-radius: 8px;
-  padding: 18px 20px; margin-bottom: 24px;
+  padding: 16px 18px; margin-bottom: 16px;
 }
+.add-lieu-form { display: none; } /* kept for compat, hidden */
 .add-lieu-form h3 { font-size: 13px; font-weight: 600; margin-bottom: 14px; color: var(--accent3); }
+.lieu-card-bank-thumb { width: 100%; aspect-ratio: 16/7; overflow: hidden; border-radius: 6px; background: var(--bg3); margin-bottom: 10px; position: relative; cursor: pointer; }
+.lieu-card-bank-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.lieu-card-bank-thumb-count { position: absolute; bottom: 5px; right: 7px; background: rgba(0,0,0,.55); color: #fff; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 10px; }
+.lieu-bank-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; color: var(--text-muted); background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; padding: 2px 7px; margin-left: 6px; cursor: pointer; }
+.lieu-bank-badge:hover { color: var(--text); }
 .form-row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
 .form-group { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 140px; }
 .form-group label { font-size: 11px; color: var(--text-muted); font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
@@ -910,43 +917,23 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
 <div class="panel" id="panel-lieux">
   <div class="lieux-col lieux-col-left">
     <div class="lieux-col-inner">
-      <h2>Gestion des locations</h2>
-      <p class="subtitle">Ajoutez ici vos lieux réels. Ils seront disponibles dans le menu déroulant de la colonne "Location" du tableau principal.</p>
+      <h2>Locations du projet</h2>
+      <p class="subtitle">Les locations actives pour ce projet — piochez dans votre banque ou ajoutez manuellement.</p>
 
-      <div class="add-lieu-form">
-        <h3>+ Ajouter une location</h3>
-        <div class="form-row" style="margin-bottom:12px;">
+      <div class="add-lieu-bar">
+        <button class="btn btn-success" onclick="openLieuPicker()">＋ Depuis la banque</button>
+        <button class="btn" onclick="toggleManuelForm()">＋ Manuelle</button>
+      </div>
+
+      <div class="add-lieu-manuel" id="add-lieu-manuel" style="display:none;">
+        <div class="form-row" style="margin-bottom:10px;">
           <div class="form-group" style="flex:2;">
-            <label>Nom de la location *</label>
-            <input class="form-input" type="text" id="new-lieu-nom" placeholder="ex. Maison Tremblay, Usine Bombardier...">
+            <label>Nom *</label>
+            <input class="form-input" type="text" id="new-lieu-nom" placeholder="ex. Maison Tremblay…">
           </div>
           <div class="form-group" style="flex:2;">
             <label>Adresse</label>
-            <input class="form-input" type="text" id="new-lieu-adresse" placeholder="ex. 123 rue des Pins, Saint-Jean">
-          </div>
-        </div>
-        <div class="form-row" style="margin-bottom:12px;">
-          <div class="form-group" style="flex:2;">
-            <label>Notes (optionnel)</label>
-            <input class="form-input" type="text" id="new-lieu-notes" placeholder="ex. Disponible seulement les fins de semaine">
-          </div>
-          <div class="form-group" style="flex:2;">
-            <label>Photos de repérage (optionnel)</label>
-            <input class="form-input" type="file" id="new-lieu-photos" accept="image/*" multiple>
-          </div>
-        </div>
-        <div class="form-row" style="margin-bottom:12px;">
-          <div class="form-group" style="flex:2;">
-            <label>Lieu fictif (optionnel)</label>
-            <select class="form-input" id="new-lieu-fictif" onchange="onNewLieuFictifChange()">
-              <option value="">— Aucun —</option>
-            </select>
-          </div>
-        </div>
-        <div class="form-row" id="new-lieu-sl-wrap" style="display:none;margin-bottom:12px;">
-          <div class="form-group" style="flex:2;">
-            <label>Sous-lieux à assigner à cette location</label>
-            <div class="new-lieu-sl-list" id="new-lieu-sl-list"></div>
+            <input class="form-input" type="text" id="new-lieu-adresse" placeholder="ex. 123 rue des Pins…">
           </div>
         </div>
         <div class="form-row" style="align-items:center;">
@@ -954,11 +941,17 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
             <label>Couleur</label>
             <div class="color-row" id="color-swatches"></div>
           </div>
-          <div style="margin-left:auto;">
-            <button class="btn btn-success" onclick="addLieu()">Ajouter le lieu</button>
+          <div style="margin-left:auto;display:flex;gap:6px;">
+            <button class="btn btn-success" onclick="addLieu()">Ajouter</button>
+            <button class="btn" onclick="toggleManuelForm()">Annuler</button>
           </div>
         </div>
       </div>
+
+      <!-- inputs cachés pour compat avec addLieu() -->
+      <input type="hidden" id="new-lieu-notes">
+      <input type="hidden" id="new-lieu-fictif">
+      <div id="new-lieu-sl-wrap" style="display:none;"><div id="new-lieu-sl-list"></div></div>
 
       <div class="lieu-list" id="lieu-list">
         <div class="empty-lieux">
@@ -1698,6 +1691,7 @@ let _bankFilter      = { cat: '', q: '' };
 let _bkEditId        = null;
 let _bkEditPhotos    = [];
 let _bkPickerLieu    = null;
+let _bkPickerMode    = 'shortlist'; // 'shortlist' | 'project'
 let locationShortlists   = {};  // { [lieuKey]: [bankId, ...] }
 let locationConfirmations= {};  // { [lieuKey]: bankId }
 
@@ -1842,6 +1836,7 @@ function deleteBanqueLocation(id) {
 
 // ── Picker (shortlist) ───────────────────────────────────────────────────────
 function openBanquePicker(lieuKey) {
+  _bkPickerMode = 'shortlist';
   _bkPickerLieu = lieuKey;
   const parts = lieuKey.split('\x01');
   const label = parts[1] ? parts[0] + ' / ' + parts[1] : parts[0];
@@ -1854,6 +1849,43 @@ function openBanquePicker(lieuKey) {
   setTimeout(()=>document.getElementById('bk-picker-search').focus(),80);
 }
 
+function openLieuPicker() {
+  _bkPickerMode = 'project';
+  _bkPickerLieu = null;
+  document.getElementById('bk-picker-title').textContent = 'Ajouter une location au projet';
+  document.getElementById('bk-picker-search').value = '';
+  _populateCatSelects();
+  document.getElementById('bk-picker-cat').value = '';
+  renderBanquePicker();
+  document.getElementById('bk-picker-overlay').style.display='';
+  setTimeout(()=>document.getElementById('bk-picker-search').focus(),80);
+}
+
+function addLieuFromBank(bankId) {
+  const loc = bankLocations.find(l=>l.id===bankId);
+  if (!loc) return;
+  if (lieusTournage.find(l=>l.bankId===bankId)) { showToast('Déjà dans le projet'); closeBanquePicker(); return; }
+  const autoColor = COLORS[lieusTournage.length % COLORS.length];
+  const id = 'l_' + Date.now();
+  lieusTournage.push({ id, nom: loc.nom, adresse: loc.adresse||'', notes: loc.notes||'', couleur: autoColor, bankId });
+  save();
+  buildTable();
+  renderLieuList();
+  renderVueLieux();
+  refreshAllLieuDropdowns();
+  refreshLieuTournageFilter();
+  showToast(loc.nom + ' ajouté au projet');
+  closeBanquePicker();
+  if (loc.adresse) geocodeLieuAddress(id);
+}
+
+function toggleManuelForm() {
+  const el = document.getElementById('add-lieu-manuel');
+  const open = el.style.display === 'none' || !el.style.display;
+  el.style.display = open ? '' : 'none';
+  if (open) setTimeout(()=>document.getElementById('new-lieu-nom').focus(),60);
+}
+
 function closeBanquePicker() {
   document.getElementById('bk-picker-overlay').style.display='none';
   _bkPickerLieu=null;
@@ -1863,7 +1895,6 @@ function renderBanquePicker() {
   const grid = document.getElementById('bk-picker-grid'); if(!grid) return;
   const q   = (document.getElementById('bk-picker-search')?.value||'').toLowerCase();
   const cat = document.getElementById('bk-picker-cat')?.value||'';
-  const sl  = locationShortlists[_bkPickerLieu]||[];
   const filtered = bankLocations.filter(l =>
     (!cat||l.categorie===cat) && (!q||l.nom.toLowerCase().includes(q)||(l.adresse||'').toLowerCase().includes(q))
   );
@@ -1871,15 +1902,26 @@ function renderBanquePicker() {
     grid.innerHTML='<div style="grid-column:1/-1;text-align:center;color:var(--text-muted);padding:32px 0;">Banque vide — ajoutez des locations dans l\'onglet Banque.</div>';
     return;
   }
+  const isProject = _bkPickerMode === 'project';
+  const sl = isProject ? [] : (locationShortlists[_bkPickerLieu]||[]);
   grid.innerHTML = filtered.map(l => {
-    const already = sl.includes(l.id);
+    const alreadyProject = lieusTournage.some(lt=>lt.bankId===l.id);
+    const alreadySl = sl.includes(l.id);
+    const already = isProject ? alreadyProject : alreadySl;
     const ph = l.photos?.[0];
-    return `<div class="bk-picker-card${already?' already':''}" ${already?'':` onclick="addToShortlist('${esc(_bkPickerLieu)}','${esc(l.id)}')"`}>
+    let onclick = '';
+    if (!already) {
+      onclick = isProject
+        ? `onclick="addLieuFromBank('${esc(l.id)}')"`
+        : `onclick="addToShortlist('${esc(_bkPickerLieu)}','${esc(l.id)}')"`;
+    }
+    const alreadyLabel = isProject ? '✓ Dans le projet' : '✓ Shortlistée';
+    return `<div class="bk-picker-card${already?' already':''}" ${already?'':onclick}>
       ${ph?`<img class="bk-picker-card-img" src="${esc(ph)}" loading="lazy">`:'<div class="bk-picker-card-img-empty">📷</div>'}
       <div class="bk-picker-card-info">
         <div class="bk-picker-card-nom">${esc(l.nom)}</div>
         ${l.categorie?`<div class="bk-picker-card-cat">${esc(l.categorie)}</div>`:''}
-        ${already?'<div style="font-size:9px;color:#2db866;font-weight:700;margin-top:2px;">✓ Shortlistée</div>':''}
+        ${already?`<div style="font-size:9px;color:#2db866;font-weight:700;margin-top:2px;">${alreadyLabel}</div>`:''}
       </div>
     </div>`;
   }).join('');
@@ -1898,7 +1940,20 @@ function removeFromShortlist(lieuKey, bankId) {
 }
 
 function confirmerLocation(lieuKey, bankId) {
-  locationConfirmations[lieuKey]=bankId; save(); renderBatchAssign();
+  locationConfirmations[lieuKey] = bankId;
+  // Auto-ajouter au projet si pas déjà là
+  if (!lieusTournage.find(l=>l.bankId===bankId)) {
+    const loc = bankLocations.find(l=>l.id===bankId);
+    if (loc) {
+      const autoColor = COLORS[lieusTournage.length % COLORS.length];
+      const id = 'l_' + Date.now();
+      lieusTournage.push({ id, nom: loc.nom, adresse: loc.adresse||'', notes: loc.notes||'', couleur: autoColor, bankId });
+      buildTable(); renderLieuList(); renderVueLieux(); refreshAllLieuDropdowns(); refreshLieuTournageFilter();
+      if (loc.adresse) geocodeLieuAddress(id);
+      showToast(loc.nom + ' confirmée et ajoutée au projet');
+    }
+  }
+  save(); renderBatchAssign();
 }
 
 function deconfirmerLocation(lieuKey) {
@@ -2419,59 +2474,23 @@ function onNewLieuFictifChange() {
   wrap.style.display = '';
 }
 
-async function addLieu() {
+function addLieu() {
   const nom = document.getElementById('new-lieu-nom').value.trim();
   if (!nom) { showToast('Le nom est requis'); return; }
   const adresse = document.getElementById('new-lieu-adresse').value.trim();
-  const notes = document.getElementById('new-lieu-notes').value.trim();
-  const lieuFictif = document.getElementById('new-lieu-fictif').value;
-  const slChks = Array.from(document.querySelectorAll('.new-lieu-sl-chk'));
-  const checkedSls = slChks.length ? new Set(slChks.filter(c => c.checked).map(c => c.value)) : null;
-  const photoInput = document.getElementById('new-lieu-photos');
-  const files = photoInput ? Array.from(photoInput.files) : [];
   const id = 'l_' + Date.now();
-  lieusTournage.push({ id, nom, adresse, notes, couleur: selectedColor });
-  let assignedCount = 0;
-  if (lieuFictif) {
-    scenes.forEach(s => {
-      if (s.lieu !== lieuFictif) return;
-      if (checkedSls && !checkedSls.has(s.sous_lieu || '')) return;
-      s.lieu_tournage_id = id;
-      assignedCount++;
-    });
-  }
+  lieusTournage.push({ id, nom, adresse, notes: '', couleur: selectedColor });
   document.getElementById('new-lieu-nom').value = '';
   document.getElementById('new-lieu-adresse').value = '';
-  document.getElementById('new-lieu-notes').value = '';
-  if (photoInput) photoInput.value = '';
-  document.getElementById('new-lieu-fictif').value = '';
-  document.getElementById('new-lieu-sl-wrap').style.display = 'none';
-  document.getElementById('new-lieu-sl-list').innerHTML = '';
+  toggleManuelForm();
   save();
   buildTable();
   renderLieuList();
   renderVueLieux();
   refreshAllLieuDropdowns();
   refreshLieuTournageFilter();
-  showToast(assignedCount
-    ? `Lieu ajouté : ${nom} — ${assignedCount} scène${assignedCount>1?'s':''} assignée${assignedCount>1?'s':''}`
-    : 'Lieu ajouté : ' + nom);
+  showToast('Lieu ajouté : ' + nom);
   if (adresse) geocodeLieuAddress(id);
-  if (files.length) {
-    showToast(`Upload de ${files.length} photo${files.length>1?'s':''}…`);
-    for (const file of files) {
-      try {
-        const url = await uploadToCloudinary(file);
-        if (!lieuTournagePhotos[id]) lieuTournagePhotos[id] = [];
-        lieuTournagePhotos[id].push({ url, sl: '' });
-        save();
-        renderLieuList();
-        renderVueLieux();
-      } catch (e) {
-        showToast("Erreur upload d'une photo — réessaie depuis la fiche du lieu");
-      }
-    }
-  }
 }
 
 function deleteLieu(id) {
@@ -2606,11 +2625,18 @@ function renderLieuList() {
         </label>
       </div>`;
     };
+    const bankLoc = l.bankId ? bankLocations.find(b=>b.id===l.bankId) : null;
+    const bankThumb = bankLoc?.photos?.[0];
+    const bankPhotoCount = bankLoc?.photos?.length||0;
     return `<div class="lieu-card" id="lc_${l.id}">
+      ${bankThumb ? `<div class="lieu-card-bank-thumb" onclick="switchTab('banque');filterBanque()">
+        <img src="${esc(bankThumb)}" loading="lazy">
+        ${bankPhotoCount>1?`<span class="lieu-card-bank-thumb-count">${bankPhotoCount} photos</span>`:''}
+      </div>` : ''}
       <div class="lieu-card-main">
         <div class="lieu-dot" style="background:${l.couleur}"></div>
         <div class="lieu-info">
-          <div class="lieu-name">${esc(l.nom)}</div>
+          <div class="lieu-name">${esc(l.nom)}${bankLoc?`<span class="lieu-bank-badge" onclick="switchTab('banque')" title="Voir dans la banque">🗂 banque</span>`:''}</div>
           ${l.adresse ? `<div class="lieu-adresse">${esc(l.adresse)}</div>` : ''}
         </div>
         <span class="lieu-usage">${usage} scène${usage!==1?'s':''}</span>
