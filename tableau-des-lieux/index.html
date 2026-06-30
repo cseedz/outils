@@ -2109,7 +2109,7 @@ function switchTab(tab) {
   document.getElementById('controls-bar').classList.toggle('hidden', tab!=='tableau');
   if (tab === 'vue-lieux') renderVueLieux();
   if (tab === 'lieux') renderLieuList();
-  if (tab === 'banque') { _populateCatSelects(); renderBanque(); }
+  if (tab === 'banque') { _populateCatSelects(); renderBanque(); loadBanque(); }
   if (tab === 'recap') renderRecap();
   if (tab === 'outils') renderOutils();
   if (tab === 'versions') renderVersions();
