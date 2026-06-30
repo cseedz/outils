@@ -272,6 +272,9 @@ input[type="file"].form-input { padding: 6px 8px; font-size: 12px; color: var(--
 .lieu-photo-thumb:hover .lieu-photo-del { display: flex; }
 .lieu-photo-add { width: 64px; height: 64px; border-radius: 5px; border: 1px dashed var(--border2); background: var(--bg3); color: var(--text-dim); font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all .12s; }
 .lieu-photo-add:hover { border-color: var(--accent); color: var(--accent); background: rgba(79,124,255,.06); }
+.btn-sync-bank { margin-left: auto; align-self: center; font-size: 11px; padding: 4px 9px; border-radius: 6px; border: 1px solid var(--border2); background: var(--bg3); color: var(--text-muted); cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+.btn-sync-bank:hover { border-color: var(--accent); color: var(--accent); }
+.btn-sync-bank:disabled { opacity: .5; cursor: default; }
 .lieu-photo-uploading { width: 64px; height: 64px; border-radius: 5px; border: 1px solid var(--border); background: var(--bg3); display: flex; align-items: center; justify-content: center; color: var(--text-dim); font-size: 10px; flex-shrink: 0; }
 .photo-thumb-wrap { display:flex; flex-direction:column; width:64px; flex-shrink:0; }
 .photo-sl-sel { font-size:9px; background:var(--bg3); border:none; border-top:1px solid var(--border); color:var(--text-muted); padding:2px; cursor:pointer; outline:none; width:100%; border-radius:0 0 5px 5px; }
@@ -2393,6 +2396,32 @@ async function uploadToCloudinary(file) {
   return (await res.json()).secure_url;
 }
 
+async function syncPhotosFromBank(lieuId) {
+  const l = lieusTournage.find(x => x.id === lieuId);
+  if (!l?.bankId) return;
+  const btn = document.querySelector(`button.btn-sync-bank[onclick*="${lieuId}"]`);
+  if (btn) { btn.disabled = true; btn.textContent = '↺ …'; }
+  try {
+    // Toujours recharger depuis Supabase pour avoir les données les plus récentes
+    const { data } = await sb.from('project_data').select('data').eq('key', BANK_KEY).maybeSingle();
+    const fresh = data?.data?.locations || [];
+    if (fresh.length) bankLocations = fresh;
+    const bankLoc = bankLocations.find(b => b.id === l.bankId);
+    if (!bankLoc?.photos?.length) { showToast('Aucune photo dans la banque pour ce lieu'); return; }
+    const existing = new Set((lieuTournagePhotos[lieuId] || []).map(p => typeof p === 'string' ? p : p.url));
+    const toAdd = bankLoc.photos.filter(url => !existing.has(url)).map(url => ({ url, sl: '' }));
+    if (!toAdd.length) { showToast('Repérage déjà à jour (' + bankLoc.photos.length + ' photos)'); return; }
+    lieuTournagePhotos[lieuId] = [...(lieuTournagePhotos[lieuId] || []), ...toAdd];
+    save();
+    renderLieuList();
+    renderVueLieux();
+    showToast(toAdd.length + ' photo' + (toAdd.length > 1 ? 's' : '') + ' ajoutée' + (toAdd.length > 1 ? 's' : '') + ' depuis la banque');
+  } catch(e) {
+    showToast('Erreur sync : ' + e.message);
+    if (btn) { btn.disabled = false; btn.textContent = '↺ Sync banque'; }
+  }
+}
+
 async function handleLieuPhotoInput(id, type, input) {
   const files = Array.from(input.files);
   if (!files.length) return;
@@ -2750,6 +2779,9 @@ function renderLieuList() {
           </select>
         </div>`
       ).join('');
+      const syncBtn = (type === 'lieux' && l.bankId)
+        ? `<button class="btn-sync-bank" title="Synchroniser les photos depuis la banque" onclick="syncPhotosFromBank('${l.id}')">↺ Sync banque</button>`
+        : '';
       return `<div class="lieu-photos-row" id="lp_${l.id}_${type}">
         <span class="lieu-photos-label">${label}</span>
         ${thumbs}
@@ -2757,6 +2789,7 @@ function renderLieuList() {
           +
           <input type="file" accept="image/*" multiple style="display:none" data-lid="${l.id}" data-type="${type}" onchange="handleLieuPhotoInput(this.dataset.lid,this.dataset.type,this)">
         </label>
+        ${syncBtn}
       </div>`;
     };
     const bankLoc = l.bankId ? bankLocations.find(b=>b.id===l.bankId) : null;
