@@ -3139,7 +3139,7 @@ function renderBatchAssign() {
       <span class="batch-hd-name" style="border-left:2px solid ${color};padding-left:6px;">${esc(lieu)}</span>
     </div>`;
 
-    if (!hasBatch) return `<div class="batch-group">${header}</div>`;
+    if (!hasBatch) return `<div class="batch-group">${header}${buildShortlistSection(lieu)}</div>`;
 
     const souslieux = Object.keys(groups[lieu]).sort();
     const allSc = Object.values(groups[lieu]).flat();
