@@ -284,9 +284,18 @@ input[type="file"].form-input { padding: 6px 8px; font-size: 12px; color: var(--
 .vlieu-thumb:hover img { opacity: .8; }
 .vlieu-thumb-more { width: 52px; height: 52px; border-radius: 4px; background: var(--bg3); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 11px; font-weight: 600; flex-shrink: 0; cursor: pointer; }
 /* Lightbox */
-#photo-lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.88); z-index: 9999; align-items: center; justify-content: center; cursor: zoom-out; }
+#photo-lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.88); z-index: 9999; align-items: center; justify-content: center; }
 #photo-lightbox.open { display: flex; }
-#photo-lightbox img { max-width: 92vw; max-height: 90vh; border-radius: 6px; object-fit: contain; box-shadow: 0 8px 40px rgba(0,0,0,.6); }
+#photo-lightbox img { max-width: 92vw; max-height: 85vh; border-radius: 6px; object-fit: contain; box-shadow: 0 8px 40px rgba(0,0,0,.6); cursor: zoom-out; }
+#photo-lightbox .lb-close { position: absolute; top: 16px; right: 20px; background: none; border: none; color: #fff; font-size: 28px; cursor: pointer; line-height: 1; opacity: .8; }
+#photo-lightbox .lb-close:hover { opacity: 1; }
+#photo-lightbox .lb-nav { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(255,255,255,.15); border: none; color: #fff; font-size: 28px; padding: 12px 16px; cursor: pointer; border-radius: 6px; line-height: 1; }
+#photo-lightbox .lb-nav:hover { background: rgba(255,255,255,.28); }
+#photo-lightbox .lb-prev { left: 16px; }
+#photo-lightbox .lb-next { right: 16px; }
+#photo-lightbox .lb-nav[hidden] { display: none; }
+#photo-lightbox .lb-counter { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); color: rgba(255,255,255,.7); font-size: 12px; font-weight: 600; letter-spacing: .05em; }
+#photo-lightbox .lb-caption { position: absolute; bottom: 36px; left: 50%; transform: translateX(-50%); color: rgba(255,255,255,.85); font-size: 12px; max-width: 80vw; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lieu-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 .lieu-info { flex: 1; min-width: 0; }
 .lieu-name { font-weight: 600; font-size: 13px; }
@@ -1056,7 +1065,14 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
   <div class="outils-wrap" id="versions-content"></div>
 </div>
 
-<div id="photo-lightbox" onclick="closeLightbox()"><img id="photo-lightbox-img" src="" alt=""></div>
+<div id="photo-lightbox">
+  <button class="lb-close" onclick="closeLightbox()">✕</button>
+  <button class="lb-nav lb-prev" id="lb-prev" onclick="lbNav(-1)">&#8249;</button>
+  <img id="photo-lightbox-img" src="" alt="" onclick="closeLightbox()">
+  <button class="lb-nav lb-next" id="lb-next" onclick="lbNav(1)">&#8250;</button>
+  <div class="lb-caption" id="lb-caption"></div>
+  <div class="lb-counter" id="lb-counter"></div>
+</div>
 <div class="toast" id="toast"></div>
 <div id="loading-overlay" style="position:fixed;inset:0;background:var(--bg,#1a1a2e);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:99999;gap:12px;">
   <div style="font-size:13px;color:var(--text-muted,#888);">Chargement du projet…</div>
@@ -1740,8 +1756,12 @@ function renderBanque() {
   }
   grid.innerHTML = filtered.map(l => {
     const ph = l.photos?.[0];
+    const hasPhotos = l.photos?.length > 0;
     return `<div class="bk-card">
-      <div class="bk-card-photos">${ph?`<img src="${esc(ph)}" loading="lazy">`:'📷'}${l.photos?.length>1?`<span class="bk-photo-count">+${l.photos.length-1}</span>`:''}</div>
+      <div class="bk-card-photos" style="${hasPhotos?'cursor:zoom-in;':''}" ${hasPhotos?`onclick="openBkGallery('${esc(l.id)}',0)"`:''}>
+        ${ph?`<img src="${esc(ph)}" loading="lazy">`:'📷'}
+        ${l.photos?.length>1?`<span class="bk-photo-count">+${l.photos.length-1} photos</span>`:''}
+      </div>
       <div class="bk-card-body">
         <div class="bk-card-nom">${esc(l.nom)}</div>
         ${l.categorie?`<div class="bk-card-cat">${esc(l.categorie)}</div>`:''}
@@ -2368,14 +2388,41 @@ function buildVlieuThumbs(ltIds) {
   </div>`;
 }
 
-function openLightbox(url) {
-  document.getElementById('photo-lightbox-img').src = url;
-  document.getElementById('photo-lightbox').classList.add('open');
+let _lbUrls = [];
+let _lbIdx = 0;
+let _lbCaption = '';
+
+function openLightbox(url, caption) {
+  _lbUrls = [url]; _lbIdx = 0; _lbCaption = caption||'';
+  _lbShow();
+}
+
+function openBkGallery(locationId, startIdx) {
+  const loc = bankLocations.find(l=>l.id===locationId);
+  if (!loc?.photos?.length) return;
+  _lbUrls = loc.photos; _lbIdx = startIdx||0; _lbCaption = loc.nom;
+  _lbShow();
+}
+
+function _lbShow() {
+  const lb = document.getElementById('photo-lightbox');
+  document.getElementById('photo-lightbox-img').src = _lbUrls[_lbIdx];
+  document.getElementById('lb-caption').textContent = _lbCaption;
+  document.getElementById('lb-counter').textContent = _lbUrls.length > 1 ? `${_lbIdx+1} / ${_lbUrls.length}` : '';
+  document.getElementById('lb-prev').hidden = _lbUrls.length <= 1;
+  document.getElementById('lb-next').hidden = _lbUrls.length <= 1;
+  lb.classList.add('open');
+}
+
+function lbNav(dir) {
+  _lbIdx = (_lbIdx + dir + _lbUrls.length) % _lbUrls.length;
+  _lbShow();
 }
 
 function closeLightbox() {
   document.getElementById('photo-lightbox').classList.remove('open');
   document.getElementById('photo-lightbox-img').src = '';
+  _lbUrls = [];
 }
 
 function saveLieuNote(el) {
@@ -2455,6 +2502,13 @@ document.addEventListener('click', e => {
     document.getElementById('vlieu-loc-menu').style.display = 'none';
   if (!e.target.closest('#vlieu-color-panel') && !e.target.closest('.vlieu-clr-dot') && !e.target.closest('.vlieu-sl-clr-dot'))
     closeVlieuColorPanel();
+});
+
+document.addEventListener('keydown', e => {
+  if (!document.getElementById('photo-lightbox').classList.contains('open')) return;
+  if (e.key === 'Escape') closeLightbox();
+  else if (e.key === 'ArrowRight' && _lbUrls.length > 1) lbNav(1);
+  else if (e.key === 'ArrowLeft'  && _lbUrls.length > 1) lbNav(-1);
 });
 
 // ─── LIEU TOURNAGE MANAGEMENT ───────────────────────────────────────────────
