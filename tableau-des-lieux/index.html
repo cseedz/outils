@@ -1706,6 +1706,7 @@ async function loadBanque() {
   try {
     const { data } = await sb.from('project_data').select('data').eq('key', BANK_KEY).maybeSingle();
     bankLocations = data?.data?.locations || [];
+    renderBanque();
   } catch(e) { console.warn('loadBanque:', e); }
 }
 
