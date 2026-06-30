@@ -2120,7 +2120,9 @@ function buildShortlistSection(lieuKey) {
   const conf   = locationConfirmations[lieuKey] || null;
   const lk     = esc(lieuKey);
   const parts  = lieuKey.split('\x01');
-  const sousLieuLabel = parts[1] ? `<span style="opacity:.55;font-weight:400;margin-left:4px;">└ ${esc(parts[1])}</span>` : '';
+  const sousLieuLabel = parts[1]
+    ? `<span style="opacity:.55;font-weight:400;margin-left:4px;">└ ${esc(parts[1])}</span>`
+    : `<span style="opacity:.45;font-weight:400;margin-left:4px;">— Général</span>`;
 
   // Grouper les photos par locationId
   const groups = {};
