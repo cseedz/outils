@@ -137,12 +137,6 @@ body { overscroll-behavior: none; }
 .toast { position: fixed; bottom: calc(24px + var(--safe-b)); left: 50%; transform: translateX(-50%) translateY(20px); background: rgba(0,0,0,.82); color: #fff; font-size: 14px; font-weight: 500; padding: 10px 20px; border-radius: 20px; opacity: 0; transition: opacity 200ms, transform 200ms; pointer-events: none; z-index: 500; white-space: nowrap; }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-/* ── SCENE TABS (Plans / Lining) ── */
-.scene-tab-bar { display: flex; border-bottom: 1px solid var(--border); }
-.scene-tab { flex: 1; min-height: 36px; background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; font-size: 12px; font-weight: 600; font-family: inherit; color: var(--muted); cursor: pointer; transition: color .1s, border-color .1s; }
-.scene-tab.active { color: var(--text); border-bottom-color: var(--text); }
-.scene-tab:hover:not(.active) { color: var(--text); }
-
 /* ── LINING PANEL ── */
 .lining-panel { display: flex; flex-direction: row; max-height: 65vh; overflow-y: auto; border-bottom: 1px solid var(--border); }
 .lining-script { flex: 1; padding: 14px 16px 20px; font-family: 'Courier New', Courier, monospace; font-size: 12px; line-height: 1.75; border-right: 1px solid var(--border); min-width: 0; }
@@ -155,14 +149,17 @@ body { overscroll-behavior: none; }
 .lining-col { width: 176px; flex-shrink: 0; position: relative; background: var(--bg); }
 .lining-col svg { display: block; }
 
-/* ── LINING TOOLBAR ── */
-.lining-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 8px 14px; background: var(--bg); border-top: 1px solid var(--border); }
+/* ── LINING PALETTE (top bar) ── */
+.li-palette { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 8px 14px; background: var(--bg); border-bottom: 1px solid var(--border); }
 .li-plan-chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px 4px 6px; border-radius: 20px; border: 2px solid transparent; font-size: 11px; font-weight: 700; font-family: inherit; background: none; cursor: pointer; transition: border-color .1s; }
 .li-plan-chip.selected { border-color: currentColor; background: rgba(0,0,0,.04); }
 .chip-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 .li-add-plan { font-size: 11px; font-family: inherit; color: var(--muted); background: none; border: 1px dashed var(--border2); border-radius: 20px; padding: 3px 10px; cursor: pointer; }
 .li-add-plan:hover { color: var(--text); }
 .li-hint { font-size: 10px; color: var(--text-dim); margin-left: auto; white-space: nowrap; }
+.li-type-group { display: inline-flex; border: 1px solid var(--border2); border-radius: 6px; overflow: hidden; margin-left: 4px; }
+.li-type-btn { font-size: 11px; font-family: inherit; background: none; border: none; padding: 3px 9px; cursor: pointer; color: var(--muted); transition: background .1s, color .1s; }
+.li-type-btn.active { background: var(--text); color: var(--bg); }
 </style>
 </head>
 <body>
@@ -420,14 +417,7 @@ function renderPlansListHTML(sc) {
 }
 
 function renderPlansHTML(sc) {
-  const esc = s => String(s).replace(/'/g,"\\'");
-  return `
-    <div class="scene-tab-bar" id="tab-bar-${sc}">
-      <button class="scene-tab active" data-tab="plans"  onclick="switchSceneTab('${esc(sc)}','plans')">Plans</button>
-      <button class="scene-tab"        data-tab="lining" onclick="switchSceneTab('${esc(sc)}','lining')">Lining</button>
-    </div>
-    <div id="tab-plans-${sc}">${renderPlansListHTML(sc)}</div>
-    <div id="tab-lining-${sc}" style="display:none;">${renderLiPanelHTML(sc)}</div>`;
+  return `<div class="li-palette" id="li-tb-${sc}">${renderLiPaletteHTML(sc)}</div>${renderLiPanelHTML(sc)}`;
 }
 
 function refreshSceneCard(sc) {
@@ -440,12 +430,17 @@ function refreshSceneCard(sc) {
     badge.textContent = plans.length ? `${plans.length} plan${plans.length > 1 ? 's' : ''}` : '—';
   }
   const plansEl = card.querySelector('.scene-plans');
-  if (plansEl) plansEl.innerHTML = renderPlansHTML(sc);
+  if (plansEl) {
+    plansEl.innerHTML = renderPlansHTML(sc);
+    if (card.classList.contains('open')) requestAnimationFrame(() => initLiningPanel(sc));
+  }
 }
 
 function toggleScene(sc) {
   const card = document.getElementById(`sc-${sc}`);
-  if (card) card.classList.toggle('open');
+  if (!card) return;
+  card.classList.toggle('open');
+  if (card.classList.contains('open')) requestAnimationFrame(() => initLiningPanel(sc));
 }
 
 // ─── ADD PLAN ─────────────────────────────────────────────────────────────────
@@ -476,6 +471,7 @@ function confirmAddPlan() {
   const num = nextPlanNum(sc);
   const plan = { id: Date.now().toString(), num, desc, statut: 'a-tourner', prises: 1 };
   getSceneData(sc).plans.push(plan);
+  _liActivePlanId = plan.id;
   refreshSceneCard(sc);
   saveDecData();
 }
@@ -652,6 +648,9 @@ function planColor(num) { return LI_COLORS[(num - 1) % LI_COLORS.length]; }
 
 let _liActivePlanId = null;
 let _liDrag = null;
+let _liDragWas = false;
+let _liType = 'oncam';
+let _liSelected = null;
 
 function getLinings(sc) {
   if (!decData[sc]) decData[sc] = { plans: [] };
@@ -659,16 +658,6 @@ function getLinings(sc) {
   return decData[sc].linings;
 }
 
-function switchSceneTab(sc, tab) {
-  const plEl = document.getElementById('tab-plans-' + sc);
-  const liEl = document.getElementById('tab-lining-' + sc);
-  const bar  = document.getElementById('tab-bar-' + sc);
-  if (!plEl || !liEl || !bar) return;
-  bar.querySelectorAll('.scene-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
-  plEl.style.display = tab === 'plans'  ? '' : 'none';
-  liEl.style.display = tab === 'lining' ? '' : 'none';
-  if (tab === 'lining') requestAnimationFrame(() => initLiningPanel(sc));
-}
 
 function renderLiPanelHTML(sc) {
   const meta = sceneMeta(sc);
@@ -690,40 +679,63 @@ function renderLiPanelHTML(sc) {
     else
       scriptHtml += '<div class="ls-line">' + escHtml(t) + '</div>';
   });
-  const esc = s => String(s).replace(/'/g,"\\'");
   return `<div class="lining-panel" id="li-panel-${sc}">
     <div class="lining-script" id="li-script-${sc}">${scriptHtml}</div>
     <div class="lining-col" id="li-col-${sc}">
       <svg id="li-svg-${sc}" xmlns="http://www.w3.org/2000/svg" style="cursor:crosshair;"></svg>
     </div>
-  </div>
-  <div class="lining-toolbar" id="li-tb-${sc}">${renderLiToolbarInner(sc)}</div>`;
+  </div>`;
 }
 
-function renderLiToolbarInner(sc) {
+function renderLiPaletteHTML(sc) {
   const plans = getPlans(sc);
   const esc = s => String(s).replace(/'/g,"\\'");
-  if (!plans.length) {
-    return `<span style="font-size:11px;color:var(--muted)">Aucun plan — </span>
-      <button class="li-add-plan" onclick="switchSceneTab('${esc(sc)}','plans')">← Retour aux plans</button>
-      <span class="li-hint">Créez des plans, puis revenez lier.</span>`;
-  }
   let html = plans.map(p => {
     const color = planColor(p.num);
     const sel   = _liActivePlanId === p.id ? ' selected' : '';
-    return `<button class="li-plan-chip${sel}" style="color:${color}" onclick="selectLiPlan('${esc(p.id)}','${esc(sc)}')">
+    return `<button class="li-plan-chip${sel}" style="color:${color}" onclick="onChipClick('${esc(p.id)}','${esc(sc)}')">
       <span class="chip-dot" style="background:${color}"></span> PL${pad(p.num)}
     </button>`;
   }).join('');
-  html += `<button class="li-add-plan" onclick="switchSceneTab('${esc(sc)}','plans')">＋ Plan</button>`;
-  html += `<span class="li-hint">Sélec. plan · clic-glisser pour liner · clic = ˷/droite · clic droit = ✕</span>`;
+  html += `<button class="li-add-plan" onclick="promptAddPlan('${esc(sc)}')">＋ Plan</button>`;
+  html += `<div class="li-type-group">
+    <button class="li-type-btn${_liType==='oncam'?' active':''}" onclick="setLiType('oncam','${esc(sc)}')">→ Droite</button>
+    <button class="li-type-btn${_liType==='offcam'?' active':''}" onclick="setLiType('offcam','${esc(sc)}')">˷ Zigzag</button>
+  </div>`;
+  html += `<span class="li-hint">Clic = sélec · glisser = liner · clic droit = ✕</span>`;
   return html;
+}
+
+function onChipClick(planId, sc) {
+  if (_liActivePlanId === planId) {
+    const plan = getPlans(sc).find(p => p.id === planId);
+    if (plan) openShot(sc, plan.num);
+  } else {
+    _liActivePlanId = planId;
+    _liSelected = null;
+    const tb = document.getElementById('li-tb-' + sc);
+    if (tb) tb.innerHTML = renderLiPaletteHTML(sc);
+    const svgEl = document.getElementById('li-svg-' + sc);
+    if (svgEl) drawLinings(sc, svgEl, parseFloat(svgEl.getAttribute('height')), parseFloat(svgEl.getAttribute('width')));
+  }
+}
+
+function setLiType(type, sc) {
+  _liType = type;
+  if (_liSelected) {
+    const li = getLinings(sc).find(l => l.id === _liSelected);
+    if (li) { li.type = type; saveDecData(); }
+    const svgEl = document.getElementById('li-svg-' + sc);
+    if (svgEl) drawLinings(sc, svgEl, parseFloat(svgEl.getAttribute('height')), parseFloat(svgEl.getAttribute('width')));
+  }
+  const tb = document.getElementById('li-tb-' + sc);
+  if (tb) tb.innerHTML = renderLiPaletteHTML(sc);
 }
 
 function selectLiPlan(planId, sc) {
   _liActivePlanId = planId;
   const tb = document.getElementById('li-tb-' + sc);
-  if (tb) tb.innerHTML = renderLiToolbarInner(sc);
+  if (tb) tb.innerHTML = renderLiPaletteHTML(sc);
 }
 
 function initLiningPanel(sc) {
@@ -736,7 +748,7 @@ function initLiningPanel(sc) {
   if (plans.length && !plans.find(p => p.id === _liActivePlanId)) {
     _liActivePlanId = plans[0].id;
     const tb = document.getElementById('li-tb-' + sc);
-    if (tb) tb.innerHTML = renderLiToolbarInner(sc);
+    if (tb) tb.innerHTML = renderLiPaletteHTML(sc);
   }
 
   const h = Math.max(scriptEl.offsetHeight, 280);
@@ -770,14 +782,24 @@ function initLiningPanel(sc) {
   });
 
   svgEl.addEventListener('click', e => {
-    if (_liDrag) return;
+    if (_liDragWas) { _liDragWas = false; return; }
     const g = e.target.closest('[data-li-id]');
-    if (!g) return;
+    const h = parseFloat(svgEl.getAttribute('height'));
+    const w = parseFloat(svgEl.getAttribute('width'));
+    if (!g) {
+      _liSelected = null;
+      drawLinings(sc, svgEl, h, w);
+      const tb = document.getElementById('li-tb-' + sc);
+      if (tb) tb.innerHTML = renderLiPaletteHTML(sc);
+      return;
+    }
     const li = getLinings(sc).find(l => l.id === g.dataset.liId);
     if (!li) return;
-    li.type = li.type === 'offcam' ? 'oncam' : 'offcam';
-    drawLinings(sc, svgEl, parseFloat(svgEl.getAttribute('height')), parseFloat(svgEl.getAttribute('width')));
-    saveDecData();
+    _liSelected = li.id;
+    _liType = li.type;
+    drawLinings(sc, svgEl, h, w);
+    const tb = document.getElementById('li-tb-' + sc);
+    if (tb) tb.innerHTML = renderLiPaletteHTML(sc);
   });
 
   svgEl.addEventListener('contextmenu', e => {
@@ -819,18 +841,29 @@ function drawLinings(sc, svgEl, h, w) {
   svgEl.querySelectorAll('[data-li-id]').forEach(el => el.remove());
   const linings = getLinings(sc);
   const plans   = getPlans(sc);
-  const nCols   = Math.max(1, linings.reduce((m, l) => Math.max(m, (l.col||0)+1), 1));
+  const nCols   = Math.max(1, plans.length);
   const colW    = Math.max(20, (w - 8) / nCols);
   const ns      = 'http://www.w3.org/2000/svg';
 
   linings.forEach(li => {
-    const plan  = plans.find(p => p.id === li.planId);
-    const color = plan ? planColor(plan.num) : '#999';
-    const label = plan ? 'PL'+pad(plan.num) : '?';
-    const x  = 4 + (li.col||0)*colW + colW/2;
+    const planIdx = plans.findIndex(p => p.id === li.planId);
+    const plan    = planIdx >= 0 ? plans[planIdx] : null;
+    const color   = plan ? planColor(plan.num) : '#999';
+    const label   = plan ? 'PL'+pad(plan.num) : '?';
+    const col     = planIdx >= 0 ? planIdx : (li.col||0);
+    const x  = 4 + col * colW + colW / 2;
     const y1 = li.startPct * h, y2 = li.endPct * h;
+    const isSel = _liSelected === li.id;
 
     const g = document.createElementNS(ns,'g'); g.dataset.liId = li.id; g.style.cursor='grab';
+
+    if (isSel) {
+      const hl = document.createElementNS(ns,'rect');
+      hl.setAttribute('x', x - colW/2 + 2); hl.setAttribute('y', y1 - 3);
+      hl.setAttribute('width', colW - 4); hl.setAttribute('height', Math.max(6, y2 - y1 + 6));
+      hl.setAttribute('rx', 4); hl.setAttribute('fill', color); hl.setAttribute('opacity', '0.15');
+      g.appendChild(hl);
+    }
 
     const hit = document.createElementNS(ns,'rect');
     hit.setAttribute('x',x-10); hit.setAttribute('y',y1);
@@ -839,7 +872,7 @@ function drawLinings(sc, svgEl, h, w) {
 
     const path = document.createElementNS(ns,'path');
     path.setAttribute('d', li.type==='offcam' ? zigzagPath(x,y1,y2) : 'M'+x+' '+y1+' L'+x+' '+y2);
-    path.setAttribute('stroke',color); path.setAttribute('stroke-width','2.5');
+    path.setAttribute('stroke',color); path.setAttribute('stroke-width', isSel ? '3.5' : '2.5');
     path.setAttribute('fill','none');  path.setAttribute('stroke-linecap','round');
 
     const mkTick = y => { const t=document.createElementNS(ns,'line'); t.setAttribute('x1',x-7); t.setAttribute('x2',x+7); t.setAttribute('y1',y); t.setAttribute('y2',y); t.setAttribute('stroke',color); t.setAttribute('stroke-width','2'); return t; };
@@ -859,6 +892,7 @@ function drawLinings(sc, svgEl, h, w) {
 
 document.addEventListener('mousemove', e => {
   if (!_liDrag) return;
+  _liDragWas = true;
   const { mode, sc, svgH } = _liDrag;
   const svgEl = document.getElementById('li-svg-'+sc);
   if (!svgEl) { _liDrag=null; return; }
@@ -901,7 +935,7 @@ document.addEventListener('mouseup', e => {
     svgEl.querySelector('#li-prev')?.remove();
     if (y2-y1>0.015 && _liActivePlanId) {
       const li=getLinings(sc);
-      li.push({id:Date.now().toString(),planId:_liActivePlanId,startPct:y1,endPct:y2,type:'oncam',col:assignCol(li,y1,y2)});
+      li.push({id:Date.now().toString(),planId:_liActivePlanId,startPct:y1,endPct:y2,type:_liType,col:assignCol(li,y1,y2)});
       drawLinings(sc,svgEl,svgH,parseFloat(svgEl.getAttribute('width')||176));
       saveDecData();
     }
