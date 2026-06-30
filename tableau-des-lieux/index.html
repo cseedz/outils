@@ -3139,7 +3139,14 @@ function renderBatchAssign() {
       <span class="batch-hd-name" style="border-left:2px solid ${color};padding-left:6px;">${esc(lieu)}</span>
     </div>`;
 
-    if (!hasBatch) return `<div class="batch-group">${header}${buildShortlistSection(lieu)}</div>`;
+    if (!hasBatch) {
+      const souslieux = Object.keys(groups[lieu]).sort();
+      const hasVariety = souslieux.length > 1 || souslieux[0] !== '';
+      const subSlSections = hasVariety ? souslieux.filter(sl => sl).map(sl =>
+        `<div style="padding-left:12px;border-left:2px solid var(--border2);margin-top:2px;">${buildShortlistSection(lieu + '\x01' + sl)}</div>`
+      ).join('') : '';
+      return `<div class="batch-group">${header}${buildShortlistSection(lieu)}${subSlSections}</div>`;
+    }
 
     const souslieux = Object.keys(groups[lieu]).sort();
     const allSc = Object.values(groups[lieu]).flat();
