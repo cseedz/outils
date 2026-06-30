@@ -1724,6 +1724,7 @@ let _bankSaveDebounce= null;
 let _bankFilter      = { cat: '', q: '' };
 let _bkEditId        = null;
 let _bkEditPhotos    = [];
+let _bkRemovedPhotos = [];
 let _bkPickerLieu    = null;
 let _bkPickerMode    = 'shortlist'; // 'shortlist' | 'project'
 let locationShortlists   = {};  // { [lieuKey]: [bankId, ...] }
@@ -1819,7 +1820,7 @@ function bkRowClick(event, locationId) {
 function openBanqueModal(id) {
   _bkEditId = id||null;
   const loc = id ? bankLocations.find(l=>l.id===id) : null;
-  _bkEditPhotos = [...(loc?.photos||[])];
+  _bkEditPhotos = [...(loc?.photos||[])]; _bkRemovedPhotos = [];
   _populateCatSelects();
   document.getElementById('bk-modal-title').textContent = id ? 'Modifier la location' : 'Ajouter une location';
   document.getElementById('bk-modal-nom').value     = loc?.nom      ||'';
@@ -1835,7 +1836,7 @@ function openBanqueModal(id) {
 
 function closeBanqueModal() {
   document.getElementById('bk-modal-overlay').style.display='none';
-  _bkEditId=null; _bkEditPhotos=[];
+  _bkEditId=null; _bkEditPhotos=[]; _bkRemovedPhotos=[];
 }
 
 function _renderBkEditPhotos() {
@@ -1849,7 +1850,9 @@ function _renderBkEditPhotos() {
 }
 
 function removeBkEditPhoto(idx) {
-  _bkEditPhotos.splice(idx,1); _renderBkEditPhotos();
+  const [removed] = _bkEditPhotos.splice(idx, 1);
+  if (removed) _bkRemovedPhotos.push(removed);
+  _renderBkEditPhotos();
 }
 
 async function handleBkPhotoInput(input) {
@@ -1879,11 +1882,15 @@ function confirmBanqueModal() {
   } else {
     bankLocations.push({ id: Date.now().toString(), ...data });
   }
+  // Supprimer définitivement de Cloudinary les photos retirées
+  _bkRemovedPhotos.forEach(url => _deleteFromCloudinary(url));
   closeBanqueModal(); saveBanque(); renderBanque();
 }
 
 function deleteBanqueLocation(id) {
-  if (!confirm('Supprimer cette location de la banque ?')) return;
+  const loc = bankLocations.find(l=>l.id===id);
+  if (!confirm(`Supprimer "${loc?.nom||'cette location'}" de la banque ?\n\nSes photos seront supprimées définitivement de Cloudinary.`)) return;
+  loc?.photos?.forEach(url => _deleteFromCloudinary(url));
   bankLocations = bankLocations.filter(l=>l.id!==id);
   // Nettoyer shortlists
   Object.keys(locationShortlists).forEach(k => {
