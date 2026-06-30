@@ -782,15 +782,24 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
 .bk-picker-filters { display: flex; gap: 8px; }
 .bk-picker-search { flex: 1; padding: 7px 10px; border: 1px solid var(--border); border-radius: 7px; font-size: 13px; font-family: inherit; background: var(--bg2); color: var(--text); }
 .bk-picker-cat { padding: 7px 10px; border: 1px solid var(--border); border-radius: 7px; font-size: 12px; font-family: inherit; background: var(--bg2); color: var(--text); }
-.bk-picker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 10px; padding: 14px 20px 14px; overflow-y: auto; flex: 1; }
-.bk-picker-card { border: 2px solid transparent; border-radius: 9px; overflow: hidden; cursor: pointer; background: var(--bg2); transition: border-color .12s; }
-.bk-picker-card:hover:not(.already) { border-color: var(--text-muted); }
-.bk-picker-card.already { border-color: #2db866; opacity: .7; cursor: default; }
-.bk-picker-card-img { width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block; background: var(--bg3); }
-.bk-picker-card-img-empty { aspect-ratio: 4/3; background: var(--bg3); display: flex; align-items: center; justify-content: center; font-size: 24px; }
-.bk-picker-card-info { padding: 6px 8px 8px; }
-.bk-picker-card-nom { font-size: 11px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.bk-picker-card-cat { font-size: 9px; color: var(--text-muted); }
+.bk-picker-list { display: flex; flex-direction: column; overflow-y: auto; flex: 1; }
+.bk-picker-section { border-bottom: 1px solid var(--border); }
+.bk-picker-section-header { display: flex; align-items: center; gap: 8px; padding: 7px 20px; background: var(--bg2); cursor: pointer; user-select: none; position: sticky; top: 0; z-index: 1; }
+.bk-picker-section-arrow { font-size: 10px; color: var(--text-muted); transition: transform .15s; flex-shrink: 0; }
+.bk-picker-section.open .bk-picker-section-arrow { transform: rotate(90deg); }
+.bk-picker-section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--text); flex: 1; }
+.bk-picker-section-count { font-size: 10px; color: var(--text-muted); }
+.bk-picker-section-body { display: none; }
+.bk-picker-section.open .bk-picker-section-body { display: block; }
+.bk-picker-row { display: flex; align-items: center; gap: 10px; padding: 7px 20px; border-top: 1px solid var(--border); cursor: pointer; transition: background .1s; }
+.bk-picker-row:hover:not(.already) { background: var(--bg2); }
+.bk-picker-row.already { opacity: .6; cursor: default; }
+.bk-picker-row-thumb { width: 56px; height: 42px; border-radius: 5px; overflow: hidden; background: var(--bg3); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+.bk-picker-row-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.bk-picker-row-info { flex: 1; min-width: 0; }
+.bk-picker-row-nom { font-size: 12px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bk-picker-row-addr { font-size: 10px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+.bk-picker-row-status { font-size: 10px; font-weight: 700; color: #2db866; flex-shrink: 0; }
 .bk-picker-foot { padding: 12px 20px; border-top: 1px solid var(--border); flex-shrink: 0; display: flex; justify-content: flex-end; }
 
 /* Shortlist dans batch assign */
@@ -1052,7 +1061,7 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
         </select>
       </div>
     </div>
-    <div class="bk-picker-grid" id="bk-picker-grid"></div>
+    <div class="bk-picker-list" id="bk-picker-grid"></div>
     <div class="bk-picker-foot">
       <button class="btn" onclick="closeBanquePicker()">Fermer</button>
     </div>
@@ -1954,27 +1963,45 @@ function renderBanquePicker() {
   }
   const isProject = _bkPickerMode === 'project';
   const sl = isProject ? [] : (locationShortlists[_bkPickerLieu]||[]);
-  grid.innerHTML = filtered.map(l => {
-    const alreadyProject = lieusTournage.some(lt=>lt.bankId===l.id);
-    const alreadySl = sl.includes(l.id);
-    const already = isProject ? alreadyProject : alreadySl;
-    const ph = l.photos?.[0];
-    let onclick = '';
-    if (!already) {
-      onclick = isProject
-        ? `onclick="addLieuFromBank('${esc(l.id)}')"`
-        : `onclick="addToShortlist('${esc(_bkPickerLieu)}','${esc(l.id)}')"`;
-    }
-    const alreadyLabel = isProject ? '✓ Dans le projet' : '✓ Shortlistée';
-    return `<div class="bk-picker-card${already?' already':''}" ${already?'':onclick}>
-      ${ph?`<img class="bk-picker-card-img" src="${esc(ph)}" loading="lazy">`:'<div class="bk-picker-card-img-empty">📷</div>'}
-      <div class="bk-picker-card-info">
-        <div class="bk-picker-card-nom">${esc(l.nom)}</div>
-        ${l.categorie?`<div class="bk-picker-card-cat">${esc(l.categorie)}</div>`:''}
-        ${already?`<div style="font-size:9px;color:#2db866;font-weight:700;margin-top:2px;">${alreadyLabel}</div>`:''}
+  const alreadyLabel = isProject ? '✓ Dans le projet' : '✓ Shortlistée';
+
+  // Grouper par catégorie
+  const groups = {};
+  filtered.forEach(l => {
+    const cat = l.categorie || 'Sans catégorie';
+    if (!groups[cat]) groups[cat] = [];
+    groups[cat].push(l);
+  });
+
+  const isFiltering = !!(q || cat);
+  grid.innerHTML = Object.entries(groups).sort(([a],[b])=>a.localeCompare(b)).map(([catName, locs]) => `
+    <div class="bk-picker-section open">
+      <div class="bk-picker-section-header" onclick="this.closest('.bk-picker-section').classList.toggle('open')">
+        <span class="bk-picker-section-arrow">▶</span>
+        <span class="bk-picker-section-title">${esc(catName)}</span>
+        <span class="bk-picker-section-count">${locs.length}</span>
       </div>
-    </div>`;
-  }).join('');
+      <div class="bk-picker-section-body">
+        ${locs.map(l => {
+          const alreadyProject = lieusTournage.some(lt=>lt.bankId===l.id);
+          const alreadySl = sl.includes(l.id);
+          const already = isProject ? alreadyProject : alreadySl;
+          const ph = l.photos?.[0];
+          const id = esc(l.id);
+          const clickAttr = already ? '' : isProject
+            ? `onclick="addLieuFromBank('${id}')"`
+            : `onclick="addToShortlist('${esc(_bkPickerLieu)}','${id}')"`;
+          return `<div class="bk-picker-row${already?' already':''}" ${clickAttr}>
+            <div class="bk-picker-row-thumb">${ph?`<img src="${esc(ph)}">`:'📷'}</div>
+            <div class="bk-picker-row-info">
+              <div class="bk-picker-row-nom">${esc(l.nom)}</div>
+              ${l.adresse?`<div class="bk-picker-row-addr">${esc(l.adresse)}</div>`:''}
+            </div>
+            ${already?`<span class="bk-picker-row-status">${alreadyLabel}</span>`:''}
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`).join('');
 }
 
 function addToShortlist(lieuKey, bankId) {
