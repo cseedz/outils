@@ -1159,7 +1159,10 @@ document.getElementById('talent-list').addEventListener('click', e => {
     renderCastingShortlist();
     renderCastingList();
   } else {
-    addToShortlist(nom, agence);
+    if (!_assigningChar) return;
+    const alreadyIn = getShortlist(_assigningChar).some(c => c.nom === nom);
+    if (alreadyIn) removeFromShortlist(nom);
+    else addToShortlist(nom, agence);
   }
 });
 
