@@ -884,10 +884,13 @@ function renderTable() {
               <div class="field-label">Shortlist</div>
               ${shortlist.map(c => {
                 const isFinal = c.nom === enrich.acteur;
+                const slT     = talentsData.find(t => t.nom === c.nom && t.agence === c.agence) || talentsData.find(t => t.nom === c.nom);
+                const slUrl   = slT?.source_url && slT.source_url !== '#' ? slT.source_url : '';
                 return `<div class="expand-sl-item" data-nom="${escHtml(c.nom)}" data-agence="${escHtml(c.agence)}">
                   <span class="drag-handle" title="Réordonner">⠿</span>
                   <button class="btn-csl-confirm${isFinal ? ' is-final' : ''}" data-action="sl-confirm" data-char="${escHtml(p.name)}" data-nom="${escHtml(c.nom)}">${isFinal ? '★ Confirmé' : 'Confirmer'}</button>
                   <div class="expand-sl-name tp-trigger" data-nom="${escHtml(c.nom)}" data-agence="${escHtml(c.agence)}">${escHtml(c.nom)} <span class="expand-sl-agence">${escHtml(c.agence)}</span></div>
+                  ${slUrl ? `<a class="btn-source-link" href="${escHtml(slUrl)}" target="_blank" rel="noopener" style="flex-shrink:0;">Fiche ↗</a>` : ''}
                   <button class="btn-csl-remove" data-action="sl-remove" data-char="${escHtml(p.name)}" data-nom="${escHtml(c.nom)}" title="Retirer">×</button>
                 </div>`;
               }).join('')}
@@ -1542,7 +1545,7 @@ function exportShortlistPDF() {
         ${isFinal ? '<div class="pdf-star">★ Confirmé·e</div>' : ''}
         ${photoEl}
         <div class="pdf-info">
-          <div class="pdf-name">${t.nom}</div>
+          <div class="pdf-name">${t.source_url && t.source_url !== '#' ? `<a href="${t.source_url}" target="_blank" style="color:inherit;text-decoration:none;border-bottom:1px solid #aaa;">${t.nom}</a>` : t.nom}</div>
           <div class="pdf-agency">${t.agence}</div>
           ${tags.length ? `<div class="pdf-tags">${tags.map(x => `<span class="pdf-tag">${x}</span>`).join('')}</div>` : ''}
         </div>
@@ -1928,6 +1931,7 @@ function renderAgShortlistView() {
               <div class="ag-tile-name">${escHtml(t.nom)}</div>
               <div class="ag-tile-agency">${escHtml(t.agence)}</div>
               <div class="ag-tile-tags">${_agTags(t)}</div>
+              ${t.source_url && t.source_url !== '#' ? `<a class="ag-link" href="${escHtml(t.source_url)}" target="_blank" rel="noopener">Fiche ↗</a>` : ''}
             </div>
           </div>`;
         }).join('')}
