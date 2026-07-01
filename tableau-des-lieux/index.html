@@ -2095,17 +2095,42 @@ function removeFromShortlist(lieuKey, bankId) {
 
 function confirmerLocation(lieuKey, locationId) {
   locationConfirmations[lieuKey] = locationId;
-  // Auto-ajouter au projet si pas déjà là
-  if (!lieusTournage.find(l=>l.bankId===locationId)) {
-    const loc = bankLocations.find(l=>l.id===locationId);
+
+  // Photos spécifiquement sélectionnées pour ce lieuKey + cette location
+  const selectedPhotos = (lieuFictifPhotos[lieuKey] || [])
+    .filter(p => p.locationId === locationId)
+    .map(p => ({ url: p.url, sl: '' }));
+
+  const existing = lieusTournage.find(l => l.bankId === locationId);
+  if (!existing) {
+    // Nouvelle location — ajouter au projet avec les photos sélectionnées
+    const loc = bankLocations.find(l => l.id === locationId);
     if (loc) {
       const autoColor = COLORS[lieusTournage.length % COLORS.length];
       const id = 'l_' + Date.now();
       lieusTournage.push({ id, nom: loc.nom, adresse: loc.adresse||'', notes: loc.notes||'', couleur: autoColor, bankId: locationId });
-      if (loc.photos?.length) lieuTournagePhotos[id] = loc.photos.map(url => ({ url, sl: '' }));
+      if (selectedPhotos.length) {
+        lieuTournagePhotos[id] = selectedPhotos;
+      }
       buildTable(); renderLieuList(); renderVueLieux(); refreshAllLieuDropdowns(); refreshLieuTournageFilter();
       if (loc.adresse) geocodeLieuAddress(id);
-      showToast(loc.nom + ' confirmée et ajoutée au projet (' + (loc.photos?.length||0) + ' photos)');
+      showToast(loc.nom + ' confirmée — ' + selectedPhotos.length + ' photo(s) ajoutée(s)');
+    }
+  } else {
+    // Location déjà dans le projet — ajouter les nouvelles photos sélectionnées sans doublon
+    if (selectedPhotos.length) {
+      if (!lieuTournagePhotos[existing.id]) lieuTournagePhotos[existing.id] = [];
+      const existingUrls = new Set(lieuTournagePhotos[existing.id].map(p => p.url));
+      const newPhotos = selectedPhotos.filter(p => !existingUrls.has(p.url));
+      if (newPhotos.length) {
+        lieuTournagePhotos[existing.id].push(...newPhotos);
+        renderVueLieux();
+        showToast(newPhotos.length + ' photo(s) ajoutée(s) à ' + existing.nom);
+      } else {
+        showToast(existing.nom + ' confirmée (photos déjà présentes)');
+      }
+    } else {
+      showToast(existing.nom + ' confirmée');
     }
   }
   save(); renderBatchAssign();
