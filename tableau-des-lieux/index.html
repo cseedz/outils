@@ -2137,7 +2137,28 @@ function confirmerLocation(lieuKey, locationId) {
 }
 
 function deconfirmerLocation(lieuKey) {
-  delete locationConfirmations[lieuKey]; save(); renderBatchAssign();
+  const oldBankId = locationConfirmations[lieuKey];
+  delete locationConfirmations[lieuKey];
+
+  // Si cette location n'est plus confirmée nulle part et n'est pas assignée à des scènes → retirer du projet
+  if (oldBankId) {
+    const stillConfirmed = Object.values(locationConfirmations).includes(oldBankId);
+    const lt = lieusTournage.find(l => l.bankId === oldBankId);
+    if (lt && !stillConfirmed) {
+      const usedInScenes = scenes.some(s => s.lieu_tournage_id === lt.id);
+      if (!usedInScenes) {
+        lieusTournage = lieusTournage.filter(l => l.id !== lt.id);
+        delete lieuTournagePhotos[lt.id];
+        buildTable();
+        renderLieuList();
+        refreshAllLieuDropdowns();
+        refreshLieuTournageFilter();
+        showToast(lt.nom + ' retirée du projet');
+      }
+    }
+  }
+
+  save(); renderVueLieux(); renderBatchAssign();
 }
 
 function buildShortlistSection(lieuKey) {
