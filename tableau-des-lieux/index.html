@@ -278,6 +278,19 @@ input[type="file"].form-input { padding: 6px 8px; font-size: 12px; color: var(--
 .lieu-photo-uploading { width: 64px; height: 64px; border-radius: 5px; border: 1px solid var(--border); background: var(--bg3); display: flex; align-items: center; justify-content: center; color: var(--text-dim); font-size: 10px; flex-shrink: 0; }
 .photo-thumb-wrap { display:flex; flex-direction:column; width:64px; flex-shrink:0; }
 .photo-sl-sel { font-size:9px; background:var(--bg3); border:none; border-top:1px solid var(--border); color:var(--text-muted); padding:2px; cursor:pointer; outline:none; width:100%; border-radius:0 0 5px 5px; }
+/* Option groups dans les cartons Lieux */
+.lieu-opt-group { margin-bottom:8px; }
+.lieu-opt-header { display:flex; align-items:center; gap:5px; margin-bottom:4px; }
+.lieu-opt-name { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--text-dim); background:transparent; border:none; border-bottom:1px solid transparent; padding:1px 3px; cursor:text; min-width:60px; max-width:180px; }
+.lieu-opt-name:hover { border-bottom-color:var(--border2); }
+.lieu-opt-name:focus { outline:none; border-bottom-color:var(--accent); color:var(--text); }
+.lieu-opt-del { background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:11px; padding:0 2px; line-height:1; opacity:.6; }
+.lieu-opt-del:hover { color:var(--danger,#e55); opacity:1; }
+.lieu-opt-photos { display:flex; flex-wrap:wrap; gap:5px; align-items:flex-start; }
+.lieu-opt-add-btn { font-size:11px; background:var(--bg3); border:1px dashed var(--border2); border-radius:5px; color:var(--text-muted); cursor:pointer; padding:5px 10px; white-space:nowrap; align-self:flex-start; margin-top:2px; }
+.lieu-opt-add-btn:hover { border-color:var(--accent); color:var(--accent); }
+/* Bouton upload direct dans Lieux fictifs */
+.sl-upload-btn { margin-left:6px; }
 /* Thumbnails dans les cartons vlieu */
 .vlieu-thumbs { display: flex; flex-direction: column; gap: 5px; margin-bottom: 8px; }
 .vlieu-thumbs-row { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-bottom: 2px; }
@@ -832,6 +845,8 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
 .sl-source-header { display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; background: var(--bg2); gap: 6px; }
 .sl-source-info { display: flex; align-items: center; gap: 7px; min-width: 0; flex: 1; }
 .sl-source-nom { font-size: 11px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sl-direct-name { font-size: 11px; font-weight: 700; color: var(--text); background: transparent; border: none; border-bottom: 1px solid var(--border2); padding: 1px 3px; min-width: 80px; max-width: 160px; }
+.sl-direct-name:focus { outline: none; border-bottom-color: var(--accent); }
 .sl-source-cat { font-size: 9px; color: var(--text-dim); background: var(--bg3); padding: 1px 6px; border-radius: 9px; white-space: nowrap; flex-shrink: 0; }
 .sl-source-ct { font-size: 9px; color: var(--text-muted); flex-shrink: 0; }
 .sl-source-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
@@ -2184,7 +2199,8 @@ function buildShortlistSection(lieuKey) {
   });
 
   const groupsHtml = Object.entries(groups).map(([locId, g]) => {
-    const isConf = conf === locId;
+    const isConf   = conf === locId;
+    const isDirect = locId.startsWith('upload_');
     const lid = esc(locId);
     const photoStrip = g.photos.map(p =>
       `<div class="sl-photo-thumb" onclick="openLightbox('${esc(p.url)}')">
@@ -2192,15 +2208,20 @@ function buildShortlistSection(lieuKey) {
         <button class="sl-photo-del" onclick="event.stopPropagation();removeLieuFictifPhoto('${lk}','${esc(p.url)}')">✕</button>
       </div>`
     ).join('');
+    const nomHtml = isDirect
+      ? `<input class="sl-direct-name" value="${esc(g.nom)}" placeholder="Nom de l'option…"
+           onblur="renameLieuFictifGroup('${lk}','${lid}',this.value)"
+           onkeydown="if(event.key==='Enter')this.blur();">`
+      : `<span class="sl-source-nom">${esc(g.nom)}</span>`;
     return `<div class="sl-source-group${isConf?' confirmed':''}">
       <div class="sl-source-header">
         <div class="sl-source-info">
-          <span class="sl-source-nom">${esc(g.nom)}</span>
-          ${g.categorie?`<span class="sl-source-cat">${esc(g.categorie)}</span>`:''}
+          ${nomHtml}
+          ${!isDirect && g.categorie?`<span class="sl-source-cat">${esc(g.categorie)}</span>`:''}
           <span class="sl-source-ct">${g.photos.length} photo${g.photos.length>1?'s':''}</span>
         </div>
         <div class="sl-source-actions">
-          ${isConf
+          ${isDirect ? '' : isConf
             ? `<span class="sl-confirmed-badge">Confirmée</span><button class="sl-item-btn deconfirm" onclick="deconfirmerLocation('${lk}')">Annuler</button>`
             : `<button class="sl-item-btn confirm" onclick="confirmerLocation('${lk}','${lid}')">Confirmer</button>`}
           <button class="sl-item-btn remove" onclick="removeLieuFictifSource('${lk}','${lid}')">✕</button>
@@ -2213,7 +2234,11 @@ function buildShortlistSection(lieuKey) {
   return `<div class="sl-section">
     <div class="sl-title">
       <span>Photos de repérage${sousLieuLabel}</span>
-      <button class="sl-add-btn" onclick="openPhotoPickerForLieu('${lk}')">＋ Ajouter photos</button>
+      <button class="sl-add-btn" onclick="openPhotoPickerForLieu('${lk}')">＋ Banque</button>
+      <label class="sl-add-btn sl-upload-btn" title="Uploader des photos directement (hors banque)">＋ Upload
+        <input type="file" accept="image/*" multiple style="display:none"
+          data-lieukey="${lk}" onchange="handleDirectUploadToLieuFictif(this.dataset.lieukey,this)">
+      </label>
     </div>
     ${photos.length ? `<div class="sl-items">${groupsHtml}</div>` : ''}
   </div>`;
@@ -2368,6 +2393,39 @@ function removeLieuFictifSource(lieuKey, locationId) {
   if (!lieuFictifPhotos[lieuKey]) return;
   lieuFictifPhotos[lieuKey] = lieuFictifPhotos[lieuKey].filter(p => p.locationId !== locationId);
   if (locationConfirmations[lieuKey] === locationId) delete locationConfirmations[lieuKey];
+  save(); renderBatchAssign();
+}
+
+async function handleDirectUploadToLieuFictif(lieuKey, input) {
+  const files = Array.from(input.files);
+  if (!files.length) return;
+  const locationId = 'upload_' + Date.now();
+  const parts = lieuKey.split('\x01');
+  const defaultNom = 'Option ' + ((Object.keys(
+    (lieuFictifPhotos[lieuKey] || []).reduce((acc, p) => { acc[p.locationId] = 1; return acc; }, {})
+  ).length) + 1);
+  showToast('Upload en cours…');
+  for (const file of files) {
+    try {
+      const url = await uploadToCloudinary(file);
+      if (!lieuFictifPhotos[lieuKey]) lieuFictifPhotos[lieuKey] = [];
+      lieuFictifPhotos[lieuKey].push({ url, locationId, locationNom: defaultNom, categorie: '' });
+      save();
+    } catch(e) {
+      showToast('Erreur upload : ' + e.message);
+    }
+  }
+  input.value = '';
+  renderBatchAssign(); renderVueLieux();
+  showToast(files.length + ' photo(s) uploadée(s) — renomme l\'option si besoin');
+}
+
+function renameLieuFictifGroup(lieuKey, locationId, newName) {
+  newName = (newName || '').trim();
+  if (!newName) return;
+  (lieuFictifPhotos[lieuKey] || []).forEach(p => {
+    if (p.locationId === locationId) p.locationNom = newName;
+  });
   save(); renderBatchAssign();
 }
 
@@ -2722,12 +2780,12 @@ async function syncPhotosFromBank(lieuId) {
   }
 }
 
-async function handleLieuPhotoInput(id, type, input) {
+async function handleLieuPhotoInput(id, type, input, opt = '') {
   const files = Array.from(input.files);
   if (!files.length) return;
   const dict = type === 'inspi' ? lieuTournageInspi : type === 'floorplans' ? lieuTournageFloorplans : lieuTournagePhotos;
   const zone = document.getElementById(`lp_${id}_${type}`);
-  const addLabel = zone ? zone.querySelector('label.lieu-photo-add') : null;
+  const addLabel = zone ? zone.querySelector('.lieu-opt-add-btn') : null;
 
   for (const file of files) {
     const spinner = document.createElement('div');
@@ -2737,7 +2795,7 @@ async function handleLieuPhotoInput(id, type, input) {
     try {
       const url = await uploadToCloudinary(file);
       if (!dict[id]) dict[id] = [];
-      dict[id].push({url, sl: ''});
+      dict[id].push({url, sl: '', opt: opt || ''});
       save();
     } catch(e) {
       showToast('Erreur upload — réessaie');
@@ -2747,6 +2805,60 @@ async function handleLieuPhotoInput(id, type, input) {
   input.value = '';
   renderLieuList();
   renderVueLieux();
+}
+
+function openLieuGalleryByUrl(lieuId, type, url) {
+  const dict = type === 'inspi' ? lieuTournageInspi : type === 'floorplans' ? lieuTournageFloorplans : lieuTournagePhotos;
+  const urls = sortPhotoUrls((dict[lieuId] || []).map(p => typeof p === 'object' ? p.url : p));
+  openLieuGallery(lieuId, type, Math.max(0, urls.indexOf(url)));
+}
+
+function addPhotoOption(lieuId, type) {
+  const zone = document.getElementById(`lp_${lieuId}_${type}`);
+  if (!zone) return;
+  zone.querySelector('.lieu-opt-pending')?.remove();
+
+  const dict = type === 'inspi' ? lieuTournageInspi : type === 'floorplans' ? lieuTournageFloorplans : lieuTournagePhotos;
+  const existing = [...new Set((dict[lieuId] || []).map(p => (p.opt || '')).filter(Boolean))];
+  const defaultName = 'Option ' + (existing.length + 1);
+
+  const pending = document.createElement('div');
+  pending.className = 'lieu-opt-group lieu-opt-pending';
+  pending.innerHTML = `<div class="lieu-opt-header">
+    <input class="lieu-opt-name" value="${esc(defaultName)}" placeholder="Nom de l'option…">
+    <label class="lieu-photo-add" style="width:28px;height:28px;font-size:13px;flex-shrink:0;" title="Choisir des photos">+
+      <input type="file" accept="image/*" multiple style="display:none">
+    </label>
+    <button class="lieu-opt-del" onclick="this.closest('.lieu-opt-pending').remove()">✕</button>
+  </div>`;
+
+  const addBtn = zone.querySelector('.lieu-opt-add-btn');
+  zone.insertBefore(pending, addBtn);
+  const nameInput = pending.querySelector('.lieu-opt-name');
+  nameInput.focus(); nameInput.select();
+
+  pending.querySelector('input[type="file"]').addEventListener('change', async function() {
+    const optName = nameInput.value.trim() || defaultName;
+    await handleLieuPhotoInput(lieuId, type, this, optName);
+    pending.remove();
+  });
+}
+
+function renamePhotoOption(lieuId, type, oldOpt, newOpt) {
+  newOpt = (newOpt || '').trim();
+  if (!newOpt || newOpt === oldOpt) return;
+  const dict = type === 'inspi' ? lieuTournageInspi : type === 'floorplans' ? lieuTournageFloorplans : lieuTournagePhotos;
+  (dict[lieuId] || []).forEach(p => { if ((p.opt || '') === oldOpt) p.opt = newOpt; });
+  save(); renderLieuList();
+}
+
+function deletePhotoOption(lieuId, type, opt) {
+  if (!confirm('Supprimer toutes les photos de cette option ?')) return;
+  const dict = type === 'inspi' ? lieuTournageInspi : type === 'floorplans' ? lieuTournageFloorplans : lieuTournagePhotos;
+  const toDelete = (dict[lieuId] || []).filter(p => (p.opt || '') === opt);
+  dict[lieuId] = (dict[lieuId] || []).filter(p => (p.opt || '') !== opt);
+  toDelete.forEach(p => { if (!bankLocations.some(l => l.photos?.includes(p.url))) _deleteFromCloudinary(p.url); });
+  save(); renderLieuList(); renderVueLieux();
 }
 
 function _cloudinaryPublicId(url) {
@@ -3139,31 +3251,70 @@ function renderLieuList() {
     const usage = scenes.filter(s => s.lieu_tournage_id === l.id).length;
     const sls = getSousLieuxForTournage(l.id);
     const buildPhotoRow = (type, dict, label) => {
-      const rawPhotos = (dict[l.id] || []).map(p => typeof p === 'string' ? {url: p, sl: ''} : p);
-      const sortedUrls = sortPhotoUrls(rawPhotos.map(p => p.url));
-      const photos = sortedUrls.map(url => rawPhotos.find(p => p.url === url) || {url, sl: ''});
-      const thumbs = photos.map((p, i) =>
-        `<div class="photo-thumb-wrap">
-          <div class="lieu-photo-thumb" onclick="openLieuGallery('${l.id}','${type}',${i})">
+      const rawPhotos = (dict[l.id] || []).map(p => typeof p === 'string' ? {url: p, sl: '', opt: ''} : {opt: '', ...p});
+
+      // Grouper par opt : '' = sans option (repérage libre)
+      const optOrder = [];
+      const optMap = {};
+      rawPhotos.forEach(p => {
+        const key = p.opt || '';
+        if (!optMap[key]) { optMap[key] = []; optOrder.push(key); }
+        optMap[key].push(p);
+      });
+
+      const renderThumb = (p) => {
+        const urlAttr = esc(p.url);
+        return `<div class="photo-thumb-wrap">
+          <div class="lieu-photo-thumb" onclick="openLieuGalleryByUrl('${l.id}','${type}','${urlAttr}')">
             <img src="${esc(cdnUrl(p.url))}" loading="lazy">
-            <button class="lieu-photo-del" data-lid="${l.id}" data-type="${type}" data-url="${esc(p.url)}" onclick="event.stopPropagation();deleteLieuPhoto(this.dataset.lid,this.dataset.type,this.dataset.url)">✕</button>
+            <button class="lieu-photo-del" data-lid="${l.id}" data-type="${type}" data-url="${urlAttr}" onclick="event.stopPropagation();deleteLieuPhoto(this.dataset.lid,this.dataset.type,this.dataset.url)">✕</button>
           </div>
-          <select class="photo-sl-sel" onchange="setPhotoSousLieu('${l.id}','${type}','${esc(p.url)}',this.value)">
+          <select class="photo-sl-sel" onchange="setPhotoSousLieu('${l.id}','${type}','${urlAttr}',this.value)">
             <option value=""${!p.sl?' selected':''}>Général</option>
             ${sls.map(sl => `<option value="${esc(sl)}"${p.sl===sl?' selected':''}>${esc(sl)}</option>`).join('')}
           </select>
-        </div>`
-      ).join('');
+        </div>`;
+      };
+
+      const groupsHtml = optOrder.map(opt => {
+        const gpPhotos = sortPhotoUrls(optMap[opt].map(p => p.url))
+          .map(url => optMap[opt].find(p => p.url === url) || {url, sl: '', opt});
+        const thumbs = gpPhotos.map(renderThumb).join('');
+        const optAttr = esc(opt);
+        const header = opt
+          ? `<div class="lieu-opt-header">
+              <input class="lieu-opt-name" value="${optAttr}" placeholder="Nom…"
+                onblur="renamePhotoOption('${l.id}','${type}','${optAttr}',this.value)"
+                onkeydown="if(event.key==='Enter')this.blur();else if(event.key==='Escape')this.blur();">
+              <button class="lieu-opt-del" title="Supprimer cette option" onclick="deletePhotoOption('${l.id}','${type}','${optAttr}')">✕</button>
+            </div>` : '';
+        return `<div class="lieu-opt-group${opt?'':' default-group'}">
+          ${header}
+          <div class="lieu-opt-photos">
+            ${thumbs}
+            <label class="lieu-photo-add" title="Ajouter photos${opt?' à '+opt:''}">+
+              <input type="file" accept="image/*" multiple style="display:none"
+                data-lid="${l.id}" data-type="${type}" data-opt="${optAttr}"
+                onchange="handleLieuPhotoInput(this.dataset.lid,this.dataset.type,this,this.dataset.opt)">
+            </label>
+          </div>
+        </div>`;
+      }).join('');
+
+      const emptyUpload = !rawPhotos.length ? `<div class="lieu-opt-group default-group"><div class="lieu-opt-photos">
+        <label class="lieu-photo-add" title="Ajouter ${label.toLowerCase()}">+
+          <input type="file" accept="image/*" multiple style="display:none"
+            data-lid="${l.id}" data-type="${type}" data-opt=""
+            onchange="handleLieuPhotoInput(this.dataset.lid,this.dataset.type,this,this.dataset.opt)">
+        </label></div></div>` : '';
+
       const syncBtn = (type === 'lieux' && l.bankId)
         ? `<button class="btn-sync-bank" title="Synchroniser les photos depuis la banque" onclick="syncPhotosFromBank('${l.id}')">↺ Sync banque</button>`
         : '';
       return `<div class="lieu-photos-row" id="lp_${l.id}_${type}">
         <span class="lieu-photos-label">${label}</span>
-        ${thumbs}
-        <label class="lieu-photo-add" title="Ajouter ${label.toLowerCase()}">
-          +
-          <input type="file" accept="image/*" multiple style="display:none" data-lid="${l.id}" data-type="${type}" onchange="handleLieuPhotoInput(this.dataset.lid,this.dataset.type,this)">
-        </label>
+        ${groupsHtml}${emptyUpload}
+        <button class="lieu-opt-add-btn" onclick="addPhotoOption('${l.id}','${type}')">＋ Option</button>
         ${syncBtn}
       </div>`;
     };
