@@ -874,6 +874,48 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
 .pph-step2-back { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
 .pph-step2-back button { font-size: 11px; font-family: inherit; background: none; border: 1px solid var(--border); border-radius: 5px; padding: 3px 9px; cursor: pointer; color: var(--text-muted); }
 .pph-step2-back button:hover { color: var(--text); }
+
+/* ── PLAN ANNOTÉ ── */
+#plan-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 500; display: none; align-items: center; justify-content: center; }
+#plan-modal-overlay.open { display: flex; }
+.plan-modal { background: var(--bg); border-radius: 14px; width: min(1100px, 97vw); height: min(800px, 94vh); display: flex; flex-direction: column; box-shadow: 0 8px 60px rgba(0,0,0,.4); overflow: hidden; }
+.plan-modal-header { display: flex; align-items: center; padding: 12px 18px; border-bottom: 1px solid var(--border); flex-shrink: 0; gap: 10px; }
+.plan-modal-title { font-size: 14px; font-weight: 700; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plan-modal-body { display: flex; flex: 1; overflow: hidden; }
+.plan-floor-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #1a1a1a; }
+.plan-floor-wrap { flex: 1; overflow: auto; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.plan-floor-img-wrap { position: relative; display: inline-block; cursor: crosshair; line-height: 0; }
+.plan-floor-img-wrap img { max-width: 100%; max-height: calc(100vh - 240px); display: block; user-select: none; pointer-events: none; border-radius: 4px; }
+.plan-floor-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; color: #666; gap: 12px; height: 100%; width: 100%; }
+.plan-pin { position: absolute; transform: translate(-50%, -50%); width: 26px; height: 26px; border-radius: 50%; background: #4a7cf7; color: #fff; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.5); border: 2.5px solid #fff; z-index: 2; transition: transform .12s; pointer-events: all; }
+.plan-pin:hover { transform: translate(-50%, -50%) scale(1.2); }
+.plan-pin.selected { background: #e02040; box-shadow: 0 2px 12px rgba(220,30,50,.6); }
+.plan-pin.has-photos::after { content: ''; position: absolute; bottom: -1px; right: -1px; width: 8px; height: 8px; border-radius: 50%; background: #2db866; border: 1.5px solid #fff; }
+.plan-floor-toolbar { padding: 8px 12px; border-top: 1px solid #333; display: flex; gap: 8px; align-items: center; background: #222; flex-shrink: 0; }
+.plan-toolbar-hint { font-size: 11px; color: #888; }
+.plan-right-panel { width: 300px; border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0; }
+.plan-photos-header { padding: 9px 12px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); border-bottom: 1px solid var(--border); flex-shrink: 0; display: flex; align-items: center; gap: 6px; }
+.plan-photos-grid { flex: 1; overflow-y: auto; display: flex; flex-wrap: wrap; gap: 3px; padding: 6px; align-content: flex-start; }
+.plan-ph-thumb { position: relative; width: 58px; height: 58px; border-radius: 5px; overflow: hidden; cursor: pointer; flex-shrink: 0; border: 2.5px solid transparent; transition: border-color .1s, opacity .1s; }
+.plan-ph-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.plan-ph-thumb.assigned { border-color: #4a7cf7; }
+.plan-ph-thumb.assigned::after { content: '✓'; position: absolute; bottom: 2px; right: 2px; background: #4a7cf7; color: #fff; font-size: 9px; font-weight: 700; border-radius: 3px; padding: 1px 3px; line-height: 1; }
+.plan-ph-thumb.no-pin { opacity: .45; }
+.plan-pins-list { border-top: 1px solid var(--border); flex-shrink: 0; max-height: 200px; overflow-y: auto; }
+.plan-pin-item { display: flex; align-items: center; gap: 7px; padding: 5px 10px; cursor: pointer; transition: background .1s; border-bottom: 1px solid var(--border); }
+.plan-pin-item:hover { background: var(--bg2); }
+.plan-pin-item.selected { background: #eef3ff; }
+.plan-pin-dot { width: 22px; height: 22px; border-radius: 50%; background: #4a7cf7; color: #fff; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.plan-pin-dot.selected { background: #e02040; }
+.plan-pin-name-input { flex: 1; font-size: 12px; font-weight: 500; border: none; background: transparent; font-family: inherit; padding: 0; outline: none; color: var(--text); min-width: 0; }
+.plan-pin-name-input:focus { border-bottom: 1px solid var(--accent); }
+.plan-pin-count { font-size: 10px; color: var(--text-muted); white-space: nowrap; }
+.plan-pin-del-btn { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 12px; padding: 2px 4px; line-height: 1; }
+.plan-pin-del-btn:hover { color: var(--danger); }
+.bk-card-btn { background: var(--bg3); border: 1px solid var(--border); border-radius: 5px; font-size: 11px; font-family: inherit; padding: 4px 9px; cursor: pointer; color: var(--text-muted); white-space: nowrap; }
+.bk-card-btn:hover { background: var(--bg2); color: var(--text); }
+.bk-card-btn.danger { color: var(--danger); }
+.bk-card-btn.danger:hover { background: #fff0f0; }
 </style>
 </head>
 <body>
@@ -1097,6 +1139,45 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
       <span class="bk-modal-saving" id="bk-modal-saving">Sauvegarde en cours…</span>
       <button class="btn btn-cancel" onclick="closeBanqueModal()">Annuler</button>
       <button class="btn btn-success" onclick="confirmBanqueModal()">Sauvegarder</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Plan annoté -->
+<div id="plan-modal-overlay" onclick="if(event.target===this)closePlanAnnote()">
+  <div class="plan-modal">
+    <div class="plan-modal-header">
+      <div class="plan-modal-title" id="plan-modal-title">Plan annoté</div>
+      <button class="btn btn-sm" onclick="closePlanAnnote()">Fermer</button>
+    </div>
+    <div class="plan-modal-body">
+      <div class="plan-floor-panel">
+        <div class="plan-floor-wrap" id="plan-floor-wrap">
+          <div class="plan-floor-empty"><div style="font-size:48px;opacity:.3">🗺</div><div>Importez un plan de l'école</div></div>
+        </div>
+        <div class="plan-floor-toolbar">
+          <label class="btn btn-sm" style="background:#333;border-color:#555;color:#ccc;">
+            Importer plan
+            <input type="file" accept="image/*" style="display:none" onchange="handlePlanFloorInput(this)">
+          </label>
+          <span class="plan-toolbar-hint" id="plan-toolbar-hint">Cliquez sur le plan pour ajouter un pin</span>
+          <div style="margin-left:auto;display:flex;gap:6px;">
+            <button class="btn btn-sm btn-danger" id="plan-del-pin-btn" onclick="deleteSelectedPin()" style="display:none;">Supprimer pin</button>
+            <button class="btn btn-sm btn-primary" onclick="savePlanAnnote()">Enregistrer</button>
+          </div>
+        </div>
+      </div>
+      <div class="plan-right-panel">
+        <div class="plan-photos-header">
+          Photos
+          <span id="plan-pin-hint" style="font-size:10px;color:var(--accent);margin-left:4px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+          <label style="font-size:10px;cursor:pointer;color:var(--text-muted);">
+            <input type="checkbox" id="plan-filter-unpinned" onchange="renderPlanPhotos()" style="margin-right:3px;">Non-pinnées
+          </label>
+        </div>
+        <div class="plan-photos-grid" id="plan-photos-grid"></div>
+        <div class="plan-pins-list" id="plan-pins-list"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -1883,6 +1964,7 @@ function renderBanque() {
             </div>
             ${n?`<span class="bk-row-badge">📷 ${n}</span>`:''}
             <div class="bk-row-actions" onclick="event.stopPropagation()">
+              <button class="bk-card-btn" onclick="openPlanAnnote('${id}')" title="Plan annoté">📌</button>
               <button class="bk-card-btn" onclick="openBanqueModal('${id}')">Modifier</button>
               <button class="bk-card-btn danger" onclick="deleteBanqueLocation('${id}')">✕</button>
             </div>
@@ -1966,6 +2048,173 @@ function confirmBanqueModal() {
   _bkRemovedPhotos.forEach(url => _deleteFromCloudinary(url));
   closeBanqueModal(); saveBanque(); renderBanque();
 }
+
+// ─── PLAN ANNOTÉ ─────────────────────────────────────────────────────────────
+let _planLocId = null;
+let _planFloorplanUrl = null;
+let _planPins = [];
+let _planSelectedPinId = null;
+
+function openPlanAnnote(locationId) {
+  const loc = bankLocations.find(l => l.id === locationId);
+  if (!loc) return;
+  _planLocId = locationId;
+  const plan = loc.plan_annote || {};
+  _planFloorplanUrl = plan.floorplan_url || null;
+  _planPins = (plan.pins || []).map(p => ({ ...p, photos: [...(p.photos || [])] }));
+  _planSelectedPinId = null;
+  document.getElementById('plan-modal-title').textContent = `${loc.nom} — Plan annoté`;
+  document.getElementById('plan-filter-unpinned').checked = false;
+  renderPlanFloor();
+  renderPlanPhotos();
+  renderPlanPinsList();
+  document.getElementById('plan-modal-overlay').classList.add('open');
+}
+
+function closePlanAnnote() {
+  document.getElementById('plan-modal-overlay').classList.remove('open');
+  _planLocId = null;
+}
+
+function renderPlanFloor() {
+  const wrap = document.getElementById('plan-floor-wrap');
+  const delBtn = document.getElementById('plan-del-pin-btn');
+  if (!_planFloorplanUrl) {
+    wrap.innerHTML = `<div class="plan-floor-empty"><div style="font-size:48px;opacity:.3">🗺</div><div>Importez un plan de l'école</div></div>`;
+    delBtn.style.display = 'none';
+    return;
+  }
+  const allAssigned = new Set(_planPins.flatMap(p => p.photos));
+  const pinsHtml = _planPins.map((p, i) => {
+    const hasPh = p.photos.length > 0;
+    const sel = p.id === _planSelectedPinId;
+    return `<div class="plan-pin${sel ? ' selected' : ''}${hasPh ? ' has-photos' : ''}"
+      style="left:${(p.x * 100).toFixed(3)}%;top:${(p.y * 100).toFixed(3)}%"
+      onclick="event.stopPropagation();selectPlanPin('${p.id}')"
+      title="${esc(p.label || 'Pin ' + (i + 1))}">${i + 1}</div>`;
+  }).join('');
+  wrap.innerHTML = `<div class="plan-floor-img-wrap" onclick="addPlanPin(event,this)">
+    <img src="${esc(_planFloorplanUrl)}" draggable="false" id="plan-floor-img" alt="Plan">
+    ${pinsHtml}
+  </div>`;
+  delBtn.style.display = _planSelectedPinId ? '' : 'none';
+}
+
+function addPlanPin(event, wrap) {
+  const img = document.getElementById('plan-floor-img');
+  if (!img) return;
+  const rect = img.getBoundingClientRect();
+  const x = (event.clientX - rect.left) / rect.width;
+  const y = (event.clientY - rect.top) / rect.height;
+  const id = 'pin_' + Date.now();
+  _planPins.push({ id, x, y, label: `Zone ${_planPins.length + 1}`, photos: [] });
+  _planSelectedPinId = id;
+  renderPlanFloor();
+  renderPlanPhotos();
+  renderPlanPinsList();
+}
+
+function selectPlanPin(pinId) {
+  _planSelectedPinId = _planSelectedPinId === pinId ? null : pinId;
+  renderPlanFloor();
+  renderPlanPhotos();
+  renderPlanPinsList();
+}
+
+function deleteSelectedPin() {
+  if (!_planSelectedPinId) return;
+  _planPins = _planPins.filter(p => p.id !== _planSelectedPinId);
+  _planSelectedPinId = null;
+  renderPlanFloor();
+  renderPlanPhotos();
+  renderPlanPinsList();
+}
+
+function renderPlanPhotos() {
+  const loc = bankLocations.find(l => l.id === _planLocId);
+  const allPhotos = sortPhotoUrls(loc?.photos || []);
+  const sel = _planPins.find(p => p.id === _planSelectedPinId);
+  const assignedToSel = new Set(sel ? sel.photos : []);
+  const allAssigned = new Set(_planPins.flatMap(p => p.photos));
+  const filterUnpinned = document.getElementById('plan-filter-unpinned')?.checked;
+
+  document.getElementById('plan-pin-hint').textContent = sel ? `→ ${sel.label}` : '';
+
+  const grid = document.getElementById('plan-photos-grid');
+  const visible = filterUnpinned ? allPhotos.filter(u => !allAssigned.has(u)) : allPhotos;
+  if (!visible.length) {
+    grid.innerHTML = `<div style="color:var(--text-muted);font-size:11px;padding:12px;">${filterUnpinned ? 'Toutes les photos sont pinnées' : 'Aucune photo'}</div>`;
+    return;
+  }
+  grid.innerHTML = visible.map(url => {
+    const inSel = assignedToSel.has(url);
+    const inAny = allAssigned.has(url);
+    const noPinCls = (!sel && inAny) || (sel && !inSel && inAny) ? ' no-pin' : '';
+    return `<div class="plan-ph-thumb${inSel ? ' assigned' : ''}${noPinCls}" onclick="togglePlanPhoto('${esc(url)}')" title="${esc(url)}">
+      <img src="${esc(url)}" loading="lazy">
+    </div>`;
+  }).join('');
+}
+
+function togglePlanPhoto(url) {
+  const pin = _planPins.find(p => p.id === _planSelectedPinId);
+  if (!pin) { showToast('Sélectionnez d\'abord un pin'); return; }
+  const idx = pin.photos.indexOf(url);
+  if (idx >= 0) pin.photos.splice(idx, 1);
+  else pin.photos.push(url);
+  renderPlanPhotos();
+  renderPlanPinsList();
+  renderPlanFloor();
+}
+
+function renderPlanPinsList() {
+  const panel = document.getElementById('plan-pins-list');
+  if (!_planPins.length) { panel.innerHTML = ''; return; }
+  panel.innerHTML = _planPins.map((p, i) => `
+    <div class="plan-pin-item${p.id === _planSelectedPinId ? ' selected' : ''}" onclick="selectPlanPin('${p.id}')">
+      <div class="plan-pin-dot${p.id === _planSelectedPinId ? ' selected' : ''}">${i + 1}</div>
+      <input class="plan-pin-name-input" value="${esc(p.label || '')}"
+        onclick="event.stopPropagation()"
+        onchange="renamePlanPin('${p.id}', this.value)"
+        onblur="renamePlanPin('${p.id}', this.value)">
+      <span class="plan-pin-count">${p.photos.length} ph.</span>
+      <button class="plan-pin-del-btn" onclick="event.stopPropagation();deletePlanPinById('${p.id}')">✕</button>
+    </div>`).join('');
+}
+
+function renamePlanPin(pinId, label) {
+  const pin = _planPins.find(p => p.id === pinId);
+  if (pin) { pin.label = label; renderPlanFloor(); }
+}
+
+function deletePlanPinById(pinId) {
+  _planPins = _planPins.filter(p => p.id !== pinId);
+  if (_planSelectedPinId === pinId) _planSelectedPinId = null;
+  renderPlanFloor();
+  renderPlanPhotos();
+  renderPlanPinsList();
+}
+
+async function handlePlanFloorInput(input) {
+  const file = input.files[0]; if (!file) return;
+  const hint = document.getElementById('plan-toolbar-hint');
+  hint.textContent = 'Upload en cours…';
+  try {
+    _planFloorplanUrl = await uploadToCloudinary(file);
+    renderPlanFloor();
+    hint.textContent = 'Cliquez sur le plan pour ajouter un pin';
+  } catch(e) { showToast('Erreur upload'); hint.textContent = ''; }
+  input.value = '';
+}
+
+function savePlanAnnote() {
+  const loc = bankLocations.find(l => l.id === _planLocId);
+  if (!loc) return;
+  loc.plan_annote = { floorplan_url: _planFloorplanUrl, pins: _planPins };
+  saveBanque();
+  showToast('Plan enregistré');
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 function deleteBanqueLocation(id) {
   const loc = bankLocations.find(l=>l.id===id);
