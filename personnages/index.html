@@ -310,6 +310,8 @@ details.casting-import[open] summary::before { transform: rotate(90deg); }
 .te-btn-cancel:hover { border-color: var(--border2); color: var(--text); }
 .te-btn-save { background: var(--accent); border: 1px solid var(--accent); border-radius: 4px; font-size: 11px; font-family: inherit; cursor: pointer; padding: 5px 14px; color: #fff; }
 .te-btn-save:hover { opacity: .85; }
+.te-btn-delete { background: none; border: 1px solid #c0392b; border-radius: 4px; font-size: 11px; font-family: inherit; cursor: pointer; padding: 5px 12px; color: #c0392b; margin-right: auto; }
+.te-btn-delete:hover { background: #c0392b; color: #fff; }
 
 .age-num-input { width: 30px; font-size: 10px; border: 1px solid var(--border); border-radius: 3px; padding: 2px 3px; background: var(--bg); color: var(--text); text-align: center; font-family: inherit; -moz-appearance: textfield; }
 .age-num-input:focus { outline: none; border-color: var(--border2); }
@@ -592,6 +594,7 @@ details.casting-import[open] summary::before { transform: rotate(90deg); }
       </div>
     </div>
     <div class="te-footer">
+      <button class="te-btn-delete" onclick="deleteTalentEdit()">Supprimer</button>
       <button class="te-btn-cancel" onclick="closeTalentEdit()">Annuler</button>
       <button class="te-btn-save" onclick="saveTalentEdit()">Enregistrer</button>
     </div>
@@ -2089,6 +2092,21 @@ function openTalentEditModal(talent) {
 function closeTalentEdit() {
   document.getElementById('talent-edit-overlay').style.display = 'none';
   _editingNom = null; _editingAgence = null;
+}
+
+async function deleteTalentEdit() {
+  const nom    = _editingNom;
+  const agence = _editingAgence;
+  if (!nom) return;
+  if (!confirm(`Supprimer la fiche de ${nom} ?\nCette action est irréversible.`)) return;
+  talentsData = talentsData.filter(t => !(t.nom === nom && t.agence === agence));
+  await saveCastingDataToSupabase(talentsData);
+  buildProfileUrlSet();
+  populateAgPeauFilter();
+  renderAgencesGrid();
+  renderCastingList();
+  closeTalentEdit();
+  showToast('Fiche supprimée');
 }
 
 async function saveTalentEdit() {
