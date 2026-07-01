@@ -2140,6 +2140,12 @@ function deconfirmerLocation(lieuKey) {
   const oldBankId = locationConfirmations[lieuKey];
   delete locationConfirmations[lieuKey];
 
+  // Retirer les photos de cette location dans lieuFictifPhotos
+  if (oldBankId && lieuFictifPhotos[lieuKey]) {
+    lieuFictifPhotos[lieuKey] = lieuFictifPhotos[lieuKey].filter(p => p.locationId !== oldBankId);
+    if (!lieuFictifPhotos[lieuKey].length) delete lieuFictifPhotos[lieuKey];
+  }
+
   // Si cette location n'est plus confirmée nulle part et n'est pas assignée à des scènes → retirer du projet
   if (oldBankId) {
     const stillConfirmed = Object.values(locationConfirmations).includes(oldBankId);
