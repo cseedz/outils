@@ -2773,11 +2773,12 @@ function buildFictifThumbs(urls, lieuKey) {
   const MAX = 5;
   const visible = sorted.slice(0, MAX);
   const extra = sorted.length - MAX;
+  const lkAttr = esc(lieuKey);
   const thumbs = visible.map((url, i) =>
-    `<div class="vlieu-thumb" onclick="openFictifGallery(${JSON.stringify(lieuKey)},${i})"><img src="${cdnUrl(url)}" loading="lazy"></div>`
+    `<div class="vlieu-thumb" data-lieukey="${lkAttr}" data-idx="${i}" onclick="openFictifGallery(this.dataset.lieukey,+this.dataset.idx)"><img src="${cdnUrl(url)}" loading="lazy"></div>`
   ).join('');
   const moreBtn = extra > 0
-    ? `<div class="vlieu-thumb-more" onclick="openFictifGallery(${JSON.stringify(lieuKey)},${MAX})">+${extra}</div>`
+    ? `<div class="vlieu-thumb-more" data-lieukey="${lkAttr}" data-idx="${MAX}" onclick="openFictifGallery(this.dataset.lieukey,+this.dataset.idx)">+${extra}</div>`
     : '';
   return `<div class="vlieu-thumbs"><div class="vlieu-thumbs-row">
     <span class="vlieu-thumbs-label">Photos choisies</span>
