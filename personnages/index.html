@@ -1444,8 +1444,14 @@ document.getElementById('talent-preview-pop').addEventListener('click', e => {
   const charName = btn.dataset.tpChar;
   const action   = btn.dataset.action;
   if (action === 'shortlist') {
-    _addTalentToChar(_previewTalent.nom, _previewTalent.agence, charName);
-    btn.classList.add('active'); btn.textContent = '✓ Liste';
+    const alreadyIn = getShortlist(charName).some(c => c.nom === _previewTalent.nom);
+    if (alreadyIn) {
+      removeFromShortlistDirect(charName, _previewTalent.nom);
+      btn.classList.remove('active'); btn.textContent = '+ Liste';
+    } else {
+      _addTalentToChar(_previewTalent.nom, _previewTalent.agence, charName);
+      btn.classList.add('active'); btn.textContent = '✓ Liste';
+    }
   } else if (action === 'assign') {
     _assignTalentToChar(_previewTalent.nom, _previewTalent.agence, charName);
     btn.classList.add('active'); btn.textContent = '★ Rôle';
@@ -2005,12 +2011,14 @@ document.getElementById('ag-popover').addEventListener('click', e => {
   const charName = btn.dataset.char;
   const action   = btn.dataset.action;
   if (action === 'shortlist') {
-    _addTalentToChar(_agPopTalent.nom, _agPopTalent.agence, charName);
-    btn.classList.add('active');
-    btn.textContent = '✓ Liste';
-    // Si pas encore dans shortlist, marquer aussi le bouton liste du côté assign
-    const slBtn = btn.closest('.ag-pop-char-row').querySelector('[data-action="shortlist"]');
-    if (slBtn) { slBtn.classList.add('active'); slBtn.textContent = '✓ Liste'; }
+    const alreadyIn = getShortlist(charName).some(c => c.nom === _agPopTalent.nom);
+    if (alreadyIn) {
+      removeFromShortlistDirect(charName, _agPopTalent.nom);
+      btn.classList.remove('active'); btn.textContent = '+ Liste';
+    } else {
+      _addTalentToChar(_agPopTalent.nom, _agPopTalent.agence, charName);
+      btn.classList.add('active'); btn.textContent = '✓ Liste';
+    }
   } else if (action === 'assign') {
     _assignTalentToChar(_agPopTalent.nom, _agPopTalent.agence, charName);
     btn.classList.add('active');
