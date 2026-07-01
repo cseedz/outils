@@ -2959,29 +2959,36 @@ function buildFictifThumbs(urls, lieuKey) {
   const allPhotos = lieuFictifPhotos[lieuKey] || [];
   if (!allPhotos.length) return '';
   const lkAttr = esc(lieuKey);
-  // Group photos by opt; build a flat ordered url list for the gallery
-  const optOrder = []; const optMap = {};
-  allPhotos.forEach(p => {
-    const o = p.opt || '';
-    if (!optMap[o]) { optMap[o] = []; optOrder.push(o); }
-    optMap[o].push(p);
-  });
   const allUrls = sortPhotoUrls(allPhotos.map(p => p.url));
   const urlIdx = u => allUrls.indexOf(u);
-  const MAX_PER_OPT = 4;
-  const rows = optOrder.map(o => {
-    const photos = optMap[o];
-    const sorted = sortPhotoUrls(photos.map(p => p.url));
-    const visible = sorted.slice(0, MAX_PER_OPT);
-    const extra = sorted.length - MAX_PER_OPT;
-    const thumbs = visible.map(u =>
-      `<div class="vlieu-thumb" data-lieukey="${lkAttr}" data-idx="${urlIdx(u)}" onclick="openFictifGallery(this.dataset.lieukey,+this.dataset.idx)"><img src="${cdnUrl(u)}" loading="lazy"></div>`
-    ).join('');
-    const moreBtn = extra > 0
-      ? `<div class="vlieu-thumb-more" data-lieukey="${lkAttr}" data-idx="${urlIdx(sorted[MAX_PER_OPT])}" onclick="openFictifGallery(this.dataset.lieukey,+this.dataset.idx)">+${extra}</div>`
-      : '';
-    const label = o ? `<span class="vlieu-thumbs-label">Option ${esc(o)}</span>` : `<span class="vlieu-thumbs-label">Photos</span>`;
-    return `<div class="vlieu-thumbs-row">${label}${thumbs}${moreBtn}</div>`;
+  const MAX = 4;
+
+  // Group by locationId, then by opt within each location
+  const locOrder = []; const locMap = {};
+  allPhotos.forEach(p => {
+    if (!locMap[p.locationId]) { locMap[p.locationId] = { nom: p.locationNom, opts: [], optMap: {} }; locOrder.push(p.locationId); }
+    const loc = locMap[p.locationId];
+    const o = p.opt || '';
+    if (!loc.optMap[o]) { loc.optMap[o] = []; loc.opts.push(o); }
+    loc.optMap[o].push(p);
+  });
+
+  const rows = locOrder.flatMap(locId => {
+    const loc = locMap[locId];
+    const multiOpt = loc.opts.some(o => o !== '');
+    return loc.opts.map(o => {
+      const sorted = sortPhotoUrls(loc.optMap[o].map(p => p.url));
+      const visible = sorted.slice(0, MAX);
+      const extra = sorted.length - MAX;
+      const thumbs = visible.map(u =>
+        `<div class="vlieu-thumb" data-lieukey="${lkAttr}" data-idx="${urlIdx(u)}" onclick="openFictifGallery(this.dataset.lieukey,+this.dataset.idx)"><img src="${cdnUrl(u)}" loading="lazy"></div>`
+      ).join('');
+      const moreBtn = extra > 0
+        ? `<div class="vlieu-thumb-more" data-lieukey="${lkAttr}" data-idx="${urlIdx(sorted[MAX])}" onclick="openFictifGallery(this.dataset.lieukey,+this.dataset.idx)">+${extra}</div>`
+        : '';
+      const labelText = multiOpt && o ? `${esc(loc.nom)} — Opt. ${esc(o)}` : esc(loc.nom);
+      return `<div class="vlieu-thumbs-row"><span class="vlieu-thumbs-label">${labelText}</span>${thumbs}${moreBtn}</div>`;
+    });
   }).join('');
   return `<div class="vlieu-thumbs">${rows}</div>`;
 }
