@@ -2560,7 +2560,17 @@ function renderVueLieux() {
     const color = lieuFictifColor(lieu);
     const isOverridden = !!(lieuColorOverrides[lieu] || LIEU_COLORS_RAW[lieu]);
     const totalLieu = scList.reduce((a,s) => a + parseDuree(s.duree), 0);
-    const ltIds = [...new Set(scList.map(s => s.lieu_tournage_id).filter(Boolean))];
+
+    // ltIds : depuis les scènes + depuis les confirmations de tous les sous-lieux
+    const ltIdsFromScenes = scList.map(s => s.lieu_tournage_id).filter(Boolean);
+    const ltIdsFromConf = Object.keys(locationConfirmations)
+      .filter(k => k === lieu || k.startsWith(lieu + '\x01'))
+      .map(k => {
+        const lt = lieusTournage.find(l => l.bankId === locationConfirmations[k]);
+        return lt ? lt.id : null;
+      }).filter(Boolean);
+    const ltIds = [...new Set([...ltIdsFromScenes, ...ltIdsFromConf])];
+
     const ribbon = buildMiniRibbon(lieu, color);
     const ltChips = ltIds.map(id => {
       const lt = lieusTournage.find(l => l.id === id);
@@ -2586,10 +2596,19 @@ function renderVueLieux() {
         const slPages = slScenes.reduce((a,s) => a + parseDuree(s.duree), 0);
         const hasSl = k !== NULL_KEY;
         const hasHeader = hasSl || multiGroup;
-        const domLid = groupDominantLid(slScenes);
+
+        // lieuKey pour ce sous-lieu (ou général si NULL_KEY)
+        const lieuKeyFictif = lieu + (hasSl ? '\x01' + k : '');
+
+        // domLid : depuis les scènes, sinon depuis la confirmation du sous-lieu
+        const domLidFromScenes = groupDominantLid(slScenes);
+        const confBankId = locationConfirmations[lieuKeyFictif];
+        const confLt = confBankId ? lieusTournage.find(l => l.bankId === confBankId) : null;
+        const domLid = domLidFromScenes || (confLt ? confLt.id : null);
         const domLt = lieusTournage.find(l => l.id === domLid);
         const gDotCls = domLt ? '' : ' unset';
         const gDotStyle = `background:${domLt ? domLt.couleur : 'transparent'};width:11px;height:11px;`;
+
         const slNoteKey = lieu + '\x01' + (hasSl ? k : '');
         const slNoteVal = sousLieuNotes[slNoteKey] || '';
         const hasNote = !!slNoteVal.trim();
@@ -2608,7 +2627,13 @@ function renderVueLieux() {
               <textarea class="vlieu-sl-note" data-key="${esc(slNoteKey)}" placeholder="Notes sur ce sous-lieu…" oninput="saveSLNote(this)">${esc(slNoteVal)}</textarea>
             </div>`
           : '';
-        const slPhotos = domLid ? buildVlieuThumbs([domLid]) : '';
+
+        // Photos : priorité aux photos choisies dans Lieux fictifs, sinon repérage complet
+        const fictifUrls = (lieuFictifPhotos[lieuKeyFictif] || []).map(p => p.url);
+        const slPhotos = fictifUrls.length
+          ? buildFictifThumbs(fictifUrls, lieuKeyFictif)
+          : (domLid ? buildVlieuThumbs([domLid]) : '');
+
         return `<div class="vlieu-sl-group">${header}${slScenes.map(s => buildVSceneLine(s, true, !hasHeader)).join('')}${slPhotos}${noteWrap}</div>`;
       }).join('');
     } else {
@@ -2719,6 +2744,34 @@ function deleteLieuPhoto(id, type, url) {
   // Ne pas supprimer de Cloudinary si la photo appartient à la banque globale
   const isInBank = bankLocations.some(l => l.photos?.includes(url));
   if (!isInBank) _deleteFromCloudinary(url);
+}
+
+function buildFictifThumbs(urls, lieuKey) {
+  const sorted = sortPhotoUrls(urls);
+  if (!sorted.length) return '';
+  const MAX = 5;
+  const visible = sorted.slice(0, MAX);
+  const extra = sorted.length - MAX;
+  const thumbs = visible.map((url, i) =>
+    `<div class="vlieu-thumb" onclick="openFictifGallery(${JSON.stringify(lieuKey)},${i})"><img src="${cdnUrl(url)}" loading="lazy"></div>`
+  ).join('');
+  const moreBtn = extra > 0
+    ? `<div class="vlieu-thumb-more" onclick="openFictifGallery(${JSON.stringify(lieuKey)},${MAX})">+${extra}</div>`
+    : '';
+  return `<div class="vlieu-thumbs"><div class="vlieu-thumbs-row">
+    <span class="vlieu-thumbs-label">Photos choisies</span>
+    ${thumbs}${moreBtn}
+  </div></div>`;
+}
+
+function openFictifGallery(lieuKey, startIdx) {
+  const urls = sortPhotoUrls((lieuFictifPhotos[lieuKey] || []).map(p => p.url));
+  if (!urls.length) return;
+  _lbUrls = urls;
+  _lbIdx = Math.min(startIdx || 0, urls.length - 1);
+  _lbCaption = '';
+  _lbDeleteFn = null;
+  _lbShow();
 }
 
 function buildVlieuThumbs(ltIds) {
