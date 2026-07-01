@@ -861,6 +861,16 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
 .pph-cell img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .pph-check { position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; background: var(--accent); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 10px; opacity: 0; transition: opacity .1s; pointer-events: none; }
 .pph-cell.selected .pph-check { opacity: 1; }
+.pph-opt-badge { position:absolute; bottom:3px; right:3px; background:var(--accent); color:#fff; font-size:8px; font-weight:900; border-radius:3px; padding:0 3px; line-height:14px; pointer-events:none; }
+.pph-opts-bar { display:flex; gap:5px; align-items:center; flex-wrap:wrap; padding:6px 10px; border-top:1px solid var(--border); }
+.pph-opt-tab { padding:3px 12px; border-radius:4px; font-size:11px; font-weight:700; border:1px solid var(--border2); cursor:pointer; background:var(--bg2); color:var(--text-muted); transition:all .1s; }
+.pph-opt-tab.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+.pph-opt-add { padding:3px 8px; border-radius:4px; font-size:11px; border:1px dashed var(--border2); cursor:pointer; background:none; color:var(--text-muted); }
+.pph-opt-add:hover { border-color:var(--accent); color:var(--accent); }
+.sl-opt-group { margin-bottom:4px; }
+.sl-opt-group-header { display:flex; align-items:center; gap:5px; margin-bottom:3px; }
+.sl-opt-label { font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; background:var(--accent); color:#fff; border-radius:3px; padding:1px 5px; }
+.sl-opt-photos { display:flex; flex-wrap:wrap; gap:4px; }
 .pph-step2-back { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
 .pph-step2-back button { font-size: 11px; font-family: inherit; background: none; border: 1px solid var(--border); border-radius: 5px; padding: 3px 9px; cursor: pointer; color: var(--text-muted); }
 .pph-step2-back button:hover { color: var(--text); }
@@ -1106,6 +1116,7 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
         <button onclick="_pphBack()">← Retour</button>
         <span id="pph-loc-name" style="font-size:13px;font-weight:700;"></span>
       </div>
+      <div id="pph-opts-bar" class="pph-opts-bar" style="display:none;"></div>
     </div>
     <div class="bk-picker-list" id="pph-body"></div>
     <div class="bk-picker-foot" style="justify-content:space-between;">
@@ -2202,12 +2213,24 @@ function buildShortlistSection(lieuKey) {
     const isConf   = conf === locId;
     const isDirect = locId.startsWith('upload_');
     const lid = esc(locId);
-    const photoStrip = g.photos.map(p =>
-      `<div class="sl-photo-thumb" onclick="openLightbox('${esc(p.url)}')">
-        <img src="${esc(cdnUrl(p.url))}" loading="lazy">
-        <button class="sl-photo-del" onclick="event.stopPropagation();removeLieuFictifPhoto('${lk}','${esc(p.url)}')">✕</button>
-      </div>`
-    ).join('');
+    // Group photos by opt; photos without opt shown together (no header)
+    const optOrder = []; const optMap = {};
+    g.photos.forEach(p => {
+      const o = p.opt || '';
+      if (!optMap[o]) { optMap[o] = []; optOrder.push(o); }
+      optMap[o].push(p);
+    });
+    const photoStrip = optOrder.map(o => {
+      const thumbs = optMap[o].map(p =>
+        `<div class="sl-photo-thumb" onclick="openLightbox('${esc(p.url)}')">
+          <img src="${esc(cdnUrl(p.url))}" loading="lazy">
+          <button class="sl-photo-del" onclick="event.stopPropagation();removeLieuFictifPhoto('${lk}','${esc(p.url)}')">✕</button>
+        </div>`
+      ).join('');
+      return o
+        ? `<div class="sl-opt-group"><div class="sl-opt-group-header"><span class="sl-opt-label">Option ${esc(o)}</span></div><div class="sl-opt-photos">${thumbs}</div></div>`
+        : `<div class="sl-opt-photos">${thumbs}</div>`;
+    }).join('');
     const nomHtml = isDirect
       ? `<input class="sl-direct-name" value="${esc(g.nom)}" placeholder="Nom de l'option…"
            onblur="renameLieuFictifGroup('${lk}','${lid}',this.value)"
@@ -2246,13 +2269,17 @@ function buildShortlistSection(lieuKey) {
 
 // ── Photo picker pour lieux fictifs ──────────────────────────────────────────
 let _pphLieuKey  = null;
-let _pphLocId    = null;   // locationId actif en step 2
-let _pphSelected = new Set();  // urls sélectionnées en step 2
+let _pphLocId    = null;
+let _pphSelectedByOpt = new Map();  // url → opt label ('A', 'B', …)
+let _pphOpts     = ['A'];
+let _pphActiveOpt = 'A';
 
 function openPhotoPickerForLieu(lieuKey) {
   _pphLieuKey = lieuKey;
   _pphLocId   = null;
-  _pphSelected = new Set();
+  _pphSelectedByOpt = new Map();
+  _pphOpts = ['A'];
+  _pphActiveOpt = 'A';
   const parts = lieuKey.split('\x01');
   const label = parts[1] ? parts[0] + ' / ' + parts[1] : parts[0];
   document.getElementById('pph-title').textContent = 'Photos pour : ' + label;
@@ -2264,6 +2291,7 @@ function openPhotoPickerForLieu(lieuKey) {
   document.getElementById('pph-search').value = '';
   document.getElementById('pph-step1-ctrl').style.display = '';
   document.getElementById('pph-step2-ctrl').style.display = 'none';
+  document.getElementById('pph-opts-bar').style.display = 'none';
   document.getElementById('pph-confirm-btn').style.display = 'none';
   _renderPphStep1();
   document.getElementById('photo-picker-overlay').style.display = '';
@@ -2318,13 +2346,49 @@ function _pphGoStep2(locationId) {
   const loc = bankLocations.find(l => l.id === locationId);
   if (!loc?.photos?.length) return;
   _pphLocId = locationId;
-  _pphSelected = new Set(
-    (lieuFictifPhotos[_pphLieuKey]||[]).filter(p=>p.locationId===locationId).map(p=>p.url)
-  );
+  _pphSelectedByOpt = new Map();
+  const existing = (lieuFictifPhotos[_pphLieuKey]||[]).filter(p => p.locationId === locationId);
+  const seenOpts = [];
+  existing.forEach(p => {
+    const opt = p.opt || 'A';
+    _pphSelectedByOpt.set(p.url, opt);
+    if (!seenOpts.includes(opt)) seenOpts.push(opt);
+  });
+  _pphOpts = seenOpts.length ? seenOpts : ['A'];
+  _pphActiveOpt = _pphOpts[0];
   document.getElementById('pph-step1-ctrl').style.display = 'none';
   document.getElementById('pph-step2-ctrl').style.display = '';
+  document.getElementById('pph-opts-bar').style.display = '';
   document.getElementById('pph-loc-name').textContent = loc.nom;
+  _renderPphOpts();
   _renderPphStep2();
+}
+
+function _renderPphOpts() {
+  const bar = document.getElementById('pph-opts-bar');
+  if (!bar) return;
+  bar.innerHTML = _pphOpts.map(o =>
+    `<button class="pph-opt-tab${o===_pphActiveOpt?' active':''}" onclick="_pphSetOpt('${esc(o)}')">${esc(o)}</button>`
+  ).join('') + `<button class="pph-opt-add" onclick="_pphAddOpt()">＋ Option</button>`;
+}
+
+function _pphSetOpt(opt) {
+  _pphActiveOpt = opt;
+  _renderPphOpts();
+  _renderPphStep2();
+}
+
+function _pphAddOpt() {
+  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  for (const l of letters) {
+    if (!_pphOpts.includes(l)) {
+      _pphOpts.push(l);
+      _pphActiveOpt = l;
+      _renderPphOpts();
+      _renderPphStep2();
+      break;
+    }
+  }
 }
 
 function _renderPphStep2() {
@@ -2333,46 +2397,50 @@ function _renderPphStep2() {
   const sorted = sortPhotoUrls(loc.photos);
   document.getElementById('pph-body').innerHTML =
     `<div class="pph-grid">${sorted.map(url => {
-      const sel = _pphSelected.has(url);
+      const opt = _pphSelectedByOpt.get(url);
+      const sel = opt !== undefined;
       return `<div class="pph-cell${sel?' selected':''}" onclick="_pphToggle('${esc(url)}')">
         <img src="${esc(cdnUrl(url))}" loading="lazy">
         <div class="pph-check">✓</div>
+        ${sel ? `<div class="pph-opt-badge">${esc(opt)}</div>` : ''}
       </div>`;
     }).join('')}</div>`;
   _pphUpdateBtn();
 }
 
 function _pphToggle(url) {
-  if (_pphSelected.has(url)) _pphSelected.delete(url);
-  else _pphSelected.add(url);
+  const current = _pphSelectedByOpt.get(url);
+  if (current === _pphActiveOpt) _pphSelectedByOpt.delete(url);
+  else _pphSelectedByOpt.set(url, _pphActiveOpt);
   _renderPphStep2();
 }
 
 function _pphUpdateBtn() {
   const btn = document.getElementById('pph-confirm-btn');
-  const n = _pphSelected.size;
+  const n = _pphSelectedByOpt.size;
   btn.style.display = n ? '' : 'none';
   btn.textContent = `Ajouter ${n} photo${n>1?'s':''}`;
 }
 
 function _pphBack() {
   _pphLocId = null;
-  _pphSelected = new Set();
+  _pphSelectedByOpt = new Map();
+  _pphOpts = ['A'];
+  _pphActiveOpt = 'A';
   document.getElementById('pph-step1-ctrl').style.display = '';
   document.getElementById('pph-step2-ctrl').style.display = 'none';
+  document.getElementById('pph-opts-bar').style.display = 'none';
   document.getElementById('pph-confirm-btn').style.display = 'none';
   _renderPphStep1();
 }
 
 function _pphConfirm() {
   const loc = bankLocations.find(l => l.id === _pphLocId);
-  if (!loc || !_pphSelected.size) return;
+  if (!loc || !_pphSelectedByOpt.size) return;
   if (!lieuFictifPhotos[_pphLieuKey]) lieuFictifPhotos[_pphLieuKey] = [];
-  // Retirer les photos existantes de cette location pour éviter les doublons
   lieuFictifPhotos[_pphLieuKey] = lieuFictifPhotos[_pphLieuKey].filter(p => p.locationId !== _pphLocId);
-  // Ajouter les nouvelles sélections
-  _pphSelected.forEach(url => {
-    lieuFictifPhotos[_pphLieuKey].push({ url, locationId: loc.id, locationNom: loc.nom, categorie: loc.categorie||'' });
+  _pphSelectedByOpt.forEach((opt, url) => {
+    lieuFictifPhotos[_pphLieuKey].push({ url, locationId: loc.id, locationNom: loc.nom, categorie: loc.categorie||'', opt });
   });
   save(); renderBatchAssign();
   closePhotoPicker();
@@ -2380,7 +2448,9 @@ function _pphConfirm() {
 
 function closePhotoPicker() {
   document.getElementById('photo-picker-overlay').style.display = 'none';
-  _pphLieuKey = null; _pphLocId = null; _pphSelected = new Set();
+  document.getElementById('pph-opts-bar').style.display = 'none';
+  _pphLieuKey = null; _pphLocId = null;
+  _pphSelectedByOpt = new Map(); _pphOpts = ['A']; _pphActiveOpt = 'A';
 }
 
 function removeLieuFictifPhoto(lieuKey, url) {
@@ -2886,22 +2956,34 @@ function deleteLieuPhoto(id, type, url) {
 }
 
 function buildFictifThumbs(urls, lieuKey) {
-  const sorted = sortPhotoUrls(urls);
-  if (!sorted.length) return '';
-  const MAX = 5;
-  const visible = sorted.slice(0, MAX);
-  const extra = sorted.length - MAX;
+  const allPhotos = lieuFictifPhotos[lieuKey] || [];
+  if (!allPhotos.length) return '';
   const lkAttr = esc(lieuKey);
-  const thumbs = visible.map((url, i) =>
-    `<div class="vlieu-thumb" data-lieukey="${lkAttr}" data-idx="${i}" onclick="openFictifGallery(this.dataset.lieukey,+this.dataset.idx)"><img src="${cdnUrl(url)}" loading="lazy"></div>`
-  ).join('');
-  const moreBtn = extra > 0
-    ? `<div class="vlieu-thumb-more" data-lieukey="${lkAttr}" data-idx="${MAX}" onclick="openFictifGallery(this.dataset.lieukey,+this.dataset.idx)">+${extra}</div>`
-    : '';
-  return `<div class="vlieu-thumbs"><div class="vlieu-thumbs-row">
-    <span class="vlieu-thumbs-label">Photos choisies</span>
-    ${thumbs}${moreBtn}
-  </div></div>`;
+  // Group photos by opt; build a flat ordered url list for the gallery
+  const optOrder = []; const optMap = {};
+  allPhotos.forEach(p => {
+    const o = p.opt || '';
+    if (!optMap[o]) { optMap[o] = []; optOrder.push(o); }
+    optMap[o].push(p);
+  });
+  const allUrls = sortPhotoUrls(allPhotos.map(p => p.url));
+  const urlIdx = u => allUrls.indexOf(u);
+  const MAX_PER_OPT = 4;
+  const rows = optOrder.map(o => {
+    const photos = optMap[o];
+    const sorted = sortPhotoUrls(photos.map(p => p.url));
+    const visible = sorted.slice(0, MAX_PER_OPT);
+    const extra = sorted.length - MAX_PER_OPT;
+    const thumbs = visible.map(u =>
+      `<div class="vlieu-thumb" data-lieukey="${lkAttr}" data-idx="${urlIdx(u)}" onclick="openFictifGallery(this.dataset.lieukey,+this.dataset.idx)"><img src="${cdnUrl(u)}" loading="lazy"></div>`
+    ).join('');
+    const moreBtn = extra > 0
+      ? `<div class="vlieu-thumb-more" data-lieukey="${lkAttr}" data-idx="${urlIdx(sorted[MAX_PER_OPT])}" onclick="openFictifGallery(this.dataset.lieukey,+this.dataset.idx)">+${extra}</div>`
+      : '';
+    const label = o ? `<span class="vlieu-thumbs-label">Option ${esc(o)}</span>` : `<span class="vlieu-thumbs-label">Photos</span>`;
+    return `<div class="vlieu-thumbs-row">${label}${thumbs}${moreBtn}</div>`;
+  }).join('');
+  return `<div class="vlieu-thumbs">${rows}</div>`;
 }
 
 function openFictifGallery(lieuKey, startIdx) {
