@@ -145,8 +145,8 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans
 .ag-tile-agency { font-size: 10px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 5px; }
 .ag-tile-tags { display: flex; flex-wrap: wrap; gap: 3px; margin-bottom: 6px; }
 .ag-tag { font-size: 9px; border: 1px solid var(--border); border-radius: 3px; padding: 1px 4px; color: var(--text-muted); background: var(--bg3); white-space: nowrap; }
-.ag-link { font-size: 10px; color: var(--text-muted); text-decoration: none; }
-.ag-link:hover { color: var(--text); text-decoration: underline; }
+.ag-link { font-size: 10px; color: var(--text-muted); text-decoration: none; border-bottom: 1px solid var(--border); display: inline-block; margin-top: 4px; }
+.ag-link:hover { color: var(--text); border-color: var(--text); }
 
 /* AGENCES — VUE SHORTLIST PAR PERSONNAGE */
 .ag-shortlist-view { padding: 16px 24px 40px; }
@@ -1818,8 +1818,7 @@ function _agTags(t) {
 }
 
 function renderAgTile(t) {
-  const hasProf  = t.source_url && t.source_url !== '#' && _profileUrlSet.has(t.source_url);
-  const linkHtml = hasProf ? `<a class="ag-link" href="${escHtml(t.source_url)}" target="_blank" rel="noopener">Fiche ↗</a>` : '';
+  const linkHtml = t.source_url && t.source_url !== '#' ? `<a class="ag-link" href="${escHtml(t.source_url)}" target="_blank" rel="noopener">Fiche ↗</a>` : '';
   const selKey   = t.nom + '\x00' + t.agence;
   const isSel    = _agSelectMode && _agSelected.has(selKey);
   const checkHtml = _agSelectMode ? `<div class="ag-check${isSel ? ' checked' : ''}">${isSel ? '✓' : ''}</div>` : '';
@@ -1836,8 +1835,7 @@ function renderAgTile(t) {
 }
 
 function renderAgListRow(t) {
-  const hasProf  = t.source_url && t.source_url !== '#' && _profileUrlSet.has(t.source_url);
-  const linkHtml = hasProf ? `<a class="ag-link" href="${escHtml(t.source_url)}" target="_blank" rel="noopener">Fiche ↗</a>` : '';
+  const linkHtml = t.source_url && t.source_url !== '#' ? `<a class="ag-link" href="${escHtml(t.source_url)}" target="_blank" rel="noopener">Fiche ↗</a>` : '';
   const selKey   = t.nom + '\x00' + t.agence;
   const isSel    = _agSelectMode && _agSelected.has(selKey);
   const checkHtml = _agSelectMode ? `<div class="ag-list-check${isSel ? ' checked' : ''}">${isSel ? '✓' : ''}</div>` : '';
