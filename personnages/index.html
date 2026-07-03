@@ -294,6 +294,34 @@ details.casting-import[open] summary::before { transform: rotate(90deg); }
 /* MODAL MODIFICATION FICHE */
 .te-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 400; display: flex; align-items: center; justify-content: center; }
 .te-modal { background: var(--bg); border: 1px solid var(--border2); border-radius: 8px; width: 300px; box-shadow: 0 8px 32px rgba(0,0,0,.18); overflow: hidden; }
+
+/* CS POPUP */
+.cs-popup-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.48); z-index: 500; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.cs-popup-modal { background: var(--bg); border: 1px solid var(--border2); border-radius: 10px; width: min(580px, 100%); max-height: calc(100vh - 32px); overflow-y: auto; box-shadow: 0 12px 48px rgba(0,0,0,.25); position: relative; }
+.cs-popup-close-btn { position: absolute; top: 10px; right: 10px; background: var(--bg3); border: 1px solid var(--border); border-radius: 50%; width: 26px; height: 26px; cursor: pointer; font-size: 15px; line-height: 1; display: flex; align-items: center; justify-content: center; color: var(--text-muted); z-index: 1; flex-shrink: 0; }
+.cs-popup-close-btn:hover { background: var(--border); color: var(--text); }
+.cs-popup-header { display: flex; gap: 14px; padding: 20px 48px 16px 20px; align-items: flex-start; border-bottom: 1px solid var(--border); }
+.cs-popup-photo { width: 80px; height: 80px; border-radius: 8px; object-fit: cover; flex-shrink: 0; }
+.cs-popup-initials { width: 80px; height: 80px; border-radius: 8px; background: var(--bg3); display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 700; color: var(--text-muted); flex-shrink: 0; }
+.cs-popup-nom { font-size: 17px; font-weight: 700; }
+.cs-popup-meta { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+.cs-popup-roles { font-size: 12px; color: var(--text); margin-top: 6px; }
+.cs-popup-selectors { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+.cs-section { padding: 12px 20px; border-bottom: 1px solid var(--border); }
+.cs-section:last-child { border-bottom: none; }
+.cs-section-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); margin-bottom: 8px; }
+.cs-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 20px; }
+.cs-field-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+.cs-field-value { font-size: 12px; color: var(--text); }
+.cs-inline { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: flex-start; }
+.cs-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; background: var(--bg3); border: 1px solid var(--border); color: var(--text-muted); }
+.cs-badge.yes { background: rgba(40,120,40,.1); color: #2a6e2a; border-color: rgba(40,120,40,.3); }
+.cs-links { display: flex; flex-wrap: wrap; gap: 8px; }
+.cs-ext-link { display: inline-block; padding: 5px 12px; border: 1px solid var(--border2); border-radius: 5px; font-size: 12px; color: var(--text); text-decoration: none; background: var(--bg2); }
+.cs-ext-link:hover { background: var(--bg3); }
+.cs-popup-trigger { background: none; border: none; border-bottom: 1px solid var(--border); font-size: inherit; color: var(--text-muted); cursor: pointer; font-family: inherit; padding: 0 0 1px; line-height: inherit; }
+.cs-popup-trigger:hover { color: var(--text); border-color: var(--text); }
+.ag-tile .cs-popup-trigger, .ag-list-row .cs-popup-trigger, .ag-sl-cards .cs-popup-trigger { font-size: 10px; display: inline-block; margin-top: 4px; }
 .te-header { display: flex; align-items: center; justify-content: space-between; padding: 11px 14px 9px; border-bottom: 1px solid var(--border); }
 .te-title { font-size: 13px; font-weight: 600; }
 .te-close { background: none; border: none; font-size: 18px; cursor: pointer; color: var(--text-muted); padding: 0 4px; line-height: 1; }
@@ -525,6 +553,13 @@ details.casting-import[open] summary::before { transform: rotate(90deg); }
   <div id="ag-pop-list"></div>
   <div class="ag-pop-edit-row">
     <button class="ag-pop-edit-btn" id="ag-pop-edit-btn">✏ Modifier la fiche</button>
+  </div>
+</div>
+
+<div id="cs-popup-overlay" class="cs-popup-overlay" style="display:none" onclick="if(event.target===this)closeCsPopup()">
+  <div class="cs-popup-modal">
+    <button class="cs-popup-close-btn" onclick="closeCsPopup()">×</button>
+    <div id="cs-popup-content"></div>
   </div>
 </div>
 
@@ -885,12 +920,18 @@ function renderTable() {
               ${shortlist.map(c => {
                 const isFinal = c.nom === enrich.acteur;
                 const slT     = talentsData.find(t => t.nom === c.nom && t.agence === c.agence) || talentsData.find(t => t.nom === c.nom);
-                const slUrl   = slT?.source_url && slT.source_url !== '#' ? slT.source_url : '';
+                const slLink = slT
+                  ? (slT.agence === 'Casting Sauvage' && slT.fiche_cs
+                      ? `<button class="btn-source-link cs-popup-trigger" data-nom="${escHtml(slT.nom)}" data-agence="${escHtml(slT.agence)}" style="flex-shrink:0">Fiche</button>`
+                      : (slT.source_url && slT.source_url !== '#'
+                          ? `<a class="btn-source-link" href="${escHtml(slT.source_url)}" target="_blank" rel="noopener" style="flex-shrink:0">Fiche ↗</a>`
+                          : ''))
+                  : '';
                 return `<div class="expand-sl-item" data-nom="${escHtml(c.nom)}" data-agence="${escHtml(c.agence)}">
                   <span class="drag-handle" title="Réordonner">⠿</span>
                   <button class="btn-csl-confirm${isFinal ? ' is-final' : ''}" data-action="sl-confirm" data-char="${escHtml(p.name)}" data-nom="${escHtml(c.nom)}">${isFinal ? '★ Confirmé' : 'Confirmer'}</button>
                   <div class="expand-sl-name tp-trigger" data-nom="${escHtml(c.nom)}" data-agence="${escHtml(c.agence)}">${escHtml(c.nom)} <span class="expand-sl-agence">${escHtml(c.agence)}</span></div>
-                  ${slUrl ? `<a class="btn-source-link" href="${escHtml(slUrl)}" target="_blank" rel="noopener" style="flex-shrink:0;">Fiche ↗</a>` : ''}
+                  ${slLink}
                   <button class="btn-csl-remove" data-action="sl-remove" data-char="${escHtml(p.name)}" data-nom="${escHtml(c.nom)}" title="Retirer">×</button>
                 </div>`;
               }).join('')}
@@ -1119,8 +1160,10 @@ function renderCastingList() {
 
   el.innerHTML = list.map(t => {
     const ageStr    = t.age_min + '–' + t.age_max + ' ans';
-    const hasProf   = t.source_url && t.source_url !== '#' && _profileUrlSet.has(t.source_url);
-    const srcBtn    = hasProf ? `<a class="btn-source-link" href="${escHtml(t.source_url)}" target="_blank" rel="noopener">Fiche ↗</a>` : '';
+    const srcBtn = t.agence === 'Casting Sauvage' && t.fiche_cs
+      ? `<button class="btn-source-link cs-popup-trigger" data-nom="${escHtml(t.nom)}" data-agence="${escHtml(t.agence)}">Fiche</button>`
+      : (t.source_url && t.source_url !== '#' && _profileUrlSet.has(t.source_url)
+          ? `<a class="btn-source-link" href="${escHtml(t.source_url)}" target="_blank" rel="noopener">Fiche ↗</a>` : '');
     const initials  = talentInitials(t.nom);
     const avatarHtml = t.photo_url
       ? `<img class="talent-avatar-img" src="${escHtml(t.photo_url)}" alt="${escHtml(t.nom)}" loading="lazy" onerror="this.outerHTML='<div class=\\'talent-avatar\\'>${initials}</div>'">`
@@ -1420,10 +1463,11 @@ function showTalentPreview(nom, agence, e) {
   if (talent.carrure)         tags.push(talent.carrure);
   if (talent.couleur_peau)    tags.push(talent.couleur_peau);
   document.getElementById('tp-tags').innerHTML = tags.map(t => `<span class="talent-tag">${escHtml(t)}</span>`).join('');
-  const hasProf = talent.source_url && talent.source_url !== '#' && _profileUrlSet.has(talent.source_url);
-  document.getElementById('tp-links').innerHTML = hasProf
-    ? `<a class="btn-source-link" href="${escHtml(talent.source_url)}" target="_blank" rel="noopener">Fiche agence ↗</a>`
-    : '';
+  const tpLink = talent.agence === 'Casting Sauvage' && talent.fiche_cs
+    ? `<button class="btn-source-link cs-popup-trigger" data-nom="${escHtml(talent.nom)}" data-agence="${escHtml(talent.agence)}">Fiche</button>`
+    : (talent.source_url && talent.source_url !== '#' && _profileUrlSet.has(talent.source_url)
+        ? `<a class="btn-source-link" href="${escHtml(talent.source_url)}" target="_blank" rel="noopener">Fiche agence ↗</a>` : '');
+  document.getElementById('tp-links').innerHTML = tpLink;
   _tpRenderChars();
   const pop  = document.getElementById('talent-preview-pop');
   pop.style.display = 'block';
@@ -1809,6 +1853,14 @@ function _agPhotoHtml(t, mode) {
     : `<div class="ag-list-placeholder">${initials}</div>`;
 }
 
+function _agCsLink(t) {
+  if (t.agence === 'Casting Sauvage' && t.fiche_cs)
+    return `<button class="cs-popup-trigger" data-nom="${escHtml(t.nom)}" data-agence="${escHtml(t.agence)}">Fiche</button>`;
+  if (t.source_url && t.source_url !== '#')
+    return `<a class="ag-link" href="${escHtml(t.source_url)}" target="_blank" rel="noopener">Fiche ↗</a>`;
+  return '';
+}
+
 function _agTags(t) {
   const ageStr = (t.age_min || t.age_max) ? `${t.age_min||0}–${t.age_max||'?'}` : '';
   return [
@@ -1820,7 +1872,7 @@ function _agTags(t) {
 }
 
 function renderAgTile(t) {
-  const linkHtml = t.source_url && t.source_url !== '#' ? `<a class="ag-link" href="${escHtml(t.source_url)}" target="_blank" rel="noopener">Fiche ↗</a>` : '';
+  const linkHtml = _agCsLink(t);
   const selKey   = t.nom + '\x00' + t.agence;
   const isSel    = _agSelectMode && _agSelected.has(selKey);
   const checkHtml = _agSelectMode ? `<div class="ag-check${isSel ? ' checked' : ''}">${isSel ? '✓' : ''}</div>` : '';
@@ -1837,7 +1889,7 @@ function renderAgTile(t) {
 }
 
 function renderAgListRow(t) {
-  const linkHtml = t.source_url && t.source_url !== '#' ? `<a class="ag-link" href="${escHtml(t.source_url)}" target="_blank" rel="noopener">Fiche ↗</a>` : '';
+  const linkHtml = _agCsLink(t);
   const selKey   = t.nom + '\x00' + t.agence;
   const isSel    = _agSelectMode && _agSelected.has(selKey);
   const checkHtml = _agSelectMode ? `<div class="ag-list-check${isSel ? ' checked' : ''}">${isSel ? '✓' : ''}</div>` : '';
@@ -1931,7 +1983,7 @@ function renderAgShortlistView() {
               <div class="ag-tile-name">${escHtml(t.nom)}</div>
               <div class="ag-tile-agency">${escHtml(t.agence)}</div>
               <div class="ag-tile-tags">${_agTags(t)}</div>
-              ${t.source_url && t.source_url !== '#' ? `<a class="ag-link" href="${escHtml(t.source_url)}" target="_blank" rel="noopener">Fiche ↗</a>` : ''}
+              ${_agCsLink(t)}
             </div>
           </div>`;
         }).join('')}
@@ -2162,6 +2214,131 @@ document.getElementById('ag-age-min').addEventListener('input', () => updateAgeS
 document.getElementById('ag-age-max').addEventListener('input', () => updateAgeSlider('ag', renderAgencesGrid));
 document.getElementById('ag-age-num-min').addEventListener('change', () => _syncNumToSlider('ag', 'min', renderAgencesGrid));
 document.getElementById('ag-age-num-max').addEventListener('change', () => _syncNumToSlider('ag', 'max', renderAgencesGrid));
+
+// ─── CS POPUP ────────────────────────────────────────────────────────────────
+function _csBadge(val) {
+  const isYes = val && /^oui/i.test(String(val).trim());
+  return `<span class="cs-badge${isYes ? ' yes' : ''}">${escHtml(String(val))}</span>`;
+}
+
+function _csField(label, val) {
+  if (!val) return '';
+  return `<div><div class="cs-field-label">${label}</div><div class="cs-field-value">${escHtml(String(val))}</div></div>`;
+}
+
+function showCsPopup(nom, agence) {
+  const t = talentsData.find(x => x.nom === nom && x.agence === agence) || talentsData.find(x => x.nom === nom);
+  if (!t) return;
+  const f = t.fiche_cs || {};
+  const initials = talentInitials(nom);
+
+  // Notes → rôle + sélecteurs
+  const notesParts = (t.notes || '').split(' | ');
+  const role       = notesParts[0] || '';
+  const selectors  = notesParts.find(p => p.startsWith('Sélectionné')) || '';
+
+  const photoHtml = t.photo_url
+    ? `<img class="cs-popup-photo" src="${escHtml(t.photo_url)}" alt="${escHtml(nom)}" onerror="this.outerHTML='<div class=\\'cs-popup-initials\\'>${initials}</div>'">`
+    : `<div class="cs-popup-initials">${initials}</div>`;
+
+  const age = t.age_min
+    ? (t.age_min === t.age_max ? `${t.age_min} ans` : `${t.age_min}–${t.age_max} ans`)
+    : '';
+  const metaParts = [age, f.ville].filter(Boolean);
+
+  // Contact
+  let contactHtml = '';
+  if (f.tel || f.email) {
+    const line = [f.tel, f.email].filter(Boolean).join(' · ');
+    contactHtml += `<div class="cs-field-value" style="margin-bottom:4px">${escHtml(line)}</div>`;
+  }
+  if (f.parent_nom) {
+    const p = [f.parent_nom, f.parent_tel, f.parent_email].filter(Boolean).join(' · ');
+    contactHtml += `<div class="cs-field-value" style="color:var(--text-muted)">Parent : ${escHtml(p)}</div>`;
+  }
+
+  // Hockey
+  const hasHockey = f.hockey && /^oui/i.test(f.hockey);
+  const hockeyDetailsHtml = hasHockey ? `<div class="cs-grid2" style="margin-top:8px">
+    ${_csField('Niveau', f.hockey_niveau)}
+    ${_csField('Équipe', f.hockey_equipe)}
+    ${_csField('Position', f.hockey_position)}
+    ${_csField('Années', f.hockey_annees)}
+  </div>` : '';
+
+  // Danse
+  const hasDanse = f.danse && /^oui/i.test(f.danse);
+  const danseDetailsHtml = hasDanse ? `<div class="cs-grid2" style="margin-top:8px">
+    ${_csField('École', f.danse_ecole)}
+    ${_csField('Type', f.danse_type)}
+    ${_csField('Années', f.danse_annees)}
+  </div>` : '';
+
+  // Disponibilités
+  const indispoAud  = f.indispo_auditions === 'Oui' ? (f.indispo_auditions_detail  || 'Oui') : (f.indispo_auditions  || '');
+  const indispoTour = f.indispo_tournage  === 'Oui' ? (f.indispo_tournage_detail   || 'Oui') : (f.indispo_tournage   || '');
+
+  // Ressources
+  const links = [];
+  if (f.video_url)       links.push(`<a class="cs-ext-link" href="${escHtml(f.video_url)}" target="_blank" rel="noopener">Vidéo ↗</a>`);
+  if (f.photo2_url_drive) links.push(`<a class="cs-ext-link" href="${escHtml(f.photo2_url_drive)}" target="_blank" rel="noopener">Photo 2 ↗</a>`);
+
+  document.getElementById('cs-popup-content').innerHTML = `
+    <div class="cs-popup-header">
+      ${photoHtml}
+      <div>
+        <div class="cs-popup-nom">${escHtml(nom)}</div>
+        ${metaParts.length ? `<div class="cs-popup-meta">${escHtml(metaParts.join(' · '))}</div>` : ''}
+        ${role ? `<div class="cs-popup-roles">${escHtml(role)}</div>` : ''}
+        ${selectors ? `<div class="cs-popup-selectors">${escHtml(selectors)}</div>` : ''}
+      </div>
+    </div>
+    ${contactHtml ? `<div class="cs-section"><div class="cs-section-title">Contact</div>${contactHtml}</div>` : ''}
+    <div class="cs-section">
+      <div class="cs-section-title">Expérience</div>
+      <div class="cs-inline">
+        ${f.a_tourne ? `<div><div class="cs-field-label">Déjà tourné</div>${_csBadge(f.a_tourne)}</div>` : ''}
+        ${f.uda      ? `<div><div class="cs-field-label">UDA</div>${_csBadge(f.uda)}</div>` : ''}
+      </div>
+      ${f.projets_tourne ? `<div style="margin-top:6px">${_csField('Projets', f.projets_tourne)}</div>` : ''}
+    </div>
+    <div class="cs-section">
+      <div class="cs-section-title">Hockey</div>
+      ${f.hockey ? _csBadge(f.hockey) : '<span class="cs-badge">Non renseigné</span>'}
+      ${hockeyDetailsHtml}
+    </div>
+    <div class="cs-section">
+      <div class="cs-section-title">Danse</div>
+      ${f.danse ? _csBadge(f.danse) : '<span class="cs-badge">Non renseigné</span>'}
+      ${danseDetailsHtml}
+    </div>
+    ${(indispoAud || indispoTour) ? `<div class="cs-section">
+      <div class="cs-section-title">Disponibilités</div>
+      <div class="cs-grid2">
+        ${indispoAud  ? _csField('Indispos auditions', indispoAud)  : ''}
+        ${indispoTour ? _csField('Indispos tournage',  indispoTour) : ''}
+      </div>
+    </div>` : ''}
+    ${links.length ? `<div class="cs-section"><div class="cs-section-title">Ressources</div><div class="cs-links">${links.join('')}</div></div>` : ''}
+  `;
+  document.getElementById('cs-popup-overlay').style.display = 'flex';
+}
+
+function closeCsPopup() {
+  document.getElementById('cs-popup-overlay').style.display = 'none';
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.getElementById('cs-popup-overlay').style.display !== 'none') closeCsPopup();
+});
+
+document.addEventListener('click', e => {
+  const btn = e.target.closest('.cs-popup-trigger');
+  if (!btn) return;
+  e.preventDefault();
+  e.stopPropagation();
+  showCsPopup(btn.dataset.nom, btn.dataset.agence);
+});
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 async function init() {

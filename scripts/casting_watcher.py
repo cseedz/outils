@@ -5,17 +5,21 @@ Watcher Casting Sauvage — Google Sheets → Cloudinary → Supabase
 
 Modes :
   python3 casting_watcher.py check <mcp_xlsx_file>
-      Parse le XLSX téléchargé depuis Drive, compare avec Supabase,
-      imprime un JSON des nouveaux candidats à traiter.
+      Parse le XLSX, compare avec Supabase, imprime JSON des nouveaux candidats.
+      Chaque entrée inclut un champ "extra" avec toutes les données du formulaire.
 
-  python3 casting_watcher.py save <nom> <age> <role> <selectors> <photo_url>
-      Ajoute un seul candidat dans Supabase (casting_talents, agence=Casting Sauvage)
+  python3 casting_watcher.py save <nom> <age> <role> <selectors> <photo_url> [extra_json]
+      Ajoute un candidat dans Supabase (casting_talents, agence=Casting Sauvage).
+      extra_json (optionnel) : JSON des données formulaire → stocké dans fiche_cs.
       ET l'ajoute dans les shortlists de personnages correspondant au rôle.
-      photo_url peut être "" si pas de photo.
 
   python3 casting_watcher.py process-photo <mcp_photo_file> <nom>
       Extrait le base64 du fichier MCP, convertit si HEIC, uploade sur Cloudinary,
       imprime l'URL Cloudinary.
+
+  python3 casting_watcher.py enrich <mcp_xlsx_file>
+      Enrichit rétroactivement les candidats CS existants avec les données du formulaire
+      (ajoute fiche_cs sur chaque talent qui n'en a pas encore).
 
   python3 casting_watcher.py sync-shortlists
       Rattache rétroactivement tous les candidats Casting Sauvage existants
@@ -120,6 +124,46 @@ def is_green(cell):
     return False
 
 
+def _parse_extra_from_response_row(rep, row) -> dict:
+    """Extrait les données riches d'une ligne de la feuille Réponses (colonnes 4–32)."""
+    def cell(col):
+        v = rep.cell(row, col).value
+        return str(v).strip() if v is not None else ''
+
+    extra = {}
+    mapping = [
+        (4,  'ville'),
+        (6,  'tel'),
+        (7,  'email'),
+        (8,  'parent_nom'),
+        (9,  'parent_tel'),
+        (10, 'parent_email'),
+        (13, 'a_tourne'),
+        (14, 'projets_tourne'),
+        (15, 'uda'),
+        (16, 'hockey'),
+        (17, 'hockey_niveau'),
+        (18, 'hockey_annees'),
+        (19, 'hockey_equipe'),
+        (20, 'hockey_position'),
+        (21, 'danse'),
+        (22, 'danse_ecole'),
+        (23, 'danse_type'),
+        (24, 'danse_annees'),
+        (25, 'indispo_auditions'),
+        (26, 'indispo_auditions_detail'),
+        (27, 'indispo_tournage'),
+        (28, 'indispo_tournage_detail'),
+        (29, 'video_url'),
+        (32, 'photo2_url_drive'),
+    ]
+    for col, key in mapping:
+        v = cell(col)
+        if v:
+            extra[key] = v
+    return extra
+
+
 def parse_age(s):
     if not s:
         return None
@@ -179,17 +223,20 @@ def cmd_check(mcp_xlsx_file: str):
     sel = wb['SÉLECTIONS']
     rep = wb['Réponses au formulaire 1']
 
-    # Index Réponses : (prenom.lower, nom.lower) → photo1_url
+    # Index Réponses : (prenom.lower, nom.lower) → {photo1, extra}
+    # Dernier envoi gagne (overwrite) — si quelqu'un a re-soumis, on prend le plus récent.
     resp_index = {}
     for row in range(2, rep.max_row + 1):
         prenom = rep[f'B{row}'].value
         nom    = rep[f'C{row}'].value
         if not prenom and not nom:
             continue
-        key     = (str(prenom).strip().lower(), str(nom).strip().lower())
-        photo1  = rep.cell(row=row, column=31).value  # col AE
-        if key not in resp_index:
-            resp_index[key] = str(photo1) if photo1 else None
+        key    = (str(prenom).strip().lower(), str(nom).strip().lower())
+        photo1 = rep.cell(row=row, column=31).value
+        resp_index[key] = {
+            'photo1': str(photo1) if photo1 else None,
+            'extra':  _parse_extra_from_response_row(rep, row),
+        }
 
     existing = load_existing_names()
 
@@ -217,8 +264,10 @@ def cmd_check(mcp_xlsx_file: str):
                                         ['Marilou', 'Phil', 'Charles', 'Isabelle', 'Amélie'])
                      if is_green(sel[f'{c}{row}'])]
 
-        key      = (prenom_s.lower(), nom_s.lower())
-        photo_url = resp_index.get(key)
+        key       = (prenom_s.lower(), nom_s.lower())
+        resp_data = resp_index.get(key, {})
+        photo_url = resp_data.get('photo1')
+        extra     = resp_data.get('extra', {})
         file_id   = None
         if photo_url:
             m = re.search(r'[?&]id=([a-zA-Z0-9_\-]+)', photo_url)
@@ -231,6 +280,7 @@ def cmd_check(mcp_xlsx_file: str):
             'role':      role,
             'selectors': selectors,
             'file_id':   file_id,
+            'extra':     extra,
         })
 
     print(json.dumps(new_candidates, ensure_ascii=False, indent=2))
@@ -335,8 +385,8 @@ def update_shortlists(nom: str, agence: str, role_str: str) -> list:
     return updated
 
 
-def cmd_save(nom: str, age_s: str, role: str, selectors_s: str, photo_url: str):
-    """Ajoute un candidat dans Supabase."""
+def cmd_save(nom: str, age_s: str, role: str, selectors_s: str, photo_url: str, extra_json: str = ''):
+    """Ajoute un candidat dans Supabase. extra_json → fiche_cs sur le talent."""
     # Charger tous les talents
     r = requests.get(
         f'{SUPABASE_URL}/rest/v1/project_data',
@@ -357,6 +407,7 @@ def cmd_save(nom: str, age_s: str, role: str, selectors_s: str, photo_url: str):
     age       = int(age_s) if age_s and age_s.isdigit() else None
     selectors = [s.strip() for s in selectors_s.split(',') if s.strip()]
     prenom    = nom.split()[0] if nom else ''
+    fiche_cs  = json.loads(extra_json) if extra_json.strip() else {}
 
     notes_parts = []
     if role:
@@ -379,6 +430,8 @@ def cmd_save(nom: str, age_s: str, role: str, selectors_s: str, photo_url: str):
         talent['photo_url'] = photo_url
     if notes_parts:
         talent['notes'] = ' | '.join(notes_parts)
+    if fiche_cs:
+        talent['fiche_cs'] = fiche_cs
 
     talents.append(talent)
     now = datetime.now(timezone.utc).isoformat()
@@ -429,6 +482,74 @@ def cmd_sync_shortlists():
     print(f'\n✓ {total_updated} candidats ajoutés aux shortlists.')
 
 
+def cmd_enrich(mcp_xlsx_file: str):
+    """Enrichit rétroactivement les candidats CS sans fiche_cs depuis le XLSX."""
+    try:
+        import openpyxl
+    except ImportError:
+        sys.exit('openpyxl requis : pip3 install openpyxl')
+
+    xlsx_bytes = extract_xlsx_from_mcp(mcp_xlsx_file)
+    xlsx_path  = '/tmp/_casting_enrich_tmp.xlsx'
+    with open(xlsx_path, 'wb') as f:
+        f.write(xlsx_bytes)
+
+    wb  = openpyxl.load_workbook(xlsx_path, data_only=True)
+    rep = wb['Réponses au formulaire 1']
+
+    # Index réponses — dernier envoi gagne
+    resp_index = {}
+    for row in range(2, rep.max_row + 1):
+        prenom = rep.cell(row, 2).value
+        nom    = rep.cell(row, 3).value
+        if not prenom and not nom:
+            continue
+        key = (str(prenom).strip().lower(), str(nom).strip().lower())
+        resp_index[key] = _parse_extra_from_response_row(rep, row)
+
+    # Charger les talents existants
+    r = requests.get(
+        f'{SUPABASE_URL}/rest/v1/project_data',
+        params={'key': f'eq.{CASTING_KEY}', 'select': 'data'},
+        headers=SB_HEADERS, timeout=15,
+    )
+    r.raise_for_status()
+    rows    = r.json()
+    talents = rows[0]['data'].get('talents', []) if rows else []
+
+    updated = 0
+    for t in talents:
+        if t.get('agence') != 'Casting Sauvage':
+            continue
+        if t.get('fiche_cs'):
+            continue
+        nom_full = t.get('nom', '').strip()
+        parts = nom_full.split()
+        if len(parts) < 2:
+            continue
+        key   = (parts[0].lower(), ' '.join(parts[1:]).lower())
+        extra = resp_index.get(key)
+        if extra:
+            t['fiche_cs'] = extra
+            print(f'  ✓ {nom_full}')
+            updated += 1
+        else:
+            print(f'  ? {nom_full} — non trouvé dans Réponses')
+
+    if updated:
+        now = datetime.now(timezone.utc).isoformat()
+        r2 = requests.post(
+            f'{SUPABASE_URL}/rest/v1/project_data',
+            json={'key': CASTING_KEY, 'data': {'talents': talents}, 'updated_at': now},
+            headers={**SB_HEADERS, 'Prefer': 'resolution=merge-duplicates'},
+            timeout=30,
+        )
+        r2.raise_for_status()
+        print(f'\n✓ {updated} candidats enrichis.')
+    else:
+        print('\nAucun candidat à enrichir.')
+
+
 if __name__ == '__main__':
     if len(sys.argv) < 2:
         print(__doc__)
@@ -449,8 +570,14 @@ if __name__ == '__main__':
 
     elif mode == 'save':
         if len(sys.argv) < 7:
-            sys.exit('Usage: casting_watcher.py save <nom> <age> <role> <selectors> <photo_url>')
-        cmd_save(sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5], sys.argv[6])
+            sys.exit('Usage: casting_watcher.py save <nom> <age> <role> <selectors> <photo_url> [extra_json]')
+        extra_json = sys.argv[7] if len(sys.argv) > 7 else ''
+        cmd_save(sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5], sys.argv[6], extra_json)
+
+    elif mode == 'enrich':
+        if len(sys.argv) < 3:
+            sys.exit('Usage: casting_watcher.py enrich <mcp_xlsx_file>')
+        cmd_enrich(sys.argv[2])
 
     elif mode == 'sync-shortlists':
         cmd_sync_shortlists()
