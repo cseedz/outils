@@ -811,6 +811,16 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
 .bk-photos-add-label:hover { border-color:var(--accent,#4f86f7); color:var(--accent,#4f86f7); }
 .bk-photos-upload-status { font-size:11px; color:var(--text-muted); }
 .bk-photos-empty { color:var(--text-muted); font-size:12px; padding:6px 0; }
+.bk-photo-cell-check { position:absolute; top:5px; left:5px; width:20px; height:20px; border-radius:4px; background:rgba(0,0,0,.48); border:1.5px solid rgba(255,255,255,.65); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:12px; color:#fff; font-weight:700; opacity:0; transition:opacity .12s; z-index:2; }
+.bk-photo-cell:hover .bk-photo-cell-check { opacity:1; }
+.bk-photo-cell.bk-sel .bk-photo-cell-check { opacity:1; background:var(--accent,#4f86f7); border-color:var(--accent,#4f86f7); }
+.bk-photo-cell.bk-sel { outline:2.5px solid var(--accent,#4f86f7); outline-offset:-1px; }
+.bk-photos-dl-btn { display:inline-flex; align-items:center; gap:5px; padding:7px 13px; border-radius:8px; border:1px solid var(--border); background:var(--bg2); color:var(--text); font-size:12px; font-weight:600; cursor:pointer; font-family:inherit; transition:all .12s; white-space:nowrap; }
+.bk-photos-dl-btn:hover { background:var(--bg3); }
+.bk-photos-dl-btn.accent { background:var(--accent,#4f86f7); color:#fff; border-color:transparent; }
+.bk-photos-dl-btn.accent:hover { opacity:.88; }
+.bk-photos-sel-all { font-size:11px; color:var(--text-muted); cursor:pointer; padding:0 2px; background:none; border:none; font-family:inherit; flex-shrink:0; }
+.bk-photos-sel-all:hover { color:var(--text); text-decoration:underline; }
 
 /* Picker modal */
 .bk-picker-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 300; display: flex; align-items: center; justify-content: center; }
@@ -1173,9 +1183,12 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
     <div class="bk-photos-grid" id="bk-photos-grid"></div>
     <div class="bk-photos-footer">
       <label class="bk-photos-add-label">
-        ＋ Ajouter des photos
+        ＋ Ajouter
         <input type="file" accept="image/*" multiple style="display:none" onchange="handleBkPhotosPanelUpload(this)">
       </label>
+      <button class="bk-photos-dl-btn" id="bk-dl-all-btn" style="display:none" onclick="downloadBkPhotos('all')">⬇ Tout télécharger</button>
+      <button class="bk-photos-dl-btn accent" id="bk-dl-sel-btn" style="display:none" onclick="downloadBkPhotos('sel')">⬇ Sélection (<span id="bk-dl-sel-count">0</span>)</button>
+      <button class="bk-photos-sel-all" id="bk-sel-all-btn" style="display:none" onclick="selectAllBkPhotos()">Tout sélectionner</button>
       <span class="bk-photos-upload-status" id="bk-photos-status"></span>
     </div>
   </div>
@@ -2014,9 +2027,11 @@ function renderBanque() {
 
 // ─── PANNEAU PHOTOS BANQUE ───────────────────────────────────────────────────
 let _bkPhotosPanelId = null;
+let _bkPhotosSelected = new Set();
 
 function openBkPhotosPanel(id) {
   _bkPhotosPanelId = id;
+  _bkPhotosSelected.clear();
   const loc = bankLocations.find(l => l.id === id);
   document.getElementById('bk-photos-title').textContent = loc?.nom || '';
   _renderBkPhotosPanel();
@@ -2026,23 +2041,120 @@ function openBkPhotosPanel(id) {
 function closeBkPhotosPanel() {
   document.getElementById('bk-photos-overlay').style.display = 'none';
   _bkPhotosPanelId = null;
+  _bkPhotosSelected.clear();
 }
 
 function _renderBkPhotosPanel() {
   const loc = bankLocations.find(l => l.id === _bkPhotosPanelId);
   const photos = loc?.photos || [];
   const grid = document.getElementById('bk-photos-grid');
-  const count = document.getElementById('bk-photos-count');
-  count.textContent = photos.length ? `${photos.length} photo${photos.length > 1 ? 's' : ''}` : '';
+  document.getElementById('bk-photos-count').textContent = photos.length ? `${photos.length} photo${photos.length > 1 ? 's' : ''}` : '';
   if (!photos.length) {
     grid.innerHTML = '<div class="bk-photos-empty">Aucune photo — utilisez le bouton ci-dessous pour en ajouter.</div>';
+    _updateBkPhotosSel(0);
     return;
   }
+  const pid = esc(_bkPhotosPanelId);
   grid.innerHTML = photos.map((url, i) => `
-    <div class="bk-photo-cell" onclick="openBkGallery('${esc(_bkPhotosPanelId)}',${i})">
+    <div class="bk-photo-cell${_bkPhotosSelected.has(i)?' bk-sel':''}" onclick="openBkGallery('${pid}',${i})">
       <img src="${esc(cdnUrl(url))}" onerror="_iRet(this)">
-      <button class="bk-photo-cell-del" onclick="event.stopPropagation();deleteBkPanelPhoto(${i})" title="Supprimer cette photo">✕</button>
+      <div class="bk-photo-cell-check" onclick="event.stopPropagation();toggleBkPhotoSelect(${i})">${_bkPhotosSelected.has(i)?'✓':''}</div>
+      <button class="bk-photo-cell-del" onclick="event.stopPropagation();deleteBkPanelPhoto(${i})" title="Supprimer">✕</button>
     </div>`).join('');
+  _updateBkPhotosSel(photos.length);
+}
+
+function _updateBkPhotosSel(total) {
+  if (total === undefined) {
+    const loc = bankLocations.find(l => l.id === _bkPhotosPanelId);
+    total = loc?.photos?.length || 0;
+  }
+  const n = _bkPhotosSelected.size;
+  const dlAll = document.getElementById('bk-dl-all-btn');
+  const dlSel = document.getElementById('bk-dl-sel-btn');
+  const selAllBtn = document.getElementById('bk-sel-all-btn');
+  const selCount = document.getElementById('bk-dl-sel-count');
+  if (dlAll) dlAll.style.display = total > 0 ? '' : 'none';
+  if (dlSel) { dlSel.style.display = n > 0 ? '' : 'none'; if (selCount) selCount.textContent = n; }
+  if (selAllBtn) {
+    selAllBtn.style.display = total > 0 ? '' : 'none';
+    selAllBtn.textContent = n === total && total > 0 ? 'Tout désélectionner' : 'Tout sélectionner';
+  }
+}
+
+function toggleBkPhotoSelect(idx) {
+  if (_bkPhotosSelected.has(idx)) _bkPhotosSelected.delete(idx);
+  else _bkPhotosSelected.add(idx);
+  const cell = document.querySelectorAll('#bk-photos-grid .bk-photo-cell')[idx];
+  if (cell) {
+    cell.classList.toggle('bk-sel', _bkPhotosSelected.has(idx));
+    const chk = cell.querySelector('.bk-photo-cell-check');
+    if (chk) chk.textContent = _bkPhotosSelected.has(idx) ? '✓' : '';
+  }
+  _updateBkPhotosSel();
+}
+
+function selectAllBkPhotos() {
+  const loc = bankLocations.find(l => l.id === _bkPhotosPanelId);
+  const total = loc?.photos?.length || 0;
+  if (_bkPhotosSelected.size === total && total > 0) {
+    _bkPhotosSelected.clear();
+  } else {
+    for (let i = 0; i < total; i++) _bkPhotosSelected.add(i);
+  }
+  _renderBkPhotosPanel();
+}
+
+async function downloadBkPhotos(mode) {
+  const loc = bankLocations.find(l => l.id === _bkPhotosPanelId);
+  if (!loc?.photos?.length) return;
+  const indices = mode === 'sel'
+    ? [..._bkPhotosSelected].sort((a, b) => a - b)
+    : loc.photos.map((_, i) => i);
+  if (!indices.length) return;
+  const urls = indices.map(i => loc.photos[i]).filter(Boolean);
+  const status = document.getElementById('bk-photos-status');
+  if (urls.length === 1) {
+    status.textContent = 'Téléchargement…';
+    try {
+      const r = await fetch(urls[0]); const blob = await r.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = urls[0].split('/').pop() || 'photo.jpg';
+      a.click(); URL.revokeObjectURL(a.href);
+    } catch(e) { showToast('Erreur téléchargement'); }
+    status.textContent = ''; return;
+  }
+  status.textContent = `Préparation… 0/${urls.length}`;
+  try {
+    const JSZip = await _loadJSZip();
+    const zip = new JSZip(); let done = 0;
+    for (const url of urls) {
+      try {
+        const r = await fetch(url); const blob = await r.blob();
+        zip.file(url.split('/').pop() || `photo_${done}.jpg`, blob);
+      } catch(e) { /* photo inaccessible, on skip */ }
+      status.textContent = `Préparation… ${++done}/${urls.length}`;
+    }
+    status.textContent = 'Génération ZIP…';
+    const zipBlob = await zip.generateAsync({ type: 'blob' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(zipBlob);
+    a.download = (loc.nom || 'photos').replace(/[^a-z0-9]/gi, '_').toLowerCase() + '.zip';
+    a.click(); URL.revokeObjectURL(a.href);
+  } catch(e) { showToast('Erreur téléchargement'); }
+  status.textContent = '';
+}
+
+async function _loadJSZip() {
+  if (window.JSZip) return window.JSZip;
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+    s.onload = () => resolve(window.JSZip);
+    s.onerror = () => reject(new Error('Impossible de charger JSZip'));
+    document.head.appendChild(s);
+  });
 }
 
 function deleteBkPanelPhoto(idx) {
@@ -2050,6 +2162,7 @@ function deleteBkPanelPhoto(idx) {
   if (!loc?.photos) return;
   const [removed] = loc.photos.splice(idx, 1);
   if (removed) _deleteFromCloudinary(removed);
+  _bkPhotosSelected.clear();
   saveBanque();
   renderBanque();
   _renderBkPhotosPanel();
