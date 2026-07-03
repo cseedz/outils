@@ -121,7 +121,7 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans
 
 /* AGENCES GRID — TUILES */
 .agences-tuiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)); gap: 12px; padding: 16px 24px 40px; }
-.ag-tile { position: relative; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; transition: border-color .12s, box-shadow .12s; background: var(--bg); cursor: pointer; }
+.ag-tile { position: relative; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; transition: border-color .12s, box-shadow .12s; background: var(--bg); cursor: default; }
 .ag-tile:hover { border-color: var(--border2); box-shadow: 0 2px 10px rgba(0,0,0,.07); }
 .ag-tile.ag-selected { border-color: var(--accent) !important; box-shadow: inset 0 0 0 1px var(--accent); }
 .ag-check { position: absolute; top: 6px; right: 6px; width: 18px; height: 18px; border-radius: 4px; border: 2px solid rgba(255,255,255,.75); background: rgba(0,0,0,.18); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: transparent; pointer-events: none; z-index: 2; }
@@ -138,7 +138,16 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans
 .ag-batch-btn:hover { border-color: var(--border2); color: var(--text); }
 .ag-batch-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 .ag-batch-btn.primary:hover { opacity: .85; }
-.ag-tile-photo { width: 100%; aspect-ratio: 3/4; object-fit: cover; display: block; }
+.ag-tile-photo { width: 100%; aspect-ratio: 3/4; object-fit: cover; display: block; cursor: zoom-in; }
+.ag-list-photo { cursor: zoom-in; }
+.ag-gear-btn { position: absolute; bottom: 7px; right: 7px; background: rgba(255,255,255,.92); border: 1px solid rgba(0,0,0,.15); border-radius: 50%; width: 22px; height: 22px; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 12px; line-height: 1; cursor: pointer; color: #555; opacity: 0; transition: opacity .15s; z-index: 3; font-family: inherit; }
+.ag-tile:hover .ag-gear-btn { opacity: 1; }
+.ag-sl-confirmed .ag-gear-btn { background: rgba(20,20,20,.55); border-color: rgba(255,255,255,.25); color: rgba(255,255,255,.85); }
+.ag-list-row .ag-gear-btn { position: static; flex-shrink: 0; margin-left: auto; width: 26px; height: 26px; font-size: 13px; opacity: 0; transition: opacity .15s; }
+.ag-list-row:hover .ag-gear-btn { opacity: 1; }
+/* Photo zoom lightbox */
+.pz-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.88); z-index: 600; display: flex; align-items: center; justify-content: center; cursor: zoom-out; }
+.pz-img { max-width: calc(100vw - 32px); max-height: calc(100vh - 32px); object-fit: contain; border-radius: 4px; pointer-events: none; box-shadow: 0 4px 24px rgba(0,0,0,.4); }
 .ag-tile-placeholder { width: 100%; aspect-ratio: 3/4; display: flex; align-items: center; justify-content: center; background: var(--bg3); font-size: 28px; font-weight: 700; color: var(--border2); letter-spacing: -1px; }
 .ag-tile-body { padding: 8px 10px 10px; }
 .ag-tile-name { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 1px; }
@@ -160,7 +169,7 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans
 .ag-sl-confirmed { border-color: var(--accent) !important; box-shadow: inset 0 0 0 1px var(--accent); }
 /* AGENCES GRID — LISTE */
 .agences-liste { padding: 0 24px 40px; }
-.ag-list-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--border); cursor: pointer; }
+.ag-list-row { position: relative; display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--border); cursor: default; }
 .ag-list-row:last-child { border-bottom: none; }
 .ag-list-photo { width: 44px; height: 58px; object-fit: cover; border-radius: 3px; flex-shrink: 0; display: block; }
 .ag-list-placeholder { width: 44px; height: 58px; border-radius: 3px; flex-shrink: 0; background: var(--bg3); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: var(--border2); }
@@ -554,6 +563,10 @@ details.casting-import[open] summary::before { transform: rotate(90deg); }
   <div class="ag-pop-edit-row">
     <button class="ag-pop-edit-btn" id="ag-pop-edit-btn">✏ Modifier la fiche</button>
   </div>
+</div>
+
+<div id="pz-overlay" class="pz-overlay" style="display:none" onclick="closePhotoZoom()">
+  <img id="pz-img" class="pz-img" src="" alt="">
 </div>
 
 <div id="cs-popup-overlay" class="cs-popup-overlay" style="display:none" onclick="if(event.target===this)closeCsPopup()">
@@ -1885,6 +1898,7 @@ function renderAgTile(t) {
       <div class="ag-tile-tags">${_agTags(t)}</div>
       ${linkHtml}
     </div>
+    <button class="ag-gear-btn" title="Options">⚙</button>
   </div>`;
 }
 
@@ -1902,6 +1916,7 @@ function renderAgListRow(t) {
       <div class="ag-list-tags">${_agTags(t)}</div>
     </div>
     <div class="ag-list-link-wrap">${linkHtml}</div>
+    <button class="ag-gear-btn" title="Options">⚙</button>
   </div>`;
 }
 
@@ -1985,6 +2000,7 @@ function renderAgShortlistView() {
               <div class="ag-tile-tags">${_agTags(t)}</div>
               ${_agCsLink(t)}
             </div>
+            <button class="ag-gear-btn" title="Options">⚙</button>
           </div>`;
         }).join('')}
       </div>
@@ -2073,7 +2089,8 @@ document.getElementById('ag-popover').addEventListener('click', e => {
     const alreadyIn = getShortlist(charName).some(c => c.nom === _agPopTalent.nom);
     if (alreadyIn) {
       removeFromShortlistDirect(charName, _agPopTalent.nom);
-      btn.classList.remove('active'); btn.textContent = '+ Liste';
+      if (_agView === 'shortlist') closeAgTalentPopover();
+      else { btn.classList.remove('active'); btn.textContent = '+ Liste'; }
     } else {
       _addTalentToChar(_agPopTalent.nom, _agPopTalent.agence, charName);
       btn.classList.add('active'); btn.textContent = '✓ Liste';
@@ -2089,36 +2106,50 @@ document.getElementById('ag-popover').addEventListener('click', e => {
 });
 
 document.getElementById('agences-grid').addEventListener('click', e => {
-  if (e.target.closest('a')) return;
-  const card = e.target.closest('.ag-tile, .ag-list-row');
-  if (!card) return;
-  const nom    = card.dataset.nom;
-  const agence = card.dataset.agence;
+  // Liens et CS popup : laisser passer
+  if (e.target.closest('a') || e.target.closest('.cs-popup-trigger')) return;
+
+  // ⚙ Engrenage → ouvrir le popover options
+  const gear = e.target.closest('.ag-gear-btn');
+  if (gear) {
+    const card = gear.closest('.ag-tile, .ag-list-row');
+    if (!card) return;
+    const talent = talentsData.find(t => t.nom === card.dataset.nom && t.agence === card.dataset.agence);
+    if (!talent) return;
+    if (_agPopTalent && _agPopTalent.nom === talent.nom && _agPopTalent.agence === talent.agence
+        && document.getElementById('ag-popover').style.display !== 'none') {
+      closeAgTalentPopover(); return;
+    }
+    openAgTalentPopover(talent, gear.getBoundingClientRect());
+    return;
+  }
+
+  // Photo → zoom
+  const img = e.target.closest('.ag-tile-photo, .ag-list-photo');
+  if (img && img.tagName === 'IMG' && img.src) {
+    showPhotoZoom(img.src, img.alt);
+    return;
+  }
+
+  // Mode sélection → toggler la sélection
   if (_agSelectMode) {
-    const key  = nom + '\x00' + agence;
+    const card = e.target.closest('.ag-tile, .ag-list-row');
+    if (!card) return;
+    const key = card.dataset.nom + '\x00' + card.dataset.agence;
     const isSel = _agSelected.has(key) ? (_agSelected.delete(key), false) : (_agSelected.add(key), true);
     card.classList.toggle('ag-selected', isSel);
     const chk = card.querySelector('.ag-check, .ag-list-check');
     if (chk) { chk.classList.toggle('checked', isSel); chk.textContent = isSel ? '✓' : ''; }
     updateBatchBar();
-    return;
   }
-  const talent = talentsData.find(t => t.nom === nom && t.agence === agence);
-  if (!talent) return;
-  // Toggle : re-cliquer la même tuile ferme le popover
-  if (_agPopTalent && _agPopTalent.nom === nom && _agPopTalent.agence === agence
-      && document.getElementById('ag-popover').style.display !== 'none') {
-    closeAgTalentPopover(); return;
-  }
-  openAgTalentPopover(talent, card.getBoundingClientRect());
 });
 
+// Fermer le ag-popover si clic en dehors (sauf sur le gear)
 document.addEventListener('click', e => {
   const pop = document.getElementById('ag-popover');
   if (pop.style.display === 'none') return;
-  if (!pop.contains(e.target) && !e.target.closest('.ag-tile') && !e.target.closest('.ag-list-row')) {
-    closeAgTalentPopover();
-  }
+  if (e.target.closest('.ag-gear-btn')) return;  // le gear gère lui-même le toggle
+  if (!pop.contains(e.target)) closeAgTalentPopover();
 }, true);
 
 document.getElementById('ag-pop-edit-btn').addEventListener('click', () => {
@@ -2214,6 +2245,21 @@ document.getElementById('ag-age-min').addEventListener('input', () => updateAgeS
 document.getElementById('ag-age-max').addEventListener('input', () => updateAgeSlider('ag', renderAgencesGrid));
 document.getElementById('ag-age-num-min').addEventListener('change', () => _syncNumToSlider('ag', 'min', renderAgencesGrid));
 document.getElementById('ag-age-num-max').addEventListener('change', () => _syncNumToSlider('ag', 'max', renderAgencesGrid));
+
+// ─── PHOTO ZOOM ──────────────────────────────────────────────────────────────
+function showPhotoZoom(url, alt) {
+  document.getElementById('pz-img').src = url;
+  document.getElementById('pz-img').alt = alt || '';
+  document.getElementById('pz-overlay').style.display = 'flex';
+}
+function closePhotoZoom() {
+  document.getElementById('pz-overlay').style.display = 'none';
+  document.getElementById('pz-img').src = '';
+}
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  if (document.getElementById('pz-overlay').style.display !== 'none') closePhotoZoom();
+});
 
 // ─── CS POPUP ────────────────────────────────────────────────────────────────
 function _csBadge(val) {
@@ -2329,7 +2375,8 @@ function closeCsPopup() {
 }
 
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && document.getElementById('cs-popup-overlay').style.display !== 'none') closeCsPopup();
+  if (e.key !== 'Escape') return;
+  if (document.getElementById('cs-popup-overlay').style.display !== 'none') closeCsPopup();
 });
 
 document.addEventListener('click', e => {
