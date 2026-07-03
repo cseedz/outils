@@ -1237,6 +1237,7 @@ function removeFromShortlist(nom) {
   renderCastingShortlist();
   renderCastingList();
   renderTable();
+  if (_agView === 'shortlist') renderAgShortlistView();
 }
 
 function confirmCastingDirect(charName, nom) {
@@ -1257,6 +1258,7 @@ function removeFromShortlistDirect(charName, nom) {
   }
   saveData();
   renderTable();
+  if (_agView === 'shortlist') renderAgShortlistView();
   if (_assigningChar === charName) { renderCastingShortlist(); renderCastingList(); }
 }
 
