@@ -2472,7 +2472,7 @@ function buildShortlistSection(lieuKey) {
     const photoStrip = optOrder.map(o => {
       const thumbs = optMap[o].map(p =>
         `<div class="sl-photo-thumb" onclick="openLightbox('${esc(p.url)}')">
-          <img src="${esc(cdnUrl(p.url))}" onerror="_iRet(this)">
+          <img src="${esc(p.url)}" onerror="this.onerror=null;this.style.opacity=0">
           <button class="sl-photo-del" onclick="event.stopPropagation();removeLieuFictifPhoto('${lk}','${esc(p.url)}')">✕</button>
         </div>`
       ).join('');
@@ -3626,7 +3626,7 @@ function renderLieuList() {
         const urlAttr = esc(p.url);
         return `<div class="photo-thumb-wrap">
           <div class="lieu-photo-thumb" onclick="openLieuGalleryByUrl('${l.id}','${type}','${urlAttr}')">
-            <img src="${esc(cdnUrl(p.url))}" onerror="_iRet(this)">
+            <img src="${esc(p.url)}" onerror="this.onerror=null;this.style.opacity=0">
             <button class="lieu-photo-del" data-lid="${l.id}" data-type="${type}" data-url="${urlAttr}" onclick="event.stopPropagation();deleteLieuPhoto(this.dataset.lid,this.dataset.type,this.dataset.url)">✕</button>
           </div>
           <select class="photo-sl-sel" onchange="setPhotoSousLieu('${l.id}','${type}','${urlAttr}',this.value)">
