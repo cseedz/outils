@@ -1957,7 +1957,7 @@ function renderBanque() {
           const n = l.photos?.length||0;
           const id = esc(l.id);
           return `<div class="bk-row" onclick="bkRowClick(event,'${id}')">
-            <div class="bk-row-thumb">${ph?`<img src="${esc(cdnUrl(ph))}" onerror="this.style.opacity=0">`:'📷'}</div>
+            <div class="bk-row-thumb">${ph?`<img src="${esc(cdnUrl(ph))}" onerror="if(!this._fb){this._fb=1;const u=this.src;this.src=u.replace(/\/w_\d+,q_auto,f_auto\//,'/');if(this.src===u)this.style.opacity=0}else{this.style.opacity=0}">`:'📷'}</div>
             <div class="bk-row-info">
               <div class="bk-row-nom">${esc(l.nom)}</div>
               ${l.adresse?`<div class="bk-row-addr">${esc(l.adresse)}</div>`:''}
@@ -2005,7 +2005,7 @@ function _renderBkEditPhotos() {
   const wrap = document.getElementById('bk-modal-photos');
   wrap.innerHTML = _bkEditPhotos.map((url,i)=>`
     <div class="bk-modal-thumb">
-      <img src="${esc(cdnUrl(url))}" onerror="this.style.opacity=0">
+      <img src="${esc(cdnUrl(url))}" onerror="if(!this._fb){this._fb=1;const u=this.src;this.src=u.replace(/\/w_\d+,q_auto,f_auto\//,'/');if(this.src===u)this.style.opacity=0}else{this.style.opacity=0}">
       <button class="bk-modal-thumb-del" onclick="removeBkEditPhoto(${i})">✕</button>
     </div>`).join('') +
     `<label class="bk-modal-add-photo" title="Ajouter photos">+<input type="file" accept="image/*" multiple style="display:none" onchange="handleBkPhotoInput(this)"></label>`;
@@ -2472,7 +2472,7 @@ function buildShortlistSection(lieuKey) {
     const photoStrip = optOrder.map(o => {
       const thumbs = optMap[o].map(p =>
         `<div class="sl-photo-thumb" onclick="openLightbox('${esc(p.url)}')">
-          <img src="${esc(cdnUrl(p.url))}" onerror="this.style.opacity=0">
+          <img src="${esc(cdnUrl(p.url))}" onerror="if(!this._fb){this._fb=1;const u=this.src;this.src=u.replace(/\/w_\d+,q_auto,f_auto\//,'/');if(this.src===u)this.style.opacity=0}else{this.style.opacity=0}">
           <button class="sl-photo-del" onclick="event.stopPropagation();removeLieuFictifPhoto('${lk}','${esc(p.url)}')">✕</button>
         </div>`
       ).join('');
@@ -2649,7 +2649,7 @@ function _renderPphStep2() {
       const opt = _pphSelectedByOpt.get(url);
       const sel = opt !== undefined;
       return `<div class="pph-cell${sel?' selected':''}" onclick="_pphToggle('${esc(url)}')">
-        <img src="${esc(cdnUrl(url))}" onerror="this.style.opacity=0">
+        <img src="${esc(cdnUrl(url))}" onerror="if(!this._fb){this._fb=1;const u=this.src;this.src=u.replace(/\/w_\d+,q_auto,f_auto\//,'/');if(this.src===u)this.style.opacity=0}else{this.style.opacity=0}">
         <div class="pph-check">✓</div>
         ${sel ? `<div class="pph-opt-badge">${esc(opt)}</div>` : ''}
       </div>`;
@@ -3230,7 +3230,7 @@ function buildFictifThumbs(urls, lieuKey) {
       const visible = sorted.slice(0, MAX);
       const extra = sorted.length - MAX;
       const thumbs = visible.map(u =>
-        `<div class="vlieu-thumb" data-lieukey="${lkAttr}" data-idx="${urlIdx(u)}" onclick="openFictifGallery(this.dataset.lieukey,+this.dataset.idx)"><img src="${cdnUrl(u)}" onerror="this.style.opacity=0"></div>`
+        `<div class="vlieu-thumb" data-lieukey="${lkAttr}" data-idx="${urlIdx(u)}" onclick="openFictifGallery(this.dataset.lieukey,+this.dataset.idx)"><img src="${cdnUrl(u)}" onerror="if(!this._fb){this._fb=1;const u=this.src;this.src=u.replace(/\/w_\d+,q_auto,f_auto\//,'/');if(this.src===u)this.style.opacity=0}else{this.style.opacity=0}"></div>`
       ).join('');
       const moreBtn = extra > 0
         ? `<div class="vlieu-thumb-more" data-lieukey="${lkAttr}" data-idx="${urlIdx(sorted[MAX])}" onclick="openFictifGallery(this.dataset.lieukey,+this.dataset.idx)">+${extra}</div>`
@@ -3265,7 +3265,7 @@ function buildVlieuThumbs(ltIds) {
     const extra = photos.length - MAX;
     return `<div class="vlieu-thumbs-row">
       <span class="vlieu-thumbs-label">${label}</span>
-      ${visible.map(url => `<div class="vlieu-thumb" onclick="openLightbox('${url}')"><img src="${cdnUrl(url)}" onerror="this.style.opacity=0"></div>`).join('')}
+      ${visible.map(url => `<div class="vlieu-thumb" onclick="openLightbox('${url}')"><img src="${cdnUrl(url)}" onerror="if(!this._fb){this._fb=1;const u=this.src;this.src=u.replace(/\/w_\d+,q_auto,f_auto\//,'/');if(this.src===u)this.style.opacity=0}else{this.style.opacity=0}"></div>`).join('')}
       ${extra > 0 ? `<div class="vlieu-thumb-more" onclick="openLightbox('${photos[MAX]}')">+${extra}</div>` : ''}
     </div>`;
   };
@@ -3608,7 +3608,7 @@ function renderLieuList() {
         const urlAttr = esc(p.url);
         return `<div class="photo-thumb-wrap">
           <div class="lieu-photo-thumb" onclick="openLieuGalleryByUrl('${l.id}','${type}','${urlAttr}')">
-            <img src="${esc(cdnUrl(p.url))}" onerror="this.style.opacity=0">
+            <img src="${esc(cdnUrl(p.url))}" onerror="if(!this._fb){this._fb=1;const u=this.src;this.src=u.replace(/\/w_\d+,q_auto,f_auto\//,'/');if(this.src===u)this.style.opacity=0}else{this.style.opacity=0}">
             <button class="lieu-photo-del" data-lid="${l.id}" data-type="${type}" data-url="${urlAttr}" onclick="event.stopPropagation();deleteLieuPhoto(this.dataset.lid,this.dataset.type,this.dataset.url)">✕</button>
           </div>
           <select class="photo-sl-sel" onchange="setPhotoSousLieu('${l.id}','${type}','${urlAttr}',this.value)">
@@ -3665,7 +3665,7 @@ function renderLieuList() {
     const bankPhotoCount = bankLoc?.photos?.length||0;
     return `<div class="lieu-card" id="lc_${l.id}">
       ${bankThumb ? `<div class="lieu-card-bank-thumb" onclick="switchTab('banque');filterBanque()">
-        <img src="${esc(cdnUrl(bankThumb))}" onerror="this.style.opacity=0">
+        <img src="${esc(cdnUrl(bankThumb))}" onerror="if(!this._fb){this._fb=1;const u=this.src;this.src=u.replace(/\/w_\d+,q_auto,f_auto\//,'/');if(this.src===u)this.style.opacity=0}else{this.style.opacity=0}">
         ${bankPhotoCount>1?`<span class="lieu-card-bank-thumb-count">${bankPhotoCount} photos</span>`:''}
       </div>` : ''}
       <div class="lieu-card-main">
