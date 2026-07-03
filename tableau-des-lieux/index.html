@@ -1945,7 +1945,7 @@ function renderBanque() {
   });
   const isFiltering = !!(q || cat);
   grid.innerHTML = Object.entries(groups).sort(([a],[b])=>a.localeCompare(b)).map(([catName, locs]) => `
-    <div class="bk-section open">
+    <div class="bk-section">
       <div class="bk-section-header" onclick="this.closest('.bk-section').classList.toggle('open')">
         <span class="bk-section-arrow">▶</span>
         <span class="bk-section-title">${esc(catName)}</span>
