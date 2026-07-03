@@ -284,9 +284,16 @@ details.casting-import[open] summary::before { transform: rotate(90deg); }
 .age-slider-wrap input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 13px; height: 13px; border-radius: 50%; background: var(--accent); pointer-events: all; cursor: pointer; border: 2px solid var(--bg); box-shadow: 0 0 0 1px var(--accent); }
 .age-slider-wrap input[type=range]::-moz-range-thumb { width: 13px; height: 13px; border-radius: 50%; background: var(--accent); pointer-events: all; cursor: pointer; border: 2px solid var(--bg); box-shadow: 0 0 0 1px var(--accent); }
 /* TALENT POPOVER (onglet Agences) */
-.ag-popover { position: fixed; background: var(--bg); border: 1px solid var(--border2); border-radius: 6px; box-shadow: 0 4px 20px rgba(0,0,0,.14); padding: 10px; z-index: 300; min-width: 190px; max-width: 260px; max-height: 340px; overflow-y: auto; display: none; }
-.ag-pop-header { font-size: 12px; font-weight: 600; margin-bottom: 4px; }
-.ag-pop-agency { font-size: 10px; color: var(--text-muted); margin-bottom: 8px; padding-bottom: 7px; border-bottom: 1px solid var(--border); }
+.ag-popover { position: fixed; background: var(--bg); border: 1px solid var(--border2); border-radius: 8px; box-shadow: 0 4px 24px rgba(0,0,0,.16); padding: 12px; z-index: 300; min-width: 230px; max-width: 310px; max-height: 540px; overflow-y: auto; display: none; }
+/* Photo header row */
+.ag-pop-photo-row { display: flex; gap: 10px; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+.ag-pop-photo { width: 56px; height: 72px; object-fit: cover; border-radius: 4px; flex-shrink: 0; display: block; }
+.ag-pop-initials-sm { width: 56px; height: 72px; background: var(--bg3); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; color: var(--text-muted); flex-shrink: 0; }
+.ag-pop-info { flex: 1; min-width: 0; }
+.ag-pop-header { font-size: 12px; font-weight: 700; line-height: 1.3; }
+.ag-pop-agency { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+.ag-pop-tags-row { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 5px; }
+/* Shortlist section */
 .ag-pop-label { font-size: 10px; text-transform: uppercase; letter-spacing: .07em; color: var(--text-muted); margin-bottom: 5px; }
 .ag-pop-char-row { display: flex; align-items: center; gap: 5px; padding: 3px 2px; border-radius: 4px; }
 .ag-pop-char-row:hover { background: var(--bg3); }
@@ -295,9 +302,19 @@ details.casting-import[open] summary::before { transform: rotate(90deg); }
 .ag-pop-action-btn:hover { border-color: var(--border2); color: var(--text); }
 .ag-pop-action-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 .ag-pop-empty { font-size: 11px; color: var(--text-muted); font-style: italic; padding: 2px 4px; }
-.ag-pop-edit-row { padding-top: 8px; margin-top: 6px; border-top: 1px solid var(--border); }
+/* CS section */
+.ag-pop-sep { height: 1px; background: var(--border); margin: 8px 0; }
+.ag-pop-cs-row { font-size: 11px; color: var(--text-muted); margin-bottom: 3px; }
+.ag-pop-cs-indicators { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0; }
+.ag-pop-cs-chip { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 10px; background: rgba(40,120,40,.1); color: #2a6e2a; border: 1px solid rgba(40,120,40,.3); }
+/* Bottom row */
+.ag-pop-edit-row { display: flex; align-items: center; gap: 8px; padding-top: 8px; margin-top: 8px; border-top: 1px solid var(--border); flex-wrap: wrap; }
 .ag-pop-edit-btn { background: none; border: none; font-size: 11px; color: var(--text-muted); cursor: pointer; font-family: inherit; padding: 2px 4px; }
 .ag-pop-edit-btn:hover { color: var(--text); }
+.ag-pop-fiche-link { font-size: 11px; color: var(--text-muted); text-decoration: none; border-bottom: 1px solid var(--border); padding-bottom: 1px; margin-left: auto; }
+.ag-pop-fiche-link:hover { color: var(--text); border-color: var(--text); }
+.ag-pop-cs-full-btn { background: none; border: none; font-size: 11px; color: var(--text-muted); cursor: pointer; font-family: inherit; padding: 0; border-bottom: 1px solid var(--border); margin-left: auto; }
+.ag-pop-cs-full-btn:hover { color: var(--text); border-color: var(--text); }
 .btn-edit-talent { background: none; border: none; font-size: 14px; cursor: pointer; color: var(--text-muted); padding: 2px 4px; line-height: 1; }
 .btn-edit-talent:hover { color: var(--text); }
 /* MODAL MODIFICATION FICHE */
@@ -556,12 +573,17 @@ details.casting-import[open] summary::before { transform: rotate(90deg); }
 
 <div class="ag-popover" id="ag-popover">
   <button class="tp-close" onclick="closeAgTalentPopover()" title="Fermer">×</button>
-  <div class="ag-pop-header" id="ag-pop-name"></div>
-  <div class="ag-pop-agency" id="ag-pop-agency"></div>
+  <div class="ag-pop-photo-row" id="ag-pop-photo-row"></div>
   <div class="ag-pop-label">Ajouter à la shortlist de…</div>
   <div id="ag-pop-list"></div>
+  <div id="ag-pop-cs-section" style="display:none">
+    <div class="ag-pop-sep"></div>
+    <div id="ag-pop-cs-info"></div>
+  </div>
   <div class="ag-pop-edit-row">
-    <button class="ag-pop-edit-btn" id="ag-pop-edit-btn">✏ Modifier la fiche</button>
+    <button class="ag-pop-edit-btn" id="ag-pop-edit-btn">✏ Modifier</button>
+    <a class="ag-pop-fiche-link" id="ag-pop-fiche-link" target="_blank" rel="noopener" style="display:none">Fiche ↗</a>
+    <button class="ag-pop-cs-full-btn" id="ag-pop-cs-full-btn" style="display:none">Fiche complète</button>
   </div>
 </div>
 
@@ -933,13 +955,7 @@ function renderTable() {
               ${shortlist.map(c => {
                 const isFinal = c.nom === enrich.acteur;
                 const slT     = talentsData.find(t => t.nom === c.nom && t.agence === c.agence) || talentsData.find(t => t.nom === c.nom);
-                const slLink = slT
-                  ? (slT.agence === 'Casting Sauvage' && slT.fiche_cs
-                      ? `<button class="btn-source-link cs-popup-trigger" data-nom="${escHtml(slT.nom)}" data-agence="${escHtml(slT.agence)}" style="flex-shrink:0">Fiche</button>`
-                      : (slT.source_url && slT.source_url !== '#'
-                          ? `<a class="btn-source-link" href="${escHtml(slT.source_url)}" target="_blank" rel="noopener" style="flex-shrink:0">Fiche ↗</a>`
-                          : ''))
-                  : '';
+                const slLink = '';
                 return `<div class="expand-sl-item" data-nom="${escHtml(c.nom)}" data-agence="${escHtml(c.agence)}">
                   <span class="drag-handle" title="Réordonner">⠿</span>
                   <button class="btn-csl-confirm${isFinal ? ' is-final' : ''}" data-action="sl-confirm" data-char="${escHtml(p.name)}" data-nom="${escHtml(c.nom)}">${isFinal ? '★ Confirmé' : 'Confirmer'}</button>
@@ -1173,10 +1189,7 @@ function renderCastingList() {
 
   el.innerHTML = list.map(t => {
     const ageStr    = t.age_min + '–' + t.age_max + ' ans';
-    const srcBtn = t.agence === 'Casting Sauvage' && t.fiche_cs
-      ? `<button class="btn-source-link cs-popup-trigger" data-nom="${escHtml(t.nom)}" data-agence="${escHtml(t.agence)}">Fiche</button>`
-      : (t.source_url && t.source_url !== '#' && _profileUrlSet.has(t.source_url)
-          ? `<a class="btn-source-link" href="${escHtml(t.source_url)}" target="_blank" rel="noopener">Fiche ↗</a>` : '');
+    const srcBtn = '';
     const initials  = talentInitials(t.nom);
     const avatarHtml = t.photo_url
       ? `<img class="talent-avatar-img" src="${escHtml(t.photo_url)}" alt="${escHtml(t.nom)}" loading="lazy" onerror="this.outerHTML='<div class=\\'talent-avatar\\'>${initials}</div>'">`
@@ -1476,11 +1489,7 @@ function showTalentPreview(nom, agence, e) {
   if (talent.carrure)         tags.push(talent.carrure);
   if (talent.couleur_peau)    tags.push(talent.couleur_peau);
   document.getElementById('tp-tags').innerHTML = tags.map(t => `<span class="talent-tag">${escHtml(t)}</span>`).join('');
-  const tpLink = talent.agence === 'Casting Sauvage' && talent.fiche_cs
-    ? `<button class="btn-source-link cs-popup-trigger" data-nom="${escHtml(talent.nom)}" data-agence="${escHtml(talent.agence)}">Fiche</button>`
-    : (talent.source_url && talent.source_url !== '#' && _profileUrlSet.has(talent.source_url)
-        ? `<a class="btn-source-link" href="${escHtml(talent.source_url)}" target="_blank" rel="noopener">Fiche agence ↗</a>` : '');
-  document.getElementById('tp-links').innerHTML = tpLink;
+  document.getElementById('tp-links').innerHTML = '';
   _tpRenderChars();
   const pop  = document.getElementById('talent-preview-pop');
   pop.style.display = 'block';
@@ -1866,13 +1875,7 @@ function _agPhotoHtml(t, mode) {
     : `<div class="ag-list-placeholder">${initials}</div>`;
 }
 
-function _agCsLink(t) {
-  if (t.agence === 'Casting Sauvage' && t.fiche_cs)
-    return `<button class="cs-popup-trigger" data-nom="${escHtml(t.nom)}" data-agence="${escHtml(t.agence)}">Fiche</button>`;
-  if (t.source_url && t.source_url !== '#')
-    return `<a class="ag-link" href="${escHtml(t.source_url)}" target="_blank" rel="noopener">Fiche ↗</a>`;
-  return '';
-}
+function _agCsLink(_t) { return ''; } // Fiche accessible via ⚙ uniquement
 
 function _agTags(t) {
   const ageStr = (t.age_min || t.age_max) ? `${t.age_min||0}–${t.age_max||'?'}` : '';
@@ -2045,26 +2048,74 @@ function _assignTalentToChar(nom, agence, charName) {
 function openAgTalentPopover(talent, anchorRect) {
   _agPopTalent = talent;
   const pop = document.getElementById('ag-popover');
-  document.getElementById('ag-pop-name').textContent   = talent.nom;
-  document.getElementById('ag-pop-agency').textContent = talent.agence;
+
+  // ── Header : photo + nom/agence/tags ──
+  const initials = talentInitials(talent.nom);
+  const photoHtml = talent.photo_url
+    ? `<img class="ag-pop-photo" src="${escHtml(talent.photo_url)}" alt="${escHtml(talent.nom)}" onerror="this.outerHTML='<div class=\\'ag-pop-initials-sm\\'>${initials}</div>'">`
+    : `<div class="ag-pop-initials-sm">${initials}</div>`;
+  const tags = [];
+  if (talent.genre)          tags.push(talent.genre === 'femme' ? 'F' : 'H');
+  if (talent.age_min || talent.age_max) tags.push(`${talent.age_min||'?'}–${talent.age_max||'?'} ans`);
+  if (talent.couleur_cheveux) tags.push(talent.couleur_cheveux);
+  if (talent.carrure)         tags.push(talent.carrure);
+  const tagsHtml = tags.map(t => `<span class="ag-tag">${escHtml(t)}</span>`).join('');
+  document.getElementById('ag-pop-photo-row').innerHTML = `
+    ${photoHtml}
+    <div class="ag-pop-info">
+      <div class="ag-pop-header">${escHtml(talent.nom)}</div>
+      <div class="ag-pop-agency">${escHtml(talent.agence)}</div>
+      <div class="ag-pop-tags-row">${tagsHtml}</div>
+    </div>`;
+
+  // ── Shortlists ──
   const chars = derived.slice().sort((a, b) => a.name.localeCompare(b.name, 'fr'));
-  if (!chars.length) {
-    document.getElementById('ag-pop-list').innerHTML = '<div class="ag-pop-empty">Aucun personnage dans ce projet.</div>';
+  document.getElementById('ag-pop-list').innerHTML = chars.length
+    ? chars.map(p => {
+        const inList  = getShortlist(p.name).some(c => c.nom === talent.nom);
+        const isActor = (persData[p.name] || {}).acteur === talent.nom;
+        return `<div class="ag-pop-char-row">
+          <span class="ag-pop-char-name">${escHtml(p.name)}</span>
+          <button class="ag-pop-action-btn${inList ? ' active' : ''}" data-char="${escHtml(p.name)}" data-action="shortlist">${inList ? '✓ Liste' : '+ Liste'}</button>
+          <button class="ag-pop-action-btn${isActor ? ' active' : ''}" data-char="${escHtml(p.name)}" data-action="assign">${isActor ? '★ Rôle' : '☆ Rôle'}</button>
+        </div>`;
+      }).join('')
+    : '<div class="ag-pop-empty">Aucun personnage dans ce projet.</div>';
+
+  // ── Section Casting Sauvage ──
+  const csSection  = document.getElementById('ag-pop-cs-section');
+  const csFullBtn  = document.getElementById('ag-pop-cs-full-btn');
+  const ficheLink  = document.getElementById('ag-pop-fiche-link');
+  if (talent.agence === 'Casting Sauvage' && talent.fiche_cs) {
+    const f    = talent.fiche_cs;
+    const rows = [];
+    if (f.ville) rows.push(`<div class="ag-pop-cs-row">📍 ${escHtml(f.ville)}</div>`);
+    if (f.tel)   rows.push(`<div class="ag-pop-cs-row">📱 ${escHtml(f.tel)}</div>`);
+    const chips = [];
+    if (f.hockey && /^oui/i.test(f.hockey)) chips.push('🏒 Hockey');
+    if (f.danse  && /^oui/i.test(f.danse))  chips.push('💃 Danse');
+    if (f.a_tourne && /^oui/i.test(f.a_tourne)) chips.push('🎬 A déjà tourné');
+    if (f.uda    && /^oui/i.test(f.uda))    chips.push('UDA');
+    if (chips.length) rows.push(`<div class="ag-pop-cs-indicators">${chips.map(c => `<span class="ag-pop-cs-chip">${c}</span>`).join('')}</div>`);
+    document.getElementById('ag-pop-cs-info').innerHTML = rows.join('');
+    csSection.style.display = '';
+    csFullBtn.style.display = '';
+    ficheLink.style.display = 'none';
   } else {
-    document.getElementById('ag-pop-list').innerHTML = chars.map(p => {
-      const sl      = getShortlist(p.name);
-      const inList  = sl.some(c => c.nom === talent.nom);
-      const isActor = (persData[p.name] || {}).acteur === talent.nom;
-      return `<div class="ag-pop-char-row">
-        <span class="ag-pop-char-name">${escHtml(p.name)}</span>
-        <button class="ag-pop-action-btn${inList ? ' active' : ''}" data-char="${escHtml(p.name)}" data-action="shortlist" title="Ajouter à la shortlist">${inList ? '✓ Liste' : '+ Liste'}</button>
-        <button class="ag-pop-action-btn${isActor ? ' active' : ''}" data-char="${escHtml(p.name)}" data-action="assign" title="Confirmer pour ce rôle">${isActor ? '★ Rôle' : '☆ Rôle'}</button>
-      </div>`;
-    }).join('');
+    csSection.style.display = 'none';
+    csFullBtn.style.display = 'none';
+    if (talent.source_url && talent.source_url !== '#') {
+      ficheLink.href = talent.source_url;
+      ficheLink.style.display = '';
+    } else {
+      ficheLink.style.display = 'none';
+    }
   }
+
+  // ── Positionnement ──
   pop.style.display = 'block';
   const vw = window.innerWidth, vh = window.innerHeight;
-  const pw = pop.offsetWidth || 220, ph = pop.offsetHeight;
+  const pw = pop.offsetWidth || 250, ph = pop.offsetHeight;
   let top  = anchorRect.bottom + 6;
   let left = anchorRect.left;
   if (left + pw > vw - 8) left = vw - pw - 8;
@@ -2157,6 +2208,13 @@ document.getElementById('ag-pop-edit-btn').addEventListener('click', () => {
   const t = _agPopTalent;
   closeAgTalentPopover();
   openTalentEditModal(t);
+});
+
+document.getElementById('ag-pop-cs-full-btn').addEventListener('click', () => {
+  if (!_agPopTalent) return;
+  const { nom, agence } = _agPopTalent;
+  closeAgTalentPopover();
+  showCsPopup(nom, agence);
 });
 
 // ─── MODAL MODIFICATION FICHE ────────────────────────────────────────────────
