@@ -3289,8 +3289,13 @@ function sortPhotoUrls(urls) {
   });
 }
 
-function cdnUrl(url) {
-  return url || '';
+function cdnUrl(url, full) {
+  if (!url) return '';
+  if (full) return url;
+  // Inject Cloudinary thumb transformations after /upload/
+  const m = url.match(/^(https:\/\/res\.cloudinary\.com\/[^/]+\/image\/upload\/)(v\d+\/.+)$/);
+  if (!m) return url;
+  return m[1] + 'w_600,q_auto,f_auto/' + m[2];
 }
 
 function openLightbox(url, caption) {
@@ -3337,7 +3342,7 @@ function lbDelete() {
 
 function _lbShow() {
   const lb = document.getElementById('photo-lightbox');
-  document.getElementById('photo-lightbox-img').src = cdnUrl(_lbUrls[_lbIdx]);
+  document.getElementById('photo-lightbox-img').src = cdnUrl(_lbUrls[_lbIdx], true);
   document.getElementById('lb-caption').textContent = _lbCaption;
   document.getElementById('lb-counter').textContent = _lbUrls.length > 1 ? `${_lbIdx+1} / ${_lbUrls.length}` : '';
   document.getElementById('lb-prev').hidden = _lbUrls.length <= 1;
