@@ -547,6 +547,7 @@ details.casting-import[open] summary::before { transform: rotate(90deg); }
       <button class="ag-batch-btn primary" onclick="applyBatchEdit()">Appliquer</button>
       <button class="ag-batch-btn" onclick="selectAllVisible()">Tout sélectionner</button>
       <button class="ag-batch-btn" onclick="clearAgSelection()">Tout désélectionner</button>
+      <button class="ag-batch-btn" style="color:var(--danger,#e0524f);border-color:var(--danger,#e0524f)" onclick="deleteBatchTalents()">Supprimer la sélection</button>
     </div>
   </div>
   <div id="agences-grid"></div>
@@ -2239,6 +2240,22 @@ function openTalentEditModal(talent) {
 function closeTalentEdit() {
   document.getElementById('talent-edit-overlay').style.display = 'none';
   _editingNom = null; _editingAgence = null;
+}
+
+async function deleteBatchTalents() {
+  const n = _agSelected.size;
+  if (!n) { showToast('Aucune fiche sélectionnée'); return; }
+  if (!confirm(`Supprimer ${n} fiche${n > 1 ? 's' : ''} ?\nCette action est irréversible.`)) return;
+  const keys = new Set(_agSelected);
+  talentsData = talentsData.filter(t => !keys.has(t.nom + '\x00' + t.agence));
+  await saveCastingDataToSupabase(talentsData);
+  buildProfileUrlSet();
+  populateAgPeauFilter();
+  _agSelected.clear();
+  updateBatchBar();
+  renderAgencesGrid();
+  renderCastingList();
+  showToast(n + ' fiche' + (n > 1 ? 's' : '') + ' supprimée' + (n > 1 ? 's' : ''));
 }
 
 async function deleteTalentEdit() {
