@@ -2242,13 +2242,27 @@ function closeTalentEdit() {
   _editingNom = null; _editingAgence = null;
 }
 
+function _cloudinaryPublicId(url) {
+  if (!url || !url.includes('res.cloudinary.com')) return null;
+  const m = url.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\.[^.]+)?$/);
+  return m ? m[1] : null;
+}
+
+async function _deleteTalentPhoto(photoUrl) {
+  const publicId = _cloudinaryPublicId(photoUrl);
+  if (!publicId) return;
+  try { await sb.functions.invoke('delete-cloudinary-photo', { body: { publicId } }); } catch(e) {}
+}
+
 async function deleteBatchTalents() {
   const n = _agSelected.size;
   if (!n) { showToast('Aucune fiche sélectionnée'); return; }
   if (!confirm(`Supprimer ${n} fiche${n > 1 ? 's' : ''} ?\nCette action est irréversible.`)) return;
   const keys = new Set(_agSelected);
+  const toDelete = talentsData.filter(t => keys.has(t.nom + '\x00' + t.agence));
   talentsData = talentsData.filter(t => !keys.has(t.nom + '\x00' + t.agence));
   await saveCastingDataToSupabase(talentsData);
+  toDelete.forEach(t => { if (t.photo_url) _deleteTalentPhoto(t.photo_url); });
   buildProfileUrlSet();
   populateAgPeauFilter();
   _agSelected.clear();
@@ -2263,6 +2277,8 @@ async function deleteTalentEdit() {
   const agence = _editingAgence;
   if (!nom) return;
   if (!confirm(`Supprimer la fiche de ${nom} ?\nCette action est irréversible.`)) return;
+  const t = talentsData.find(x => x.nom === nom && x.agence === agence);
+  if (t?.photo_url) _deleteTalentPhoto(t.photo_url);
   talentsData = talentsData.filter(t => !(t.nom === nom && t.agence === agence));
   await saveCastingDataToSupabase(talentsData);
   buildProfileUrlSet();
