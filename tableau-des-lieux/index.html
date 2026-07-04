@@ -1151,7 +1151,8 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
     </div>
     <div class="bk-modal-row">
       <div class="bk-modal-label">Catégorie</div>
-      <select class="bk-modal-input" id="bk-modal-cat"></select>
+      <input class="bk-modal-input" id="bk-modal-cat" list="bk-modal-cat-list" autocomplete="off" placeholder="ex. Écoles, Arénas, Appartements…">
+      <datalist id="bk-modal-cat-list"></datalist>
     </div>
     <div class="bk-modal-row">
       <div class="bk-modal-label">Adresse</div>
@@ -1967,7 +1968,7 @@ function _populateCatSelects() {
   const optAll  = '<option value="">Toutes catégories</option>' + cats.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
   const optNone = '<option value="">— Non classé —</option>'   + cats.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
   ['banque-cat','bk-picker-cat'].forEach(id => { const el=document.getElementById(id); if(el) el.innerHTML=optAll; });
-  const mc = document.getElementById('bk-modal-cat'); if(mc) mc.innerHTML=optNone;
+  const dl = document.getElementById('bk-modal-cat-list'); if(dl) dl.innerHTML=cats.map(c=>`<option value="${esc(c)}">`).join('');
 }
 
 function filterBanque() {
