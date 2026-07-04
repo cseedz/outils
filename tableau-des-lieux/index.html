@@ -802,16 +802,18 @@ tbody tr.scene-inserted:hover { background: rgba(245,158,11,.08); }
 .bk-photos-hd-close:hover { color:var(--text); }
 .bk-photos-grid { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:16px; min-height:40px; }
 .bk-photo-cell { position:relative; width:165px; height:124px; border-radius:8px; overflow:hidden; flex-shrink:0; cursor:pointer; background:var(--bg3); }
-.bk-photo-cell img { width:100%; height:100%; object-fit:cover; display:block; transition:opacity .1s; }
+.bk-photo-cell img { width:100%; height:100%; object-fit:cover; display:block; transition:opacity .1s; pointer-events:none; }
 .bk-photo-cell:hover img { opacity:.85; }
-.bk-photo-cell-del { position:absolute; top:5px; right:5px; width:22px; height:22px; border-radius:50%; background:rgba(0,0,0,.72); color:#fff; border:none; font-size:11px; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; line-height:1; opacity:0; transition:opacity .12s; }
+.bk-photo-cell-del { position:absolute; top:5px; right:5px; width:22px; height:22px; border-radius:50%; background:rgba(0,0,0,.72); color:#fff; border:none; font-size:11px; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; line-height:1; opacity:0; transition:opacity .12s; z-index:3; }
 .bk-photo-cell:hover .bk-photo-cell-del { opacity:1; }
+.bk-photo-cell-zoom { position:absolute; bottom:5px; right:5px; width:22px; height:22px; border-radius:4px; background:rgba(0,0,0,.55); border:1px solid rgba(255,255,255,.45); color:#fff; font-size:12px; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; line-height:1; opacity:0; transition:opacity .12s; z-index:3; }
+.bk-photo-cell:hover .bk-photo-cell-zoom { opacity:1; }
 .bk-photos-footer { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
 .bk-photos-add-label { display:inline-flex; align-items:center; gap:6px; padding:8px 14px; border:1.5px dashed var(--border2); border-radius:8px; color:var(--text-muted); font-size:12px; font-weight:600; cursor:pointer; transition:all .12s; }
 .bk-photos-add-label:hover { border-color:var(--accent,#4f86f7); color:var(--accent,#4f86f7); }
 .bk-photos-upload-status { font-size:11px; color:var(--text-muted); }
 .bk-photos-empty { color:var(--text-muted); font-size:12px; padding:6px 0; }
-.bk-photo-cell-check { position:absolute; top:5px; left:5px; width:20px; height:20px; border-radius:4px; background:rgba(0,0,0,.48); border:1.5px solid rgba(255,255,255,.65); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:12px; color:#fff; font-weight:700; opacity:0; transition:opacity .12s; z-index:2; }
+.bk-photo-cell-check { position:absolute; top:5px; left:5px; width:20px; height:20px; border-radius:4px; background:rgba(0,0,0,.48); border:1.5px solid rgba(255,255,255,.65); display:flex; align-items:center; justify-content:center; font-size:12px; color:#fff; font-weight:700; opacity:.35; transition:opacity .12s; z-index:2; pointer-events:none; }
 .bk-photo-cell:hover .bk-photo-cell-check { opacity:1; }
 .bk-photo-cell.bk-sel .bk-photo-cell-check { opacity:1; background:var(--accent,#4f86f7); border-color:var(--accent,#4f86f7); }
 .bk-photo-cell.bk-sel { outline:2.5px solid var(--accent,#4f86f7); outline-offset:-1px; }
@@ -2057,9 +2059,10 @@ function _renderBkPhotosPanel() {
   }
   const pid = esc(_bkPhotosPanelId);
   grid.innerHTML = photos.map((url, i) => `
-    <div class="bk-photo-cell${_bkPhotosSelected.has(i)?' bk-sel':''}" onclick="openBkGallery('${pid}',${i})">
+    <div class="bk-photo-cell${_bkPhotosSelected.has(i)?' bk-sel':''}" onclick="toggleBkPhotoSelect(${i})">
       <img src="${esc(cdnUrl(url))}" onerror="_iRet(this)">
-      <div class="bk-photo-cell-check" onclick="event.stopPropagation();toggleBkPhotoSelect(${i})">${_bkPhotosSelected.has(i)?'✓':''}</div>
+      <div class="bk-photo-cell-check">${_bkPhotosSelected.has(i)?'✓':''}</div>
+      <button class="bk-photo-cell-zoom" onclick="event.stopPropagation();openBkGallery('${pid}',${i})" title="Agrandir">⤢</button>
       <button class="bk-photo-cell-del" onclick="event.stopPropagation();deleteBkPanelPhoto(${i})" title="Supprimer">✕</button>
     </div>`).join('');
   _updateBkPhotosSel(photos.length);
