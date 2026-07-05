@@ -1668,10 +1668,10 @@ const _projectId   = _urlP.get('p') || 'unnamed';
 const _projectName = decodeURIComponent(_urlP.get('n') || _projectId);
 const KEY        = _projectId + '_tdl';
 const SCENES_KEY = _projectId + '_scenes';
-const CLOUDINARY_CLOUD = 'dwr0aqtqr';
-const CLOUDINARY_PRESET = 'photos_locations';
 const SUPABASE_URL = 'https://dvivafrldxzhkactsvve.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2aXZhZnJsZHh6aGthY3RzdnZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyMzQ5MDgsImV4cCI6MjA5NDgxMDkwOH0.EgyxWDERi443hefaM0LxDYDhLWQYx31feKzQ1bQU5Kc';
+const STORAGE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2aXZhZnJsZHh6aGthY3RzdnZlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3OTIzNDkwOCwiZXhwIjoyMDk0ODEwOTA4fQ.ZBboJewOeyBTfj4QG9i3frwUFZuoMLQMN1v9jO4x1i0';
+const STORAGE_BUCKET = 'photos';
 let sb = null;
 let IS_SERIES = SCENES_RAW.some(r => r.ep);
 let imported_scenes_raw = null;  // set on FDX import; overrides SCENES_RAW as base
@@ -2437,7 +2437,7 @@ function savePlanAnnote() {
 
 function deleteBanqueLocation(id) {
   const loc = bankLocations.find(l=>l.id===id);
-  if (!confirm(`Supprimer "${loc?.nom||'cette location'}" de la banque ?\n\nSes photos seront supprimées définitivement de Cloudinary.`)) return;
+  if (!confirm(`Supprimer "${loc?.nom||'cette location'}" de la banque ?\n\nSes photos seront supprimées définitivement du stockage.`)) return;
   loc?.photos?.forEach(url => _deleteFromCloudinary(url));
   bankLocations = bankLocations.filter(l=>l.id!==id);
   // Nettoyer shortlists (legacy) et lieuFictifPhotos
@@ -3282,15 +3282,20 @@ function renderVueLieux() {
   }).join('');
 }
 
-// ─── CLOUDINARY PHOTOS ──────────────────────────────────────────────────────
-async function uploadToCloudinary(file) {
-  const fd = new FormData();
-  fd.append('file', file);
-  fd.append('upload_preset', CLOUDINARY_PRESET);
-  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`, { method: 'POST', body: fd });
-  if (!res.ok) throw new Error('Upload failed');
-  return (await res.json()).secure_url;
+// ─── SUPABASE STORAGE PHOTOS ─────────────────────────────────────────────────
+async function uploadToStorage(file) {
+  const ext = (file.name || 'photo.jpg').split('.').pop().toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+  const path = `photos_locations/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+  const res = await fetch(`${SUPABASE_URL}/storage/v1/object/${STORAGE_BUCKET}/${path}`, {
+    method: 'POST',
+    headers: { 'apikey': STORAGE_KEY, 'Authorization': `Bearer ${STORAGE_KEY}`,
+                'Content-Type': file.type || 'image/jpeg', 'x-upsert': 'true' },
+    body: file
+  });
+  if (!res.ok) throw new Error('Upload échoué : ' + res.status);
+  return `${SUPABASE_URL}/storage/v1/object/public/${STORAGE_BUCKET}/${path}`;
 }
+const uploadToCloudinary = uploadToStorage; // compat
 
 async function syncPhotosFromBank(lieuId) {
   const l = lieusTournage.find(x => x.id === lieuId);
@@ -3399,18 +3404,30 @@ function deletePhotoOption(lieuId, type, opt) {
   save(); renderLieuList(); renderVueLieux();
 }
 
-function _cloudinaryPublicId(url) {
-  const afterUpload = String(url || '').split('/upload/')[1];
-  if (!afterUpload) return null;
-  return afterUpload.replace(/^v\d+\//, '').replace(/\.[a-zA-Z0-9]+$/, '');
+function _storagePathFromUrl(url) {
+  if (!url) return null;
+  const m = String(url).match(/\/storage\/v1\/object\/public\/[^/]+\/(.+)$/);
+  return m ? m[1] : null;
 }
 
-function _deleteFromCloudinary(url) {
-  const publicId = _cloudinaryPublicId(url);
-  if (!publicId || !sb) return;
-  sb.functions.invoke('delete-cloudinary-photo', { body: { publicId } })
-    .catch(e => console.warn('Suppression Cloudinary échouée:', e));
+function _deleteFromStorage(url) {
+  if (!url) return;
+  if (url.includes('res.cloudinary.com')) {
+    // Ancienne URL Cloudinary — suppression via Edge Function
+    const afterUpload = String(url).split('/upload/')[1];
+    if (!afterUpload || !sb) return;
+    const publicId = afterUpload.replace(/^v\d+\//, '').replace(/\.[a-zA-Z0-9]+$/, '');
+    sb.functions.invoke('delete-cloudinary-photo', { body: { publicId } }).catch(() => {});
+    return;
+  }
+  const path = _storagePathFromUrl(url);
+  if (!path) return;
+  fetch(`${SUPABASE_URL}/storage/v1/object/${STORAGE_BUCKET}/${path}`, {
+    method: 'DELETE',
+    headers: { 'apikey': STORAGE_KEY, 'Authorization': `Bearer ${STORAGE_KEY}` }
+  }).catch(e => console.warn('Suppression Storage échouée:', e));
 }
+const _deleteFromCloudinary = _deleteFromStorage; // compat
 
 function deleteLieuPhoto(id, type, url) {
   const dict = type === 'inspi' ? lieuTournageInspi : type === 'floorplans' ? lieuTournageFloorplans : lieuTournagePhotos;
@@ -3511,6 +3528,11 @@ function sortPhotoUrls(urls) {
 function cdnUrl(url, full) {
   if (!url) return '';
   if (full) return url;
+  // Supabase Storage — thumbnail via render endpoint
+  if (url.includes('/storage/v1/object/public/')) {
+    return url.replace('/storage/v1/object/public/', '/storage/v1/render/image/public/') + '?width=300&quality=80';
+  }
+  // Legacy Cloudinary
   const m = url.match(/^(https:\/\/res\.cloudinary\.com\/[^/]+\/image\/upload\/)(v\d+\/.+)$/);
   if (!m) return url;
   return m[1] + 'w_300,q_auto,f_auto/' + m[2];

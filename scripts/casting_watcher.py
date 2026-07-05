@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 casting_watcher.py
-Watcher Casting Sauvage — Google Sheets → Cloudinary → Supabase
+Watcher Casting Sauvage — Google Sheets → Supabase Storage → Supabase
 
 Modes :
   python3 casting_watcher.py check <mcp_xlsx_file>
@@ -41,8 +41,8 @@ SUPABASE_URL = 'https://dvivafrldxzhkactsvve.supabase.co'
 SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2aXZhZnJsZHh6aGthY3RzdnZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyMzQ5MDgsImV4cCI6MjA5NDgxMDkwOH0.EgyxWDERi443hefaM0LxDYDhLWQYx31feKzQ1bQU5Kc'
 CASTING_KEY  = 'casting_talents'
 PERSO_KEY    = 'premier-trio_personnages'
-CLOUDINARY_CLOUD  = 'dwr0aqtqr'
-CLOUDINARY_PRESET = 'photos_locations'
+STORAGE_KEY    = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2aXZhZnJsZHh6aGthY3RzdnZlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3OTIzNDkwOCwiZXhwIjoyMDk0ODEwOTA4fQ.ZBboJewOeyBTfj4QG9i3frwUFZuoMLQMN1v9jO4x1i0'
+STORAGE_BUCKET = 'photos'
 SHEETS_FILE_ID    = '1mBjSLSUSBruYxcpPdTtapdjAME9vFl6besn950xEWCA'
 
 # Mapping mot-clé (minuscules) → clé personnage dans premier-trio_personnages
@@ -287,7 +287,7 @@ def cmd_check(mcp_xlsx_file: str):
 
 
 def cmd_process_photo(mcp_photo_file: str, nom: str) -> str:
-    """Extrait, convertit si HEIC, uploade sur Cloudinary. Retourne URL."""
+    """Extrait, convertit si HEIC, uploade sur Supabase Storage. Retourne URL."""
     img = extract_img_from_mcp(mcp_photo_file)
     magic = img[:12]
 
@@ -320,15 +320,19 @@ def cmd_process_photo(mcp_photo_file: str, nom: str) -> str:
     else:
         ext, mime = 'jpg', 'image/jpeg'
 
-    safe = re.sub(r'[^a-z0-9]+', '_', nom.lower())
+    import time, random, string
+    safe = re.sub(r'[^a-z0-9]+', '_', nom.lower()).strip('_')
+    rand = ''.join(random.choices(string.ascii_lowercase + string.digits, k=6))
+    path = f'casting/{safe}_{rand}.{ext}'
     r = requests.post(
-        f'https://api.cloudinary.com/v1_1/{CLOUDINARY_CLOUD}/image/upload',
-        data={'upload_preset': CLOUDINARY_PRESET},
-        files={'file': (f'casting_{safe}.{ext}', img, mime)},
+        f'{SUPABASE_URL}/storage/v1/object/{STORAGE_BUCKET}/{path}',
+        headers={'apikey': STORAGE_KEY, 'Authorization': f'Bearer {STORAGE_KEY}',
+                 'Content-Type': mime, 'x-upsert': 'true'},
+        data=img,
         timeout=90,
     )
     r.raise_for_status()
-    return r.json()['secure_url']
+    return f'{SUPABASE_URL}/storage/v1/object/public/{STORAGE_BUCKET}/{path}'
 
 
 def roles_to_characters(role_str: str) -> list:

@@ -764,6 +764,8 @@ const KEY          = _projectId + '_personnages';
 const SCENES_KEY   = _projectId + '_scenes';
 const SUPABASE_URL = 'https://dvivafrldxzhkactsvve.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2aXZhZnJsZHh6aGthY3RzdnZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyMzQ5MDgsImV4cCI6MjA5NDgxMDkwOH0.EgyxWDERi443hefaM0LxDYDhLWQYx31feKzQ1bQU5Kc';
+const STORAGE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2aXZhZnJsZHh6aGthY3RzdnZlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3OTIzNDkwOCwiZXhwIjoyMDk0ODEwOTA4fQ.ZBboJewOeyBTfj4QG9i3frwUFZuoMLQMN1v9jO4x1i0';
+const STORAGE_BUCKET = 'photos';
 
 let sb = null;
 try { sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e) {}
@@ -2242,16 +2244,21 @@ function closeTalentEdit() {
   _editingNom = null; _editingAgence = null;
 }
 
-function _cloudinaryPublicId(url) {
-  if (!url || !url.includes('res.cloudinary.com')) return null;
-  const m = url.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\.[^.]+)?$/);
-  return m ? m[1] : null;
-}
-
 async function _deleteTalentPhoto(photoUrl) {
-  const publicId = _cloudinaryPublicId(photoUrl);
-  if (!publicId) return;
-  try { await sb.functions.invoke('delete-cloudinary-photo', { body: { publicId } }); } catch(e) {}
+  if (!photoUrl) return;
+  if (photoUrl.includes('res.cloudinary.com')) {
+    const m = photoUrl.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\.[^.]+)?$/);
+    if (m) try { await sb.functions.invoke('delete-cloudinary-photo', { body: { publicId: m[1] } }); } catch(e) {}
+    return;
+  }
+  const m = photoUrl.match(/\/storage\/v1\/object\/public\/[^/]+\/(.+)$/);
+  if (!m) return;
+  try {
+    await fetch(`${SUPABASE_URL}/storage/v1/object/${STORAGE_BUCKET}/${m[1]}`, {
+      method: 'DELETE',
+      headers: { 'apikey': STORAGE_KEY, 'Authorization': `Bearer ${STORAGE_KEY}` }
+    });
+  } catch(e) {}
 }
 
 async function deleteBatchTalents() {
