@@ -3541,6 +3541,10 @@ function _iRet(i) {
   i._e = (i._e || 0) + 1;
   if (i._e === 1) {
     var u = i.src, p = u.replace(/\/w_\d+,q_auto,f_auto\//, '/');
+    if (p === u && u.includes('/storage/v1/render/image/public/')) {
+      // Supabase Storage — la transformation a échoué (edge froid) : retomber sur l'objet original non transformé
+      p = u.replace('/storage/v1/render/image/public/', '/storage/v1/object/public/').split('?')[0];
+    }
     if (p !== u) { i.dataset.fb = p; i.src = p; return; }
     i.dataset.fb = u;
   }
