@@ -770,7 +770,6 @@ const KEY          = _projectId + '_personnages';
 const SCENES_KEY   = _projectId + '_scenes';
 const SUPABASE_URL = 'https://dvivafrldxzhkactsvve.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2aXZhZnJsZHh6aGthY3RzdnZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyMzQ5MDgsImV4cCI6MjA5NDgxMDkwOH0.EgyxWDERi443hefaM0LxDYDhLWQYx31feKzQ1bQU5Kc';
-const STORAGE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2aXZhZnJsZHh6aGthY3RzdnZlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3OTIzNDkwOCwiZXhwIjoyMDk0ODEwOTA4fQ.ZBboJewOeyBTfj4QG9i3frwUFZuoMLQMN1v9jO4x1i0';
 const STORAGE_BUCKET = 'photos';
 
 let sb = null;
@@ -2352,7 +2351,7 @@ async function _deleteTalentPhoto(photoUrl) {
   try {
     await fetch(`${SUPABASE_URL}/storage/v1/object/${STORAGE_BUCKET}/${m[1]}`, {
       method: 'DELETE',
-      headers: { 'apikey': STORAGE_KEY, 'Authorization': `Bearer ${STORAGE_KEY}` }
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
     });
   } catch(e) {}
 }
