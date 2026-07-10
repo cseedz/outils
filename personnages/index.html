@@ -70,6 +70,9 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans
 .char-table td.td-chev { width: 28px;  text-align: center; }
 .char-name-wrap { min-width: 0; }
 .char-script-name { font-size: 13px; font-weight: 600; }
+input.char-name-edit { background: transparent; border: none; border-bottom: 1px dashed transparent; padding: 0; color: inherit; width: 100%; cursor: text; outline: none; font-family: inherit; }
+input.char-name-edit:hover { border-bottom-color: currentColor; }
+input.char-name-edit:focus { border-bottom-color: currentColor; background: rgba(128,128,128,.06); }
 .char-real-name { font-size: 12px; color: var(--text-muted); }
 .badge { display: inline-block; padding: 2px 7px; border-radius: 3px; font-size: 10px; font-weight: 600; letter-spacing: 0.4px; white-space: nowrap; }
 .badge-sc { background: rgba(45,106,138,.1); color: #1a5a7a; border: 1px solid rgba(45,106,138,.3); }
@@ -92,6 +95,9 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans
 .scene-chip { display: inline-block; padding: 2px 7px; border-radius: 3px; font-size: 10px; font-weight: 600; letter-spacing: 0.4px; background: var(--bg3); color: var(--text-muted); border: 1px solid var(--border); }
 .scene-chip.has-lines { background: rgba(45,106,138,.1); color: #1a5a7a; border: 1px solid rgba(45,106,138,.3); }
 .scenes-lbl { font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 5px; }
+.char-delete-row { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
+.btn-delete-char { background: none; border: none; color: var(--text-muted); font-size: 11px; cursor: pointer; padding: 2px 0; }
+.btn-delete-char:hover { color: #cc3333; text-decoration: underline; }
 .empty { text-align: center; padding: 60px 24px; color: var(--text-muted); }
 .empty p { font-size: 13px; line-height: 1.6; }
 .empty a { color: var(--accent); }
@@ -772,11 +778,13 @@ try { sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e) {}
 
 // ─── STATE ───────────────────────────────────────────────────────────────────
 let scenes   = [];
+let scenesFullData = {};
 let persData = {};
 let derived  = [];
 let sortKey  = 'scenes';
 let query    = '';
 let _saveDebounce = null;
+let _saveScenesDebounce = null;
 
 // ─── SYNC ────────────────────────────────────────────────────────────────────
 function setSyncStatus(s) {
@@ -802,7 +810,8 @@ async function loadData() {
       sb.from('project_data').select('data').eq('key', SCENES_KEY).maybeSingle(),
       sb.from('project_data').select('data').eq('key', KEY).maybeSingle()
     ]);
-    scenes   = scenesRow?.data?.imported_scenes_raw || [];
+    scenesFullData = scenesRow?.data || {};
+    scenes   = scenesFullData.imported_scenes_raw || [];
     persData = persRow?.data || {};
     setSyncStatus('synced');
   } catch(e) { setSyncStatus('error'); console.warn('load error:', e); }
@@ -815,6 +824,22 @@ function saveData() {
   _saveDebounce = setTimeout(async () => {
     try {
       const { error } = await sb.from('project_data').upsert({ key: KEY, data: persData, updated_at: new Date().toISOString() });
+      if (error) throw error;
+      setSyncStatus('synced');
+    } catch(e) { setSyncStatus('error'); }
+  }, 700);
+}
+
+// Persiste les scènes (charPresent/charLines mutés par un renommage ou une
+// suppression de personnage) — écrit sur la même clé que /scenes/ et /projet/.
+function saveScenesData() {
+  if (!sb) return;
+  setSyncStatus('syncing');
+  clearTimeout(_saveScenesDebounce);
+  _saveScenesDebounce = setTimeout(async () => {
+    try {
+      scenesFullData.imported_scenes_raw = scenes;
+      const { error } = await sb.from('project_data').upsert({ key: SCENES_KEY, data: scenesFullData, updated_at: new Date().toISOString() });
       if (error) throw error;
       setSyncStatus('synced');
     } catch(e) { setSyncStatus('error'); }
@@ -841,6 +866,69 @@ function derivePersonnages() {
     name, sceneCount: d.sceneSet.size, lineCount: d.totalLines,
     sceneList: [...d.sceneSet]
   }));
+}
+
+// ─── RENOMMER / FUSIONNER / SUPPRIMER ─────────────────────────────────────────
+// Contrairement à un lieu (champ simple par scène), un personnage vit dans un
+// tableau (charPresent) et un dict de compteurs (charLines) par scène — renommer
+// doit donc fusionner sans doublon plutôt que juste réassigner une chaîne.
+function renameCharacterEverywhere(oldName, newName) {
+  scenes.forEach(s => {
+    if (Array.isArray(s.charPresent) && s.charPresent.includes(oldName)) {
+      const set = new Set(s.charPresent.filter(n => n !== oldName));
+      set.add(newName);
+      s.charPresent = [...set];
+    }
+    if (s.charLines && s.charLines[oldName] != null) {
+      s.charLines[newName] = (s.charLines[newName] || 0) + s.charLines[oldName];
+      delete s.charLines[oldName];
+    }
+  });
+  if (persData[oldName]) {
+    if (!persData[newName]) {
+      persData[newName] = persData[oldName];
+    } else {
+      const oldSl = persData[oldName].shortlist || [];
+      const newSl = persData[newName].shortlist || [];
+      const seen = new Set(newSl.map(c => c.nom + '|' + c.agence));
+      persData[newName] = {
+        ...persData[oldName], ...persData[newName],
+        shortlist: [...newSl, ...oldSl.filter(c => !seen.has(c.nom + '|' + c.agence))],
+      };
+    }
+    delete persData[oldName];
+  }
+  saveScenesData();
+  saveData();
+  derivePersonnages();
+  renderTable();
+}
+
+function commitCharacterRename(input) {
+  const oldName = input.dataset.orig;
+  const newName = input.value.trim().toUpperCase();
+  if (!newName || newName === oldName) { input.value = oldName; return; }
+  const exists = derived.some(p => p.name === newName);
+  if (exists && !confirm(`"${newName}" existe déjà. Combiner "${oldName}" avec "${newName}" ?`)) {
+    input.value = oldName;
+    return;
+  }
+  renameCharacterEverywhere(oldName, newName);
+  showToast(exists ? `Fusionné dans "${newName}"` : `Personnage renommé : "${newName}"`);
+}
+
+function deleteCharacterEverywhere(name) {
+  if (!confirm(`Supprimer "${name}" ?\nRetire ce nom de toutes les scènes où il apparaît (les scènes elles-mêmes ne sont pas touchées). Irréversible.`)) return;
+  scenes.forEach(s => {
+    if (Array.isArray(s.charPresent)) s.charPresent = s.charPresent.filter(n => n !== name);
+    if (s.charLines && s.charLines[name] != null) delete s.charLines[name];
+  });
+  delete persData[name];
+  saveScenesData();
+  saveData();
+  derivePersonnages();
+  renderTable();
+  showToast(`"${name}" supprimé`);
 }
 
 function sortedFiltered() {
@@ -911,11 +999,15 @@ function renderTable() {
 
     // Stocker le nom du personnage dans data-name pour toggleChar et openCastingPanel
     return `
-      <tr class="char-row" data-name="${escHtml(p.name)}" onclick="if(!event.target.closest('.tp-trigger'))toggleChar(this.dataset.name)">
+      <tr class="char-row" data-name="${escHtml(p.name)}" onclick="if(!event.target.closest('.tp-trigger')&&!event.target.closest('.no-row-toggle'))toggleChar(this.dataset.name)">
         <td class="td-num">${idx + 1}</td>
         <td>
           <div class="char-name-wrap">
-            <div class="char-script-name">${escHtml(p.name)}</div>
+            <input type="text" class="char-script-name char-name-edit no-row-toggle" value="${escHtml(p.name)}" data-orig="${escHtml(p.name)}"
+              title="Cliquer pour renommer — renommer vers un nom existant fusionne les deux"
+              onclick="event.stopPropagation()"
+              onblur="commitCharacterRename(this)"
+              onkeydown="if(event.key==='Enter')this.blur();else if(event.key==='Escape'){this.value=this.dataset.orig;this.blur();}">
             ${realName}
           </div>
         </td>
@@ -971,6 +1063,9 @@ function renderTable() {
             </div>` : ''}
             <div class="scenes-lbl">Présent dans</div>
             <div class="scene-chips">${chips}</div>
+            <div class="char-delete-row">
+              <button class="btn-delete-char" data-action="delete-char" data-char="${escHtml(p.name)}">🗑 Supprimer ce personnage</button>
+            </div>
           </div>
         </td>
       </tr>`;
@@ -1027,6 +1122,7 @@ document.getElementById('char-tbody').addEventListener('click', e => {
   const { action, char: charName, nom } = btn.dataset;
   if (action === 'sl-confirm') confirmCastingDirect(charName, nom);
   if (action === 'sl-remove')  removeFromShortlistDirect(charName, nom);
+  if (action === 'delete-char') deleteCharacterEverywhere(charName);
 });
 
 // ─── SORT / SEARCH ────────────────────────────────────────────────────────────
