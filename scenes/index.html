@@ -801,7 +801,7 @@ document.getElementById('fdx-file-input').onchange = async evt => {
     } catch(e) { alert('Erreur FDX dans « ' + name + ' » : ' + e.message); return; }
   }
   const scMap = new Map();
-  allScenes.forEach(s => scMap.set(s.sc, s));
+  allScenes.forEach((s, i) => scMap.set(_sceneMapKey(s, i), s));
   const newScenes = [...scMap.values()].sort(_scSort);
   if (!newScenes.length) { alert('Aucune scène trouvée.'); return; }
 

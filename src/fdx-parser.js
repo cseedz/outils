@@ -77,6 +77,20 @@ function _fdxParseHeading(text, opts = {}) {
   return { int_ext, lieu, sous_lieu, jn };
 }
 
+// Aplati les <DualDialogue><Paragraph>…</Paragraph>…</DualDialogue> dans la liste
+// de paragraphes au niveau du <Content> — sinon les Character/Dialogue imbriqués
+// dans un échange en dialogue double sont invisibles au scan scène par scène.
+function _flattenParagraphs(content) {
+  const flat = [];
+  for (const child of content.children) {
+    if (child.tagName === 'Paragraph') flat.push(child);
+    else if (child.tagName === 'DualDialogue') {
+      Array.from(child.children).forEach(p => { if (p.tagName === 'Paragraph') flat.push(p); });
+    }
+  }
+  return flat;
+}
+
 function parseFDXToScenes(xmlString, opts = {}) {
   const parser = new DOMParser();
   const doc = parser.parseFromString(xmlString, 'application/xml');
@@ -84,7 +98,7 @@ function parseFDXToScenes(xmlString, opts = {}) {
   if (parseErr) throw new Error('XML invalide : ' + (parseErr.textContent || '').slice(0, 120));
   const content = doc.querySelector('Content');
   if (!content) throw new Error('Aucun bloc <Content> dans ce fichier FDX');
-  const paragraphs = Array.from(content.children);
+  const paragraphs = _flattenParagraphs(content);
   const errors = [], scenes = [];
   const seenNums = new Set();
   let noPropsCount = 0;
@@ -111,6 +125,13 @@ function parseFDXToScenes(xmlString, opts = {}) {
     const bodyParts = [];
     const charLines = {};
     const charPresentSet = new Set();
+    // Personnages tagués manuellement dans Final Draft (SceneArcBeats > CharacterArcBeat)
+    if (props) {
+      Array.from(props.querySelectorAll('SceneArcBeats > CharacterArcBeat')).forEach(b => {
+        const name = (b.getAttribute('Name') || '').trim().toUpperCase();
+        if (name) charPresentSet.add(name);
+      });
+    }
     for (let j = i + 1; j < paragraphs.length; j++) {
       const next = paragraphs[j];
       if (next.getAttribute('Type') === 'Scene Heading') break;
@@ -148,9 +169,18 @@ function parseFDXToScenes(xmlString, opts = {}) {
   return { scenes, errors };
 }
 
+// Clé de dédoublonnage sûre pour une Map de scènes : `sc` seul ne suffit pas
+// car Final Draft laisse souvent le numéro vide sur des scènes pas encore
+// renumérotées — sans repli sur l'index, toutes les scènes sans numéro
+// s'écrasent en une seule entrée dans la Map.
+function _sceneMapKey(s, i) {
+  const n = String(s.sc || '').trim();
+  return n ? n : '__unnumbered_' + i;
+}
+
 function diffScenes(oldRaw, newRaw) {
-  const oldMap = new Map((oldRaw||[]).map(s => [s.sc, s]));
-  const newMap = new Map(newRaw.map(s => [s.sc, s]));
+  const oldMap = new Map((oldRaw||[]).map((s, i) => [_sceneMapKey(s, i), s]));
+  const newMap = new Map(newRaw.map((s, i) => [_sceneMapKey(s, i), s]));
   const added=[], removed=[], modified=[], unchanged=[];
   for (const [sc, ns] of newMap) {
     const os = oldMap.get(sc);

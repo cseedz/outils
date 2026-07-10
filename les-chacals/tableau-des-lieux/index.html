@@ -6,6 +6,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="/src/fdx-parser.js"></script>
 <title>Les Chacals — Tableau des lieux</title>
 <style>
 :root {
@@ -1192,8 +1193,7 @@ let sb = null;
 let IS_SERIES = SCENES_RAW.some(r => r.ep);
 let imported_scenes_raw = null;  // set on FDX import; overrides SCENES_RAW as base
 let fdxVersions = [];  // archived FDX versions { id, date, label, scene_count, prev_scene_count, scenes_raw }
-function parseEp(sc) { const s=String(sc),dot=s.indexOf('.'); if(dot===-1)return{ep:0,scNum:parseFloat(s)||0}; return{ep:parseInt(s.slice(0,dot))||0,scNum:parseInt(s.slice(dot+1))||0}; }
-function fmtEp(sc) { const {ep}=parseEp(sc); return ep>0?'E'+String(ep).padStart(2,'0'):'—'; }
+// parseEp, fmtEp, _fdxParseHeading, parseFDXToScenes, diffScenes, _scSort → /src/fdx-parser.js
 let scenes = JSON.parse(JSON.stringify(SCENES_RAW));
 let lieusTournage = []; // {id, nom, adresse, couleur}
 let sortCol = -1, sortDir = 1;
@@ -3294,82 +3294,7 @@ function updateStickyTop() {
   });
 }
 
-// ─── FDX PARSER (JS port of extraire_fdx.py) ─────────────────────────────────
-function _fdxParseHeading(text) {
-  text = text.replace(/\xa0/g,' ').replace(/\s+/g,' ').trim();
-  text = text.replace(/\s*\*{1,2}\s*[A-ZÀ-Ü\s]+$/, '').trim();
-  const ieM = text.match(/^(INT\.?\/EXT\.?|EXT\.?\/INT\.?|INT\.?EXT\.?|EXT\.?INT\.?|INT\.?|EXT\.?)\s*\.?\s*/i);
-  let int_ext = '—', rest = text;
-  if (ieM) {
-    int_ext = ieM[1].toUpperCase().replace(/\./g,'').replace(/INTEXT/,'INT/EXT').replace(/EXTINT/,'EXT/INT');
-    rest = text.slice(ieM[0].length).trim();
-  }
-  const segs = rest.split(/\s+[-–]\s+/);
-  const locationRaw = segs[0].trim();
-  const jn = segs[1] ? segs[1].split(/\s+[-–]\s+/)[0].trim().toUpperCase() : '—';
-  let lieu = '', sous_lieu = '';
-  const slashPos = locationRaw.indexOf('/');
-  const parenPos = locationRaw.indexOf('(');
-  if (slashPos !== -1 && (parenPos === -1 || slashPos < parenPos)) {
-    const parts = locationRaw.split('/', 2);
-    lieu = parts[0].trim().toUpperCase();
-    sous_lieu = parts[1].replace(/\s*\(.*\)\s*$/, '').trim().toUpperCase();
-  } else if (parenPos !== -1) {
-    const m = locationRaw.match(/^(.+?)\s*\((.+)\)\s*$/);
-    if (m) { lieu = m[1].trim().toUpperCase(); sous_lieu = m[2].trim().toUpperCase(); }
-    else { lieu = locationRaw.trim().toUpperCase(); sous_lieu = ''; }
-  } else {
-    lieu = locationRaw.trim().toUpperCase();
-    sous_lieu = '';
-  }
-  return { int_ext, lieu, sous_lieu, jn };
-}
-
-function parseFDXToScenes(xmlString) {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(xmlString, 'application/xml');
-  const parseErr = doc.querySelector('parsererror');
-  if (parseErr) throw new Error('XML invalide : ' + (parseErr.textContent || '').slice(0, 120));
-  const content = doc.querySelector('Content');
-  if (!content) throw new Error('Aucun bloc <Content> dans ce fichier FDX');
-  const paragraphs = Array.from(content.children);
-  const errors = [], scenes = [];
-  const seenNums = new Set();
-  for (const para of paragraphs) {
-    if (para.getAttribute('Type') !== 'Scene Heading') continue;
-    const number = para.getAttribute('Number') || '';
-    const props = para.querySelector('SceneProperties');
-    const page = props ? (props.getAttribute('Page') || '0') : '0';
-    const duree = props ? (props.getAttribute('Length') || '0') : '0';
-    const rawText = Array.from(para.querySelectorAll('Text')).map(t => t.textContent||'').join('').trim();
-    if (!rawText) { errors.push(`Scène ${number||'?'} : en-tête vide`); continue; }
-    const { int_ext, lieu, sous_lieu, jn } = _fdxParseHeading(rawText);
-    if (!lieu || lieu === '—') errors.push(`Scène ${number} : lieu vide (${rawText.slice(0,60)})`);
-    if (seenNums.has(number)) errors.push(`Doublon : scène ${number}`);
-    seenNums.add(number);
-    scenes.push({ sc: number, int_ext, lieu, sous_lieu: sous_lieu || '', jn, page, duree });
-  }
-  return { scenes, errors };
-}
-
-// ─── DIFF ENGINE ─────────────────────────────────────────────────────────────
-function diffScenes(oldRaw, newRaw) {
-  const oldMap = new Map((oldRaw||[]).map(s => [s.sc, s]));
-  const newMap = new Map(newRaw.map(s => [s.sc, s]));
-  const added=[], removed=[], modified=[], unchanged=[];
-  for (const [sc, ns] of newMap) {
-    const os = oldMap.get(sc);
-    if (!os) { added.push(ns); }
-    else {
-      const changed = os.lieu!==ns.lieu || os.sous_lieu!==ns.sous_lieu ||
-                      os.jn!==ns.jn || os.page!==ns.page ||
-                      os.duree!==ns.duree || os.int_ext!==ns.int_ext;
-      if (changed) modified.push({ old: os, new: ns }); else unchanged.push(ns);
-    }
-  }
-  for (const [sc, os] of oldMap) { if (!newMap.has(sc)) removed.push(os); }
-  return { added, removed, modified, unchanged };
-}
+// parseFDXToScenes, diffScenes, _sceneMapKey, _fdxParseHeading → /src/fdx-parser.js
 
 // ─── IMPORT DIALOG ───────────────────────────────────────────────────────────
 let _pendingImport = null;

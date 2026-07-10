@@ -482,7 +482,7 @@ function _runBatchParse(opts) {
       allErrors = [...allErrors, ...errors.map(e => _pendingFiles.length > 1 ? `[${name}] ${e}` : e)];
     }
     const scMap = new Map();
-    allNewScenes.forEach(s => scMap.set(s.sc, s));
+    allNewScenes.forEach((s, i) => scMap.set(_sceneMapKey(s, i), s));
     const newScenes = [...scMap.values()].sort(_scSort);
     if (!newScenes.length) { _fdxShowToast('Aucune scène trouvée dans ces fichiers FDX'); return; }
     const currentBase = scenesRaw;
