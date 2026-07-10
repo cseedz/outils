@@ -143,10 +143,13 @@ function parseFDXToScenes(xmlString, opts = {}) {
     const charLines = {};
     const charPresentSet = new Set();
     // Personnages tagués manuellement dans Final Draft (SceneArcBeats > CharacterArcBeat)
+    // — certains tags sont groupés ("Thomas, Zack et Louis") en plus des tags
+    // individuels déjà présents pour la même scène ; on les scinde pour ne pas
+    // créer un faux personnage composite en double des noms individuels.
     if (props) {
       Array.from(props.querySelectorAll('SceneArcBeats > CharacterArcBeat')).forEach(b => {
-        const name = (b.getAttribute('Name') || '').trim().toUpperCase();
-        if (name) charPresentSet.add(name);
+        const raw = (b.getAttribute('Name') || '').trim();
+        if (raw) _splitCharacterNames(raw).forEach(name => charPresentSet.add(name));
       });
     }
     for (let j = i + 1; j < paragraphs.length; j++) {
