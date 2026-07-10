@@ -16,6 +16,23 @@ function fmtEp(sc) { const {ep}=parseEp(sc); return ep>0?'E'+String(ep).padStart
 
 const _JN_RE = /^(JOUR|SOIR|NUIT|MATIN|AUBE|CRÉPUSCULE|FIN DE JOURNÉE|CONTINU[E]?)$/i;
 
+// Termes de production qui ressemblent à une note de distribution en majuscules
+// ("FLASHBACK", "MONTAGE"…) mais qui n'en sont pas — filet de sécurité pour la
+// convention sans parenthèses, qui n'a pas d'autre marqueur syntaxique.
+const _GENERAL_NOTE_BLOCKLIST = new Set([
+  'FLASHBACK', 'FLASH-BACK', 'MONTAGE', 'INSERT', 'SUITE', 'FIN', 'NOIR',
+  'TRANSITION', 'GÉNÉRIQUE', 'PRÉCÉDEMMENT', 'RAPPEL',
+]);
+
+// Sépare une réplique de dialogue groupé en noms individuels — convention FD
+// informelle pour du dialogue simultané : un seul paragraphe Character contenant
+// plusieurs noms, ex. "Thomas, Zack et Louis" au lieu d'un vrai DualDialogue.
+function _splitCharacterNames(raw) {
+  let text = raw.replace(/\s*\(.*?\)\s*$/, '').trim();
+  text = text.replace(/\s+et\s+/gi, ', ').replace(/&/g, ',');
+  return text.split(',').map(p => p.trim().toUpperCase()).filter(n => n.length >= 2);
+}
+
 function _detectFdxOptions(xmlString) {
   const doc = new DOMParser().parseFromString(xmlString, 'application/xml');
   const paras = Array.from(doc.querySelectorAll('Paragraph[Type="Scene Heading"]'));
@@ -139,16 +156,27 @@ function parseFDXToScenes(xmlString, opts = {}) {
       const t = Array.from(next.querySelectorAll('Text')).map(n => n.textContent||'').join('').trim();
       if (!t) continue;
       if (type === 'Character') {
-        const name = t.replace(/\s*\(.*?\)\s*$/, '').trim().toUpperCase();
-        if (name) charLines[name] = (charLines[name] || 0) + 1;
+        _splitCharacterNames(t).forEach(name => { charLines[name] = (charLines[name] || 0) + 1; });
         bodyParts.push((bodyParts.length ? '\n' : '') + t.toUpperCase() + ' :');
       } else if (type === 'General') {
         bodyParts.push(t);
+        // Note de distribution manuelle — deux conventions : "(Nom, Nom)" entre
+        // parenthèses, ou "NOM, NOM" en majuscules sans parenthèses (PT S1-2, RF, PT S4)
         const castM = t.match(/^\((.+)\)$/);
+        let castBody = null;
         if (castM) {
-          castM[1].split(',').forEach(part => {
+          castBody = castM[1];
+        } else if (!t.trim().endsWith(':')) {
+          const skeleton = t.replace(/\([^)]*\)/g, '');
+          const letters = skeleton.replace(/[^A-Za-zÀ-ÿ]/g, '');
+          if (letters && letters === letters.toUpperCase() && !/[.!?;]/.test(skeleton)) castBody = t;
+        }
+        if (castBody) {
+          // Normaliser les énumérations à la française ("Thomas, Zack et Louis")
+          castBody = castBody.replace(/\s+et\s+/gi, ', ').replace(/&/g, ',');
+          castBody.split(',').forEach(part => {
             const name = part.replace(/\(.*?\)/g, '').trim().toUpperCase();
-            if (name && name.length >= 2 && name.length < 50) charPresentSet.add(name);
+            if (name && name.length >= 2 && name.length < 50 && !_GENERAL_NOTE_BLOCKLIST.has(name)) charPresentSet.add(name);
           });
         }
       } else if (type === 'Parenthetical') {
