@@ -3282,6 +3282,26 @@ function renderVueLieux() {
 }
 
 // ─── SUPABASE STORAGE PHOTOS ─────────────────────────────────────────────────
+// Vignette 300px générée dans le navigateur au moment de l'upload : le rendu
+// des grilles n'utilise ainsi jamais les Image Transformations facturées.
+function _makeThumbBlob(file) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      const scale = Math.min(1, 300 / img.naturalWidth);
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+      canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.8);
+    };
+    img.onerror = () => { URL.revokeObjectURL(objectUrl); resolve(null); };
+    img.src = objectUrl;
+  });
+}
+
 async function uploadToStorage(file) {
   const ext = (file.name || 'photo.jpg').split('.').pop().toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
   const path = `photos_locations/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
@@ -3292,6 +3312,16 @@ async function uploadToStorage(file) {
     body: file
   });
   if (!res.ok) throw new Error('Upload échoué : ' + res.status);
+  // Vignette en best-effort : si elle échoue, _iRet retombera sur l'original.
+  _makeThumbBlob(file).then((blob) => {
+    if (!blob) return;
+    fetch(`${SUPABASE_URL}/storage/v1/object/${STORAGE_BUCKET}/thumbs/${path}`, {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`,
+                  'Content-Type': 'image/jpeg', 'x-upsert': 'true' },
+      body: blob
+    }).catch(() => {});
+  }).catch(() => {});
   return `${SUPABASE_URL}/storage/v1/object/public/${STORAGE_BUCKET}/${path}`;
 }
 const uploadToCloudinary = uploadToStorage; // compat
@@ -3425,6 +3455,13 @@ function _deleteFromStorage(url) {
     method: 'DELETE',
     headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
   }).catch(e => console.warn('Suppression Storage échouée:', e));
+  // Supprimer aussi la vignette associée (best-effort)
+  if (!path.startsWith('thumbs/')) {
+    fetch(`${SUPABASE_URL}/storage/v1/object/${STORAGE_BUCKET}/thumbs/${path}`, {
+      method: 'DELETE',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+    }).catch(() => {});
+  }
 }
 const _deleteFromCloudinary = _deleteFromStorage; // compat
 
@@ -3527,9 +3564,10 @@ function sortPhotoUrls(urls) {
 function cdnUrl(url, full) {
   if (!url) return '';
   if (full) return url;
-  // Supabase Storage — thumbnail via render endpoint
-  if (url.includes('/storage/v1/object/public/')) {
-    return url.replace('/storage/v1/object/public/', '/storage/v1/render/image/public/') + '?width=300&quality=80';
+  // Supabase Storage — vignette pré-générée dans thumbs/ (aucune Image
+  // Transformation facturée ; _iRet retombe sur l'original si absente)
+  if (url.includes(`/storage/v1/object/public/${STORAGE_BUCKET}/`) && !url.includes(`/${STORAGE_BUCKET}/thumbs/`)) {
+    return url.replace(`/storage/v1/object/public/${STORAGE_BUCKET}/`, `/storage/v1/object/public/${STORAGE_BUCKET}/thumbs/`);
   }
   // Legacy Cloudinary
   const m = url.match(/^(https:\/\/res\.cloudinary\.com\/[^/]+\/image\/upload\/)(v\d+\/.+)$/);
@@ -3540,8 +3578,12 @@ function _iRet(i) {
   i._e = (i._e || 0) + 1;
   if (i._e === 1) {
     var u = i.src, p = u.replace(/\/w_\d+,q_auto,f_auto\//, '/');
+    if (p === u && u.includes('/storage/v1/object/public/' + STORAGE_BUCKET + '/thumbs/')) {
+      // Vignette absente : retomber sur l'objet original
+      p = u.replace('/storage/v1/object/public/' + STORAGE_BUCKET + '/thumbs/', '/storage/v1/object/public/' + STORAGE_BUCKET + '/').split('?')[0];
+    }
     if (p === u && u.includes('/storage/v1/render/image/public/')) {
-      // Supabase Storage — la transformation a échoué (edge froid) : retomber sur l'objet original non transformé
+      // Ancienne URL de transformation encore en vol : retomber sur l'original
       p = u.replace('/storage/v1/render/image/public/', '/storage/v1/object/public/').split('?')[0];
     }
     if (p !== u) { i.dataset.fb = p; i.src = p; return; }
